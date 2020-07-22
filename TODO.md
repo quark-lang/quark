@@ -9,7 +9,8 @@
 
 <p align="center"> 
     TODO
-    <br> 
+    <br>
+    Configure TypeScript for absolute path imports
+    Allow older Node versions
 </p>
 
-Nothing to show.
