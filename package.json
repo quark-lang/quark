@@ -1,11 +1,13 @@
 {
-  "name": "quark-lang",
+  "name": "@nessmcfr/quark-lang",
   "version": "1.0.0",
   "description": "⚛ Quark programming language",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc-watch -p . --onSuccess \"node dist/index.js\""
+    "test": ".\\node_modules\\.bin\\uvu -r ts-node/register",
+    "build": ".\\node_modules\\.bin\\tsc",
+    "start": "node dist/index.js",
+    "lint": ".\\node_modules\\.bin\\eslint . --ext .ts --fix"
   },
   "repository": {
     "type": "git",
@@ -17,12 +19,22 @@
     "programming"
   ],
   "author": "NessMC",
-  "license": "ISC",
+  "license": "CC0-1.0",
   "bugs": {
     "url": "https://github.com/NessMC/quark-lang/issues"
   },
   "homepage": "https://github.com/NessMC/quark-lang#readme",
   "devDependencies": {
-    "@types/node": "^14.0.24"
+    "@types/node": "^14.0.25",
+    "@typescript-eslint/eslint-plugin": "^3.7.0",
+    "@typescript-eslint/parser": "^3.7.0",
+    "eslint": "^7.5.0",
+    "eslint-plugin-import": "^2.22.0",
+    "typescript": "^3.9.7",
+    "uvu": "^0.3.0"
+  },
+  "dependencies": {
+    "eslint-config-airbnb-typescript": "^9.0.0",
+    "ts-node": "^8.10.2"
   }
 }

@@ -3,8 +3,10 @@
         "rootDir": "./src",
         "outDir": "./dist",
         "watch": true,
+        "target": "ES5",
         "lib": [
             "ES2015",
+            "ES2016",
             "dom",
             "es7"
         ],

@@ -9,5 +9,5 @@ services:
     ports:
       - '3000:3000'
     volumes:
-      - .:/home/app/quark-lang
+      - .:/home/app/quark-lang/
       - /home/app/quark-lang/node_modules

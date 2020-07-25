@@ -88,6 +88,11 @@ To deploy Quark lang, do:
  $ git init
  $ git remote add origin git@github.com:NessMC/quark-lang.git
  $ git pull
+
+ # OR
+
+ $ docker pull nessmcfr/quark-lang
+ $ docker run nessmcfr/quark-lang
 ```
 
 ## ✍️ Authors <a name = "authors"></a>
