@@ -4,10 +4,9 @@
 ////////////////////////////////////// */
 
 import { VM } from 'interfaces/vm';
-import { Stack } from 'interfaces/stack';
+import { Stack, StackValue, StackSymbol } from 'interfaces/stack';
+
 import bytecode from 'vm/bytecode';
-import { Symbol } from 'interfaces/symbol';
-import { Value } from 'interfaces/stackValue';
 // import operators from 'core/tokens/operators';
 // import * as jesp from 'jsep';
 
@@ -46,15 +45,15 @@ export default class VirtualMachine {
     return results.length > 0 ? results[0] : undefined;
   }
 
-  private findSymbolByBytecode(byte: string): Symbol | undefined {
-    const results: Array<Symbol> = Object.entries(this.symbols)
+  private findSymbolByBytecode(byte: string): StackSymbol | undefined {
+    const results: Array<StackSymbol> = Object.entries(this.symbols)
       .filter((x) => x[0] === byte)
       .map((x) => x[1]);
     return results.length > 0 ? results[0] : undefined;
   }
 
   // eslint-disable-next-line class-methods-use-this
-  private bytecodesToValue(bytes: Symbol): string | undefined {
+  private bytecodesToValue(bytes: StackSymbol): string | undefined {
     if (!bytes) return undefined;
     if (bytes.type === 'string') {
       return bytes.value
@@ -71,18 +70,18 @@ export default class VirtualMachine {
     return 'values';
   }
 
-  private getInitialSymbolInValue(value: Value) {
+  private getInitialSymbolInValue(value: StackValue) {
     if (!value) return value;
     if (this.checkStackCategory(value.bound) === 'symbols') return this.stack.symbols[value.bound];
     return this.getInitialSymbolInValue(this.stack.values[value.bound]);
   }
 
-  private getBytesByStackCategory(element: string): Symbol {
+  private getBytesByStackCategory(element: string): StackSymbol {
     if (!element) return null;
 
     const stackValues = this.stack.values;
     const stackCategory = this.checkStackCategory(stackValues[element]);
-    const boundStackCategory = this.checkStackCategory(stackValues[element].bound);
+    const boundStackCategory = this.checkStackCategory(stackValues[element] ? stackValues[element].bound : '');
     if (stackValues[element]) return this.findSymbolByBytecode(element);
     if (stackCategory === 'values' && boundStackCategory === 'values') {
       return this.getInitialSymbolInValue(this.stack.values[element]);
@@ -95,11 +94,11 @@ export default class VirtualMachine {
       line.map((element: string) => {
         if (this.findStateByBytecode(element)) this.state = this.findStateByBytecode(element);
         else if (this.state === 'PRINT') {
-          const bytes: Symbol = this.getBytesByStackCategory(element);
+          const bytes: StackSymbol = this.getBytesByStackCategory(element);
           if (bytes) this.expression.push(this.bytecodesToValue(bytes));
           else {
-            const boundBytes: Symbol = this.findSymbolByBytecode(
-              this.stack.values[element].bound,
+            const boundBytes: StackSymbol = this.findSymbolByBytecode(
+              this.stack.values[element] ? this.stack.values[element].bound : '',
             );
             if (boundBytes) this.expression.push(this.bytecodesToValue(boundBytes));
           }
@@ -113,7 +112,7 @@ export default class VirtualMachine {
           this.stack.values[this.tmp.bytecode].bound = element;
         } else if (this.state === 'VARIABLE::MODIFICATION') {
           if (this.checkStackCategory(element) === 'symbols') {
-            const symbol: Symbol = this.findSymbolByBytecode(element);
+            const symbol: StackSymbol = this.findSymbolByBytecode(element);
             this.symbols[this.stack.values[this.tmp.bytecode].bound].value = symbol.value;
           } else {
             this.stack.values[this.tmp.bytecode].bound = this.stack.values[
