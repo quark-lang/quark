@@ -1,6 +1,6 @@
 import { Lexer, Token, Tokens } from './lexer.ts';
 
-type Node = Array<string | Node>
+type Node = (string | Node)[];
 
 export class Parser {
   private static tokens: Token[];
@@ -14,15 +14,15 @@ export class Parser {
   }
 
   public static parse(source: string) {
-    this.tokens = new Lexer(source).lexer();
+    this.tokens = new Lexer(source).tokenize();
     const Parse = (index: number = 0, ast: Node = this.ast): Node => {
       const token: Token = this.tokens[index];
       if (!token) return this.ast;
       if (token.token === Tokens.Node) {
         if (['(', '{'].includes(token.value)) {
           this.parents.push(ast.length + 1);
-          ast.push([] as Node);
-          return Parse(index + 1, ast.slice(-1)[0] as Node)
+          ast.push([]);
+          return Parse(index + 1, ast.slice(-1)[0] as Node);
         } else {
           return Parse(index + 1, this.goTo(1));
         }

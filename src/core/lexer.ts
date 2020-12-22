@@ -23,7 +23,7 @@ export class Lexer {
       .map((line: string) => line.trim())
       .join('');
   }
-  public lexer(): Token[] {
+  public tokenize(): Token[] {
     let state: string = '';
     // Container variable contains processed tokens
     const container: Token[] = [];
