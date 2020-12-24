@@ -1,19 +1,8 @@
-// Tokens list
-export enum Tokens {
-  Node = 'Node',
-  String = 'String',
-  Word = 'Word',
-}
-
-// Token Node type
-export type Node = '(' | ')' | '{' | '}';
-
-// Token interface
-export interface Token {
-  token: Tokens,
-  value: Node | string,
-}
-
+import {
+  Token,
+  Tokens,
+  Node,
+} from '../typings/token.ts';
 export class Lexer {
   private static code: string;
 
