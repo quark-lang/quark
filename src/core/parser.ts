@@ -13,24 +13,25 @@ export class Parser {
     return this.goTo(it - 1, ast[it - 1] as Node);
   }
 
-  public static parse(source: string) {
-    this.tokens = new Lexer(source).tokenize();
-    const Parse = (index: number = 0, ast: Node = this.ast): Node => {
-      const token: Token = this.tokens[index];
-      if (!token) return this.ast;
-      if (token.token === Tokens.Node) {
-        if (['(', '{'].includes(token.value)) {
-          this.parents.push(ast.length + 1);
-          ast.push([]);
-          return Parse(index + 1, ast.slice(-1)[0] as Node);
-        } else {
-          return Parse(index + 1, this.goTo(1));
-        }
-      } else if ([Tokens.String, Tokens.Word].includes(token.token)) {
-        ast.push(token.value);
+  private static process(index: number, ast: Node): Node {
+    const token: Token = this.tokens[index];
+    if (!token) return this.ast;
+    if (token.token === Tokens.Node) {
+      if (['(', '{'].includes(token.value)) {
+        this.parents.push(ast.length + 1);
+        ast.push([]);
+        return this.process(index + 1, ast.slice(-1)[0] as Node);
+      } else {
+        return this.process(index + 1, this.goTo(1));
       }
-      return Parse(index + 1, ast);
+    } else if ([Tokens.String, Tokens.Word].includes(token.token)) {
+      ast.push(token.value);
     }
-    return Parse();
+    return this.process(index + 1, ast);
+  }
+
+  public static parse(source: string) {
+    this.tokens = Lexer.tokenize(source);
+    return this.process(0, this.ast);
   }
 }

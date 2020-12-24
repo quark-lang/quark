@@ -15,15 +15,9 @@ export interface Token {
 }
 
 export class Lexer {
-  private readonly code: string;
-  constructor(content: string) {
-    // Formatting content
-    this.code = content
-      .split(/\r?\n/g)
-      .map((line: string) => line.trim())
-      .join('');
-  }
-  public tokenize(): Token[] {
+  private static code: string;
+
+  private static lexing(): Token[] {
     let state: string = '';
     // Container variable contains processed tokens
     const container: Token[] = [];
@@ -62,5 +56,14 @@ export class Lexer {
     }
     // Removing empty tokens from container
     return container.filter((token: Token) => token.value.length > 0);
+  }
+
+  public static tokenize(source: string): Token[] {
+    // Formatting content
+    this.code = source
+      .split(/\r?\n/g)
+      .map((line: string) => line.trim())
+      .join('');
+    return this.lexing();
   }
 }
