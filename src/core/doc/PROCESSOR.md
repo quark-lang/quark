@@ -66,3 +66,5 @@ Then it returns a call of itself to the next token.
 ```ts
 return this.parse(index + 1, ast);
 ```
+
+[Back to table of content](../README.md)

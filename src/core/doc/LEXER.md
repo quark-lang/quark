@@ -105,3 +105,5 @@ Lexer simply push char to temporary code.
 
 #### Final step
 Before returning container, lexer is checking for empty tokens and remove it.
+
+[Back to table of content](../README.md)
