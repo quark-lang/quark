@@ -13,25 +13,25 @@ export class Processor {
     return this.goTo(it - 1, ast[it - 1] as Node);
   }
 
-  private static process(index: number, ast: Node): Node {
+  private static parse(index: number, ast: Node): Node {
     const token: Token = this.tokens[index];
     if (!token) return this.ast;
     if (token.token === Tokens.Node) {
       if (['(', '{'].includes(token.value)) {
         this.parents.push(ast.length + 1);
         ast.push([]);
-        return this.process(index + 1, ast.slice(-1)[0] as Node);
+        return this.parse(index + 1, ast.slice(-1)[0] as Node);
       } else {
-        return this.process(index + 1, this.goTo(1));
+        return this.parse(index + 1, this.goTo(1));
       }
     } else if ([Tokens.String, Tokens.Word].includes(token.token)) {
       ast.push(token.value);
     }
-    return this.process(index + 1, ast);
+    return this.parse(index + 1, ast);
   }
 
-  public static parse(source: string) {
+  public static process(source: string) {
     this.tokens = Lexer.tokenize(source);
-    return this.process(0, this.ast);
+    return this.parse(0, this.ast);
   }
 }
