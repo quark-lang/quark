@@ -2,7 +2,7 @@ import { Lexer, Token, Tokens } from './lexer.ts';
 
 type Node = (string | Node)[];
 
-export class Parser {
+export class Processor {
   private static tokens: Token[];
   private static ast: Node = [];
   private static parents: number[] = [];
