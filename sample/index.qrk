@@ -1,4 +1,4 @@
 {
-    (let username (+ "Thomas" "test"))
+    (let (+ "user" "name") (+ "Thomas" "test"))
     (print "Hello" username)
 }
