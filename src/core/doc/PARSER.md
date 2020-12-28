@@ -15,13 +15,11 @@ Finding parent method let parser find corresponding parent of node with recursiv
 private static findParent(node: Block, root: Block = this.ast): Block | null {
   let found: Block | null = null;
   for (const child of root) {
-    if (child === node) {
-      return root;
-    } else {
-      if (typeof child === 'string') continue;
-      found = this.findParent(node, child);
-      if (found !== null) return found;
-    }
+    if (child === node) return root;
+    
+    if (typeof child === 'string') continue;
+    found = this.findParent(node, child);
+    if (found !== null) return found;
   }
   return null;
 }
@@ -50,9 +48,8 @@ if (token.token === Tokens.Node) {
   if (['(', '{'].includes(token.value)) {
     ast.push([]);
     return this.process(index + 1, ast.slice(-1)[0] as Block);
-  } else {
-    return this.process(index + 1, this.findParent(ast, this.ast) as Block);
   }
+  return this.process(index + 1, this.findParent(ast, this.ast) as Block);
 }
 ```
 Node checking is quite simple: In a first time, we're checking if it's a node opener or not to determine which action to execute:
@@ -62,13 +59,11 @@ Node checking is quite simple: In a first time, we're checking if it's a node op
 #### Other tokens parsing
 
 ```ts
-if ([Tokens.String, Tokens.Word].includes(token.token)) {
-  ast.push(token.value);
-}
+ast.push(token.value);
 return this.process(index + 1, ast);
 ```
 
-We simply check if current token is a String or a Word and then pushing token's value to ast.
-Finally we return self method call of current ast branch.
+We're simply pushing token's value to ast.
+Finally, we return self method call of current ast branch.
 
 [Back to table of content](../README.md)
