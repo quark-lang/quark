@@ -30,7 +30,7 @@ In Quark, processing is a recursive task which returns an array with either stri
 const token: Token = this.tokens[index];
 if (!token) return this.ast;
 ```
-Token variable is defined to make code simpler and clearer. Processor is obviously checking if token is defined or not, if tokens list reach the end.
+Token variable is defined to make code simpler and clearer. Parser is obviously checking if token is defined or not, if tokens list reach the end.
 In case of reaching end, function return complete ast.
 
 #### Node processing

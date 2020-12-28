@@ -4,4 +4,4 @@ This folder holds all of the needed files to make Quark work. From lexing to par
 ### Table of content
 
 - [Lexer](doc/LEXER.md)
-- [Processor](doc/PROCESSOR.md)
+- [Parser](doc/PROCESSOR.md)
