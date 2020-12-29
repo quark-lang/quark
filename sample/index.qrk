@@ -1,6 +1,8 @@
 {
-    (let (+ "user" "name") (+ "Thomas" "test"))
-    (let username "test")
-    (print "Hello" (+ username "!"))
-    (print stack)
+  (let username "Thomas")
+  (
+    if (= username "Thomas")
+    (print "Your name is Thomas")
+    (print "Your name isn't Thomas. It's" username)
+  )
 }

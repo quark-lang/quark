@@ -4,7 +4,7 @@ import { Parser } from './parser.ts';
 export class Interpreter {
   private static stack: Record<any, any> = {};
   private static ast: Block;
-  private static process(node: Block | Element, state?: string): Block | Element | string | Record<any, any> {
+  private static process(node: Block | Element, state?: string): Block | Element | string | Record<any, any> | boolean {
     if ('value' in node) {
       if (state && state === 'Identifier') return node.value as string;
       if (node.type === 'Word') {
@@ -21,7 +21,7 @@ export class Interpreter {
         const [expression, ...args] = node;
         if ('value' in (expression as Element)) {
           const expr = <Element>expression;
-          if (expr.value === '+') {
+          if (['+', '-', '/', '*'].includes(expr.value as string)) {
             if (state === 'Identifier') {
               (<Element[]>args).map((arg) => arg.type = 'Word');
             }
@@ -32,7 +32,12 @@ export class Interpreter {
               return this.process(acc) as any;
             });
             if (parsedArgs.length === 0) return '';
-            return parsedArgs.reduce((acc, cur) => acc + cur);
+            switch (expr.value) {
+              case '+': return parsedArgs.reduce((acc, cur) => acc + cur);
+              case '-': return parsedArgs.reduce((acc, cur) => acc - cur);
+              case '*': return parsedArgs.reduce((acc, cur) => acc * cur);
+              case '/': return parsedArgs.reduce((acc, cur) => acc / cur);
+            }
           } else if (expr.value === 'let') {
             const id: string = this.process(args[0] as Block, 'Identifier') as string;
             this.stack[id] = this.process(args[1] as Block);
@@ -43,6 +48,12 @@ export class Interpreter {
           } else if (expr.value === 'close') {
             console.log('Stopped due to', ...args.map((arg) => this.process(arg)) + '.');
             Deno.exit();
+          } else if (expr.value === 'if') {
+            if (this.process(args[0])) {
+              return this.process(args[1]);
+            } else return this.process(args[2]);
+          } else if (expr.value === '=') {
+            return this.process(args[0]) == this.process(args[1]);
           }
         }
 
