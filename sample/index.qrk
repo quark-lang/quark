@@ -2,4 +2,5 @@
     (let (+ "user" "name") (+ "Thomas" "test"))
     (let username "test")
     (print "Hello" (+ username "!"))
+    (print stack)
 }
