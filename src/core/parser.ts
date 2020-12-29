@@ -2,7 +2,10 @@ import {
   Token,
   Tokens,
 } from '../typings/token.ts';
-import { Block } from '../typings/block.ts';
+import {
+  Block,
+  Element,
+} from '../typings/block.ts';
 import { Lexer } from './lexer.ts';
 
 export class Parser {
@@ -14,7 +17,7 @@ export class Parser {
     for (const child of root) {
       if (child === node) return root;
 
-      if (typeof child === 'string') continue;
+      if ('type' in child && 'value' in child) continue;
       found = this.findParent(node, child);
       if (found !== null) return found;
     }
@@ -31,7 +34,22 @@ export class Parser {
       }
       return this.process(index + 1, this.findParent(ast, this.ast) as Block);
     }
-    ast.push(token.value);
+    if (token.value.startsWith('"')) {
+      ast.push({
+        type: 'String',
+        value: token.value.slice(1, token.value.length - 1),
+      });
+    } else if (!isNaN(Number(token.value))) {
+      ast.push({
+        type: 'Number',
+        value: Number(token.value),
+      });
+    } else {
+      ast.push({
+        type: 'Word',
+        value: token.value,
+      });
+    }
     return this.process(index + 1, ast);
   }
 
