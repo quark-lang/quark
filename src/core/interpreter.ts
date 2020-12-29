@@ -54,6 +54,8 @@ export class Interpreter {
             } else return this.process(args[2]);
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
+          } else if (expr.value === 'func') {
+            return this.stack[(<Element>args[0]).value] = args[1] as Block;
           }
         }
 

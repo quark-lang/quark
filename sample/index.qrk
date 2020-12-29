@@ -1,8 +1,6 @@
 {
   (let username "Thomas")
-  (
-    if (= username "Thomas")
-    (print "Your name is Thomas")
-    (print "Your name isn't Thomas. It's" username)
-  )
+  (func welcome (name) {
+    (print "Hello" name)
+  })
 }
