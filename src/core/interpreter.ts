@@ -8,7 +8,6 @@ export class Interpreter {
     if ('value' in node) {
       if (state && state === 'Identifier') return node.value as string;
       if (node.type === 'Word') {
-        if (node.value === 'stack') return this.stack;
         if (this.stack[node.value]) return this.stack[node.value];
         return node.value as string;
       }
@@ -55,19 +54,20 @@ export class Interpreter {
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
           } else if (expr.value === 'func') {
-            this.stack[(<Element>args[0]).value] = {
+            this.stack[this.process(args[0]) as string] = {
               arguments: (<Element[]>this.process(args[1])).map((arg: Element) => arg.value),
               body: args[2] as Block,
+              type: 'function',
             };
             return args[1];
           } else {
-            const fn = this.stack[(<Element>expr).value];
-            if (fn) {
+            const fn = this.process(expr) as Record<any, any>;
+            if (fn && fn.type === 'function') {
               for (const arg in args) this.stack[fn.arguments[arg]] = this.process(args[arg]);
               this.process(fn.body);
-              for (const arg in args) delete this.stack[fn.arguments[arg]];
-              return expr;
+              for (const arg in args) delete this.stack[arg];
             }
+            return node;
           }
         }
 
