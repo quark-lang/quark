@@ -1,11 +1,5 @@
-import {
-  Token,
-  Tokens,
-} from '../typings/token.ts';
-import {
-  Block,
-  Element,
-} from '../typings/block.ts';
+import { Token, Tokens, } from '../typings/token.ts';
+import { Block, } from '../typings/block.ts';
 import { Lexer } from './lexer.ts';
 
 export class Parser {
@@ -55,6 +49,7 @@ export class Parser {
 
   public static parse(source: string) {
     this.tokens = Lexer.tokenize(source);
+    this.ast = [];
     return this.process(0, this.ast);
   }
 }

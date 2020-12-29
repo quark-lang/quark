@@ -24,7 +24,7 @@ export class Interpreter {
           if (expr.value === '+') {
             if (state === 'Identifier') {
               (<Element[]>args).map((arg) => arg.type = 'Word');
-            };
+            }
             const parsedArgs = args.map((acc) => {
               if ('value' in acc && acc.type === 'Number') {
                 return Number(this.process(acc)) as any;
@@ -40,6 +40,9 @@ export class Interpreter {
           } else if (expr.value === 'print') {
             console.log(...args.map((arg) => this.process(arg)));
             return node;
+          } else if (expr.value === 'close') {
+            console.log('Stopped due to', ...args.map((arg) => this.process(arg)) + '.');
+            Deno.exit();
           }
         }
 
