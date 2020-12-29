@@ -3,4 +3,5 @@
   (func welcome (name) {
     (print "Hello" name)
   })
+  (welcome "Thomas")
 }

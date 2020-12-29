@@ -55,7 +55,19 @@ export class Interpreter {
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
           } else if (expr.value === 'func') {
-            return this.stack[(<Element>args[0]).value] = args[1] as Block;
+            this.stack[(<Element>args[0]).value] = {
+              arguments: (<Element[]>this.process(args[1])).map((arg: Element) => arg.value),
+              body: args[2] as Block,
+            };
+            return args[1];
+          } else {
+            const fn = this.stack[(<Element>expr).value];
+            if (fn) {
+              for (const arg in args) this.stack[fn.arguments[arg]] = this.process(args[arg]);
+              this.process(fn.body);
+              for (const arg in args) delete this.stack[fn.arguments[arg]];
+              return expr;
+            }
           }
         }
 
