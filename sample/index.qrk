@@ -1,7 +1,7 @@
 {
   (let username "Thomas")
-  (func (+ "wel" "come") (name test) {
-    (print "Hello" name)
+  (func (+ "wel" "come") (name) {
+    (+ "Hello" name)
   })
-  (welcome "Thomas")
+  (print (welcome "Thomas"))
 }

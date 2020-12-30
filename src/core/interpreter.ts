@@ -54,23 +54,29 @@ export class Interpreter {
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
           } else if (expr.value === 'func') {
+            const processedArgs = this.process(args[1]);
+            const parsedArgs = Array.isArray(processedArgs)
+              ? (<Element[]>processedArgs).map((arg: Element) => arg.value)
+              : [processedArgs];
             this.stack[this.process(args[0]) as string] = {
-              arguments: (<Element[]>this.process(args[1])).map((arg: Element) => arg.value),
+              arguments: parsedArgs,
               body: args[2] as Block,
               type: 'function',
             };
-            return args[1];
-          } else {
-            const fn = this.process(expr) as Record<any, any>;
-            if (fn && fn.type === 'function') {
-              for (const arg in args) this.stack[fn.arguments[arg]] = this.process(args[arg]);
-              this.process(fn.body);
-              for (const arg in args) delete this.stack[arg];
-            }
-            return node;
+            return this.process(args[1]);
+          } else if (expr.value === 'return') {
+            const returnValue = this.process(args[0]);
+            return returnValue;
+          } else if (this.process(expr) && (<Record<any, any>>this.process(expr)).type === 'function') {
+            const fn: Record<any, any> = this.process(expr) as Record<any, any>;
+            for (const index in args) this.stack[fn.arguments[index]] = this.process(args[index]);
+            const result = this.process(fn.body as Block);
+            const returnValue = this.process((<Block>result).slice(-1)[0]);
+            for (const arg of args) delete this.stack[(<Element>arg).value];
+            return returnValue;
           }
+          return this.process(child);
         }
-
       }
     }
     return node;
