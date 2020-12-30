@@ -1,5 +1,5 @@
-import { Block, Element } from '../typings/block.ts';
-import { Parser } from './parser.ts';
+import {Block, Element} from '../typings/block.ts';
+import {Parser} from './parser.ts';
 
 export class Interpreter {
   private static stack: Record<any, any> = {};
@@ -8,7 +8,7 @@ export class Interpreter {
     if ('value' in node) {
       if (state && state === 'Identifier') return node.value as string;
       if (node.type === 'Word') {
-        if (this.stack[node.value]) return this.stack[node.value];
+        if (this.stack[node.value] !== undefined) return this.stack[node.value];
         return node.value as string;
       }
       return node.value as string;
@@ -65,14 +65,15 @@ export class Interpreter {
             };
             return this.process(args[1]);
           } else if (expr.value === 'return') {
-            const returnValue = this.process(args[0]);
-            return returnValue;
+            return this.process(args[0]);
           } else if (this.process(expr) && (<Record<any, any>>this.process(expr)).type === 'function') {
             const fn: Record<any, any> = this.process(expr) as Record<any, any>;
             for (const index in args) this.stack[fn.arguments[index]] = this.process(args[index]);
-            const result = this.process(fn.body as Block);
-            const returnValue = this.process((<Block>result).slice(-1)[0]);
+            const fnBody = (<Block>fn.body).slice(0, fn.body.length - 1);
+            if (fnBody.length > 0) this.process(fnBody);
+            const returnValue = this.process((<Block>fn.body).slice(-1)[0]);
             for (const arg of args) delete this.stack[(<Element>arg).value];
+            if (returnValue === fn.body.slice(-1)[0]) return 'null';
             return returnValue;
           }
           return this.process(child);
