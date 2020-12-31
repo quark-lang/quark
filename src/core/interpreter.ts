@@ -71,7 +71,7 @@ export class Interpreter {
             const fn: Record<any, any> = this.process(expr) as Record<any, any>;
             for (const index in args) this.stack[fn.arguments[index]] = this.process(args[index]);
             return this.process(fn.body);
-          } else if (expr.type === 'String') {
+          } else if (['Word', 'String', 'Number'].includes(expr.type)) {
             return this.process(expr);
           }
           return node;
