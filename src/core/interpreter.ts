@@ -38,6 +38,12 @@ export class Interpreter {
               case '*': return parsedArgs.reduce((acc, cur) => acc * cur);
               case '/': return parsedArgs.reduce((acc, cur) => acc / cur);
             }
+          } else if (expr.value === 'import') {
+            return args.map((arg) => {
+              const array = Deno.readFileSync(Deno.cwd() + '/sample/' + (<Element>arg).value + '.qrk');
+              const parsed = Parser.parse(new TextDecoder('utf-8').decode(array));
+              return this.process(parsed);
+            });
           } else if (expr.value === 'let') {
             const id: string = this.process(args[0] as Block, 'Identifier') as string;
             this.stack[id] = this.process(args[1] as Block);
@@ -53,6 +59,8 @@ export class Interpreter {
             return this.process(args[2]);
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
+          } else if (expr.value === 'list') {
+            return [...args.map((arg) => this.process(arg))];
           } else if (expr.value === 'fn') {
             const processedArgs = this.process(args[1]);
             const parsedArgs = Array.isArray(processedArgs)
