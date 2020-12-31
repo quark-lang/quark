@@ -1,10 +1,9 @@
 {
-  (let username "Thomas")
-  (fn counter (to count) {
-    (if (= to count) (print to) {
-        (print count)
-        (counter to (+ count 1))
-    })
+  (fn factorial (n) {
+    (if (= n 1)
+      (return n)
+      (return (* n (factorial (- n 1))))
+    )
   })
-  (print (counter 5 0))
+  (print (factorial 5))
 }
