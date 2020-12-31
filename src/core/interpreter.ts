@@ -40,9 +40,19 @@ export class Interpreter {
             }
           } else if (expr.value === 'import') {
             return args.map((arg) => {
-              const array = Deno.readFileSync(Deno.cwd() + '/sample/' + (<Element>arg).value + '.qrk');
-              const parsed = Parser.parse(new TextDecoder('utf-8').decode(array));
-              return this.process(parsed);
+              const path = Deno.cwd() + '/sample/' + (<Element>arg).value;
+              if (Deno.statSync(path).isDirectory) {
+                for (const file of Deno.readDirSync(path)) {
+                  const filePath = path + '/' + file.name;
+                  const array = Deno.readFileSync(filePath);
+                  const parsed = Parser.parse(new TextDecoder('utf-8').decode(array));
+                  this.process(parsed);
+                }
+              } else {
+                const array = Deno.readFileSync(path);
+                const parsed = Parser.parse(new TextDecoder('utf-8').decode(array));
+                return this.process(parsed);
+              }
             });
           } else if (expr.value === 'let') {
             const id: string = this.process(args[0] as Block, 'Identifier') as string;
@@ -57,8 +67,18 @@ export class Interpreter {
           } else if (expr.value === 'if') {
             if (this.process(args[0])) return this.process(args[1]);
             return this.process(args[2]);
+          } else if (expr.value === 'index') {
+            return this.process(args[0])[this.process(args[1])] || 'none';
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
+          } else if (expr.value === '!=') {
+            return this.process(args[0]) != this.process(args[1]);
+          } else if (expr.value === 'while') {
+            let res;
+            while (this.process(args[0])) {
+              res = this.process(args[1]);
+            }
+            return res;
           } else if (expr.value === 'list') {
             return [...args.map((arg) => this.process(arg))];
           } else if (expr.value === 'fn') {
