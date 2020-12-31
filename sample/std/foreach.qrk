@@ -1,0 +1,10 @@
+{
+  (import "std/length")
+  (let foreach (fn (array cb) {
+    (let u 0)
+    (while (!= u (length array)) {
+      (cb (index array u))
+      (let u (+ u 1))
+    })
+  }))
+}
