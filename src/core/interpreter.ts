@@ -48,9 +48,8 @@ export class Interpreter {
             console.log('Stopped due to', ...args.map((arg) => this.process(arg)) + '.');
             Deno.exit();
           } else if (expr.value === 'if') {
-            if (this.process(args[0])) {
-              return this.process(args[1]);
-            } else return this.process(args[2]);
+            if (this.process(args[0])) return this.process(args[1]);
+            return this.process(args[2]);
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
           } else if (expr.value === 'func') {
@@ -62,6 +61,7 @@ export class Interpreter {
               arguments: parsedArgs,
               body: args[2] as Block,
               type: 'function',
+              callee: {},
             };
             return this.process(args[1]);
           } else if (expr.value === 'return') {
@@ -69,14 +69,11 @@ export class Interpreter {
           } else if (this.process(expr) && (<Record<any, any>>this.process(expr)).type === 'function') {
             const fn: Record<any, any> = this.process(expr) as Record<any, any>;
             for (const index in args) this.stack[fn.arguments[index]] = this.process(args[index]);
-            const fnBody = (<Block>fn.body).slice(0, fn.body.length - 1);
-            if (fnBody.length > 0) this.process(fnBody);
-            const returnValue = this.process((<Block>fn.body).slice(-1)[0]);
-            for (const arg of args) delete this.stack[(<Element>arg).value];
-            if (returnValue === fn.body.slice(-1)[0]) return 'null';
-            return returnValue;
+            return this.process(fn.body);
+          } else if (expr.type === 'String') {
+            return this.process(expr);
           }
-          return this.process(child);
+          return node;
         }
       }
     }
