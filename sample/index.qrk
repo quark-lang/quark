@@ -1,6 +1,10 @@
 {
-  (func counter (to count) {
-    (return "test")
+  (let username "Thomas")
+  (fn counter (to count) {
+    (if (= to count) (print to) {
+        (print count)
+        (counter to (+ count 1))
+    })
   })
   (print (counter 5 0))
 }

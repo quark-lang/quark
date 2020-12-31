@@ -4,7 +4,8 @@ import {Parser} from './parser.ts';
 export class Interpreter {
   private static stack: Record<any, any> = {};
   private static ast: Block;
-  private static process(node: Block | Element, state?: string): Block | Element | string | Record<any, any> | boolean {
+  private static process(node: Block | Element, state?: string): any | void {
+    let returned;
     if ('value' in node) {
       if (state && state === 'Identifier') return node.value as string;
       if (node.type === 'Word') {
@@ -15,7 +16,7 @@ export class Interpreter {
     }
     for (const child of node) {
       if (Array.isArray(child)) {
-        this.process(child);
+        returned = this.process(child);
       } else {
         const [expression, ...args] = node;
         if ('value' in (expression as Element)) {
@@ -42,8 +43,8 @@ export class Interpreter {
             this.stack[id] = this.process(args[1] as Block);
             return this.stack[id];
           } else if (expr.value === 'print') {
-            console.log(...args.map((arg) => this.process(arg)));
-            return node;
+            return console.log(...args.map((arg) => this.process(arg)));
+            return '';
           } else if (expr.value === 'close') {
             console.log('Stopped due to', ...args.map((arg) => this.process(arg)) + '.');
             Deno.exit();
@@ -52,7 +53,7 @@ export class Interpreter {
             return this.process(args[2]);
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
-          } else if (expr.value === 'func') {
+          } else if (expr.value === 'fn') {
             const processedArgs = this.process(args[1]);
             const parsedArgs = Array.isArray(processedArgs)
               ? (<Element[]>processedArgs).map((arg: Element) => arg.value)
@@ -77,7 +78,8 @@ export class Interpreter {
         }
       }
     }
-    return node;
+    if (returned) return returned;
+    return 'none';
   }
   public static run(source: string) {
     this.ast = Parser.parse(source);
