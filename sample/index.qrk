@@ -1,4 +1,5 @@
 {
-  (import "factorial")
-  (print (factorial 5))
+  (import "std")
+  (let usernames (list "Thomas" "Ness" "ImRobot"))
+  (print (length "Thomas"))
 }

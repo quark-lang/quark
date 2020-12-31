@@ -1,0 +1,7 @@
+(fn length (el) {
+    (let i 0)
+    (while (!= (index el i) none) {
+        (let i (+ i 1))
+    })
+    i
+})
