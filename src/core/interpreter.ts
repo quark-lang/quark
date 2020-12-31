@@ -1,9 +1,11 @@
 import {Block, Element} from '../typings/block.ts';
 import {Parser} from './parser.ts';
+import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 
 export class Interpreter {
   private static stack: Record<any, any> = {};
   private static ast: Block;
+  private static cwd: string;
   private static process(node: Block | Element, state?: string): any | void {
     let returned;
     if ('value' in node) {
@@ -40,7 +42,8 @@ export class Interpreter {
             }
           } else if (expr.value === 'import') {
             return args.map((arg) => {
-              const path = Deno.cwd() + '/' + (<Element>arg).value;
+              let path = this.cwd + '/' +  (<Element>arg).value;
+              if (!existsSync(path) && existsSync(path + '.qrk')) path += '.qrk';
               if (Deno.statSync(path).isDirectory) {
                 for (const file of Deno.readDirSync(path)) {
                   const filePath = path + '/' + file.name;
@@ -65,7 +68,7 @@ export class Interpreter {
             Deno.exit();
           } else if (expr.value === 'if') {
             if (this.process(args[0])) return this.process(args[1]);
-            return this.process(args[2]);
+            return this.process(args[2] || []);
           } else if (expr.value === 'index') {
             return this.process(args[0])[this.process(args[1])] || 'none';
           } else if (expr.value === '=') {
@@ -106,8 +109,9 @@ export class Interpreter {
     if (returned) return returned;
     return 'none';
   }
-  public static run(source: string) {
+  public static run(source: string, cwd?: string) {
     this.ast = Parser.parse(source);
+    this.cwd = cwd || Deno.cwd();
     this.process(this.ast);
     return undefined;
   }
