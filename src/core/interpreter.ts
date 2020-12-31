@@ -83,14 +83,13 @@ export class Interpreter {
           } else if (expr.value === 'list') {
             return [...args.map((arg) => this.process(arg))];
           } else if (expr.value === 'fn') {
-            const processedArgs = this.process(args[1]);
-            this.stack[this.process(args[0]) as string] = {
+            const processedArgs = this.process(args[0]);
+            return {
               arguments: processedArgs,
-              body: args[2] as Block,
+              body: args[1] as Block,
               type: 'function',
               callee: {},
             };
-            return this.process(args[1]);
           } else if (expr.value === 'return') {
             return this.process(args[0]);
           } else if (this.process(expr) && (<Record<any, any>>this.process(expr)).type === 'function') {

@@ -1,17 +1,11 @@
 {
-    (import "sample/std")
-    (fn map (array) {
-        (let u 0)
-        (print "{")
-        (while (< u (length array)) {
-            (let indexEl (index array u))
-            (print " " (index indexEl 0) "=>" (index indexEl 1))
-            (let u (+ u 1))
-        })
-        (print "}")
-        none
-    })
-    (fn prop (key property) {
-        (list key property)
-    })
+    (let welcome (fn (username) {
+        (print "Hello" username)
+    }))
+    (let cbTest (fn (username cb) {
+        (cb username)
+    }))
+    (cbTest "Thomas" (fn (username) {
+        (print "eheh" username)
+    }))
 }
