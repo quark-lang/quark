@@ -1,9 +1,7 @@
 {
-  (import "sample/map")
-  (let informations (map
-    (list
-        (prop "Thomas" "Owner")
-        (prop "Nextrie" "Contributor")
-    )
-  ))
+  (import "std")
+  (let users (list "Thomas" "Ness" "ImRobot"))
+  (foreach users (fn (user) {
+    (print user)
+  }))
 }
