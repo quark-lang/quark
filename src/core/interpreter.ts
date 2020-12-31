@@ -40,7 +40,7 @@ export class Interpreter {
             }
           } else if (expr.value === 'import') {
             return args.map((arg) => {
-              const path = Deno.cwd() + '/sample/' + (<Element>arg).value;
+              const path = Deno.cwd() + '/' + (<Element>arg).value;
               if (Deno.statSync(path).isDirectory) {
                 for (const file of Deno.readDirSync(path)) {
                   const filePath = path + '/' + file.name;
@@ -60,7 +60,6 @@ export class Interpreter {
             return this.stack[id];
           } else if (expr.value === 'print') {
             return console.log(...args.map((arg) => this.process(arg)));
-            return '';
           } else if (expr.value === 'close') {
             console.log('Stopped due to', ...args.map((arg) => this.process(arg)) + '.');
             Deno.exit();
@@ -71,6 +70,8 @@ export class Interpreter {
             return this.process(args[0])[this.process(args[1])] || 'none';
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
+          } else if (expr.value === '<') {
+            return this.process(args[0]) < this.process(args[1]);
           } else if (expr.value === '!=') {
             return this.process(args[0]) != this.process(args[1]);
           } else if (expr.value === 'while') {
@@ -83,11 +84,8 @@ export class Interpreter {
             return [...args.map((arg) => this.process(arg))];
           } else if (expr.value === 'fn') {
             const processedArgs = this.process(args[1]);
-            const parsedArgs = Array.isArray(processedArgs)
-              ? (<Element[]>processedArgs).map((arg: Element) => arg.value)
-              : [processedArgs];
             this.stack[this.process(args[0]) as string] = {
-              arguments: parsedArgs,
+              arguments: processedArgs,
               body: args[2] as Block,
               type: 'function',
               callee: {},
@@ -100,7 +98,7 @@ export class Interpreter {
             for (const index in args) this.stack[fn.arguments[index]] = this.process(args[index]);
             return this.process(fn.body);
           } else if (['Word', 'String', 'Number'].includes(expr.type)) {
-            return this.process(expr);
+            return [this.process(expr), ...args.map((arg) => this.process(arg))];
           }
           return node;
         }

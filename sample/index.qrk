@@ -1,5 +1,9 @@
 {
-  (import "std")
-  (let usernames (list "Thomas" "Ness" "ImRobot"))
-  (print (length "Thomas"))
+  (import "sample/map")
+  (let informations (map
+    (list
+        (prop "Thomas" "Owner")
+        (prop "Nextrie" "Contributor")
+    )
+  ))
 }

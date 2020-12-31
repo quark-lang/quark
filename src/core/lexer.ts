@@ -14,7 +14,7 @@ export class Lexer {
     const tmp: string[] = [];
 
     for (const char of this.code) {
-      if (['(', ')', '{', '}'].includes(char)) {
+      if (['(', ')', '{', '}'].includes(char) && state !== Tokens.String) {
         // Rechecking if tmp variable isn't empty before processing Node char
         if (tmp.length > 0) {
           state = '';
