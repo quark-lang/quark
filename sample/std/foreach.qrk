@@ -3,7 +3,7 @@
   (let foreach (fn (array cb) {
     (let u 0)
     (while (!= u (length array)) {
-      (cb (index array u))
+      (cb (index array u) u)
       (let u (+ u 1))
     })
   }))

@@ -6,7 +6,7 @@ export class Interpreter {
   private static stack: Record<any, any> = {};
   private static ast: Block;
   private static cwd: string;
-  private static process(node: Block | Element, state?: string): any | void {
+  private static process(node: Block | Element, state?: string, index?: number): any | void {
     let returned;
     if ('value' in node) {
       if (state && state === 'Identifier') return node.value as string;
@@ -58,9 +58,18 @@ export class Interpreter {
               }
             });
           } else if (expr.value === 'let') {
-            const id: string = this.process(args[0] as Block, 'Identifier') as string;
-            this.stack[id] = this.process(args[1] as Block);
+            const id = this.process(args[0] as Block, 'Identifier');
+            if (typeof id !== 'string' && 'index' in id) {
+              if (typeof this.stack[id.variable] === 'string') {
+                if (this.process(args[1]).length > 1) throw 'String index modifiers cannot be longer than 1 char';
+                this.stack[id.variable] = this.process(args[1]) + this.stack[id.variable].slice(1);
+              }
+              else this.stack[id.variable][id.index] = this.process(args[1]);
+            }
+            else this.stack[id] = this.process(args[1] as Block);
             return this.stack[id];
+          } else if (expr.value === 'push') {
+            this.process(args[0]).push(...this.process(args.slice(1)));
           } else if (expr.value === 'print') {
             return console.log(...args.map((arg) => this.process(arg)));
           } else if (expr.value === 'close') {
@@ -70,6 +79,7 @@ export class Interpreter {
             if (this.process(args[0])) return this.process(args[1]);
             return this.process(args[2] || []);
           } else if (expr.value === 'index') {
+            if (state === 'Identifier') return { variable: (<Element>args[0]).value, index: this.process(args[1]) };
             return this.process(args[0])[this.process(args[1])] || 'none';
           } else if (expr.value === '=') {
             return this.process(args[0]) == this.process(args[1]);
