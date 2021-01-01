@@ -1,8 +1,9 @@
 {
   (let user "Thomas")
-  (print user)
-  {
-    (let test 0)
-  }
-  (print test)
+  (let welcome (fn (user) {
+    (let i 0)
+    (print "Hello" (+ user "!"))
+  }))
+  (welcome user)
+  (print i)
 }
