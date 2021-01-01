@@ -2,7 +2,6 @@
   (let user "Thomas")
   (let welcome (fn (user) {
     (print "Hello" (+ user "!"))
-    (return "test")
   }))
   (print (welcome user))
 }

@@ -9,14 +9,14 @@ export class Interpreter {
     return this._stack.slice(-1)[0];
   }
 
-  private static addStack() {
+  private static pushStackFrame() {
     let variables = {};
     for (const stack of this._stack) variables = { ...variables, ...stack };
     this._stack.push(variables);
     return this.stack;
   }
 
-  private static removeStack() {
+  private static popStackFrame() {
     this._stack.pop();
     return this.stack;
   }
@@ -58,19 +58,20 @@ export class Interpreter {
   private static callFunction(node: Block, functionName: string) {
     const values = [];
     for (const arg of node) values.push(this.process(arg));
-    this.addStack();
+    this.pushStackFrame();
     const fn = this.stack[functionName]
     for (const index in fn.args) this.stack[fn.args[index]] = values[Number(index)];
     for (const el of fn.body) {
       const res = this.process(el);
       if (res[1] && res[1] === true) return res[0];
     }
+    this.popStackFrame();
     return 'none';
   }
 
   private static processReturn(node: Block) {
     const value = this.process(node[0]);
-    this.removeStack();
+    this.popStackFrame();
     return [value, true];
   }
 
@@ -86,9 +87,9 @@ export class Interpreter {
         if ('value' in (expression as Element)) {
           const expr = <Element>expression;
           if (expr.value === '{') {
-            this.addStack();
+            this.pushStackFrame();
             this.process(args);
-            this.removeStack();
+            this.popStackFrame();
           }
           else if (expr.value === 'let') this.variableDefinition(args);
           else if (expr.value === 'print') console.log(...args.map(this.process));
