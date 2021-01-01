@@ -24,6 +24,7 @@ export class Parser {
     if (token.token === Tokens.Node) {
       if (['(', '{'].includes(token.value)) {
         ast.push([]);
+        if (token.value === '{') (<Block>ast.slice(-1)[0]).push({ type: 'Node', value: '{' });
         return this.process(index + 1, ast.slice(-1)[0] as Block);
       }
       return this.process(index + 1, this.findParent(ast, this.ast) as Block);
