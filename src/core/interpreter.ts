@@ -22,7 +22,7 @@ export class Interpreter {
   }
 
   private static variableDefinition(node: Block) {
-    this.stack[this.processValue(<Element>node[0], 'Identifier')] = this.process(<Element>node[1]);
+    this.stack[this.process(<Element>node[0], 'Identifier')] = this.process(<Element>node[1]);
   }
 
   private static processValue(element: Element, state?: string) {
@@ -88,10 +88,10 @@ export class Interpreter {
     }
   }
 
-  private static process(node: Block | Element): any | void {
+  private static process(node: Block | Element, state?: string): any | void {
     let returned;
     if (typeof node === 'string') return node;
-    if ('value' in node) return Interpreter.processValue(node);
+    if ('value' in node) return Interpreter.processValue(node, state);
     for (const child of node) {
       if (Array.isArray(child)) {
         returned = this.process(child);
@@ -105,7 +105,7 @@ export class Interpreter {
             this.popStackFrame();
           }
           else if (expr.value === 'let') this.variableDefinition(args);
-          else if (expr.value === 'print') console.log(...args.map(this.process));
+          else if (expr.value === 'print') console.log(...args.map(arg => this.process(arg)));
           else if (expr.value === '+') return Interpreter.processArithmetic(expr.value, args);
           else if (expr.value === 'fn') return Interpreter.functionDefinition(args);
           else if (expr.value === 'return') return Interpreter.processReturn(args);
