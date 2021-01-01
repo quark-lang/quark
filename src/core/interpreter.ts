@@ -1,11 +1,13 @@
 import { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
+import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 
 export class Interpreter {
   private static _stack: Record<any, any>[] = [];
   private static ast: Block;
   private static cwd: string;
   private static get stack() {
+    if (this._stack.length === 0) this.pushStackFrame();
     return this._stack.slice(-1)[0];
   }
 
@@ -26,6 +28,7 @@ export class Interpreter {
   }
 
   private static processValue(element: Element, state?: string) {
+    if (element.value === 'stack') return this.stack;
     if (element.type === 'Word') {
       if (state && state === 'Identifier') return element.value;
       if (this.stack[element.value] !== undefined) return this.stack[element.value];
@@ -65,7 +68,9 @@ export class Interpreter {
       const res = this.process(el);
       if (res[1] && res[1] === true) return res[0];
     }
-    if (this.process(fn.body.slice(-1)[0])) return this.process(fn.body.slice(-1)[0]);
+    const lastStatement = fn.body.slice(-1)[0];
+    if (lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
+    if (lastStatement) return this.process(lastStatement);
     this.popStackFrame();
     return 'none';
   }
@@ -88,6 +93,16 @@ export class Interpreter {
     }
   }
 
+  private static processImport(node: Block) {
+    const path = this.cwd + '/' + (<Element>node[0]).value;
+    if (!existsSync(path)) throw `File ${path} does not exists!`;
+    const array = Deno.readFileSync(path);
+    const content: string = new TextDecoder('utf-8').decode(array);
+
+    const ast = Parser.parse(content, true);
+    this.process(ast);
+  }
+
   private static process(node: Block | Element, state?: string): any | void {
     let returned;
     if (typeof node === 'string') return node;
@@ -104,6 +119,7 @@ export class Interpreter {
             this.process(args);
             this.popStackFrame();
           }
+          else if (expr.value === 'import') Interpreter.processImport(args);
           else if (expr.value === 'let') this.variableDefinition(args);
           else if (expr.value === 'print') console.log(...args.map(arg => this.process(arg)));
           else if (expr.value === '+') return Interpreter.processArithmetic(expr.value, args);
