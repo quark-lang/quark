@@ -3,7 +3,8 @@ export type Block = (Element | Block)[];
 export type ElementTypes =
   | 'String'
   | 'Number'
-  | 'Word';
+  | 'Word'
+  | 'Node';
 
 export interface Element {
   type: ElementTypes,
