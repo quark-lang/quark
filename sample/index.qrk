@@ -1,14 +1,8 @@
 {
-  (import "std")
-  (let slice (fn (el from to) {
-    (let result "")
-    (foreach el (fn (char id) {
-        (if (< to id) none (let result (+ result char)))
-    }))
-    (return result)
-  }))
   (let user "Thomas")
   (print user)
-  (let (index user 0) "L")
-  (print user)
+  {
+    (let test 0)
+  }
+  (print test)
 }
