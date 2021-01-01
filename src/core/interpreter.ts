@@ -1,6 +1,5 @@
-import {Block, Element} from '../typings/block.ts';
-import {Parser} from './parser.ts';
-import { existsSync } from 'https://deno.land/std/fs/mod.ts';
+import { Block, Element } from '../typings/block.ts';
+import { Parser } from './parser.ts';
 
 export class Interpreter {
   private static _stack: Record<any, any>[] = [];
@@ -62,11 +61,22 @@ export class Interpreter {
     this.addStack();
     const fn = this.stack[functionName]
     for (const index in fn.args) this.stack[fn.args[index]] = values[Number(index)];
-    this.process(fn.body);
+    for (const el of fn.body) {
+      const res = this.process(el);
+      if (res[1] && res[1] === true) return res[0];
+    }
+    return 'none';
+  }
+
+  private static processReturn(node: Block) {
+    const value = this.process(node[0]);
+    this.removeStack();
+    return [value, true];
   }
 
   private static process(node: Block | Element): any | void {
     let returned;
+    if (typeof node === 'string') return node;
     if ('value' in node) return Interpreter.processValue(node);
     for (const child of node) {
       if (Array.isArray(child)) {
@@ -84,12 +94,15 @@ export class Interpreter {
           else if (expr.value === 'print') console.log(...args.map(this.process));
           else if (expr.value === '+') return Interpreter.processArithmetic(expr.value, args);
           else if (expr.value === 'fn') return Interpreter.functionDefinition(args);
-          else if (this.stack[expr.value].type === 'Function') this.callFunction(args, expr.value as string);
+          else if (expr.value === 'return') return Interpreter.processReturn(args)
+          else if (Interpreter.stack[expr.value].type === 'Function') return Interpreter.callFunction(args, expr.value as string);
           return node;
         }
       }
     }
-    if (returned) return returned;
+    if (returned) {
+      return returned;
+    }
     return 'none';
   }
   public static run(source: string, cwd?: string) {
