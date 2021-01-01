@@ -1,3 +1,5 @@
 {
-  (fn factorial (n) (if (= n 1) n (if (= n 0) 1 (* n (factorial (- n 1))))))
+  (let welcome (fn (username) {
+    (print "Hello" username)
+  }))
 }

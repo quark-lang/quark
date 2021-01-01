@@ -1,7 +1,4 @@
 {
-  (let checkNumber (fn (number) {
-    (if (= number 0) (return "Le nombre est égal à 0"))
-    "test"
-  }))
-  (print (checkNumber 5))
+  (import "factorial.qrk")
+  (welcome "Thomas")
 }
