@@ -65,6 +65,7 @@ export class Interpreter {
       const res = this.process(el);
       if (res[1] && res[1] === true) return res[0];
     }
+    if (this.process(fn.body.slice(-1)[0])) return this.process(fn.body.slice(-1)[0]);
     this.popStackFrame();
     return 'none';
   }
@@ -73,6 +74,18 @@ export class Interpreter {
     const value = this.process(node[0]);
     this.popStackFrame();
     return [value, true];
+  }
+
+  private static processCondition(node: Block) {
+    if (this.process(node[0])) return this.process(node[1]);
+    if (node[2]) return this.process(node[2]);
+    return [undefined, false]
+  }
+
+  private static processEqualities(operation: string, lhs: Block | Element, rhs: Block | Element) {
+    switch (operation) {
+      case '=': return this.process(lhs) == this.process(rhs);
+    }
   }
 
   private static process(node: Block | Element): any | void {
@@ -95,7 +108,9 @@ export class Interpreter {
           else if (expr.value === 'print') console.log(...args.map(this.process));
           else if (expr.value === '+') return Interpreter.processArithmetic(expr.value, args);
           else if (expr.value === 'fn') return Interpreter.functionDefinition(args);
-          else if (expr.value === 'return') return Interpreter.processReturn(args)
+          else if (expr.value === 'return') return Interpreter.processReturn(args);
+          else if (expr.value === '=') return Interpreter.processEqualities(expr.value, args[0], args[1]);
+          else if (expr.value === 'if') return Interpreter.processCondition(args);
           else if (Interpreter.stack[expr.value].type === 'Function') return Interpreter.callFunction(args, expr.value as string);
           return node;
         }

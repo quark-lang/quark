@@ -1,7 +1,7 @@
 {
-  (let user "Thomas")
-  (let welcome (fn (user) {
-    (print "Hello" (+ user "!"))
+  (let checkNumber (fn (number) {
+    (if (= number 0) (return "Le nombre est égal à 0"))
+    "test"
   }))
-  (print (welcome user))
+  (print (checkNumber 5))
 }
