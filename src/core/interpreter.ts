@@ -98,6 +98,13 @@ export class Interpreter {
   private static processEqualities(operation: string, lhs: Block | Element, rhs: Block | Element) {
     switch (operation) {
       case '=': return this.process(lhs) == this.process(rhs);
+      case '!=': return this.process(lhs) != this.process(rhs);
+      case '<': return this.process(lhs) < this.process(rhs);
+      case '>': return this.process(lhs) > this.process(rhs);
+      case '<=': return this.process(lhs) <= this.process(rhs);
+      case '>=': return this.process(lhs) >= this.process(rhs);
+      case 'and': return this.process(lhs) && this.process(rhs);
+      case 'or': return this.process(lhs) || this.process(rhs);
     }
   }
 
@@ -133,7 +140,7 @@ export class Interpreter {
           else if (['+', '-', '/', '*'].includes(expr.value as string)) return Interpreter.processArithmetic(expr.value as string, args);
           else if (expr.value === 'fn') return Interpreter.functionDefinition(args);
           else if (expr.value === 'return') return Interpreter.processReturn(args);
-          else if (expr.value === '=') return Interpreter.processEqualities(expr.value, args[0], args[1]);
+          else if (['=', '!=', '<', '>', '<=', '>=', 'and', 'or'].includes(expr.value as string)) return Interpreter.processEqualities(expr.value as string, args[0], args[1]);
           else if (expr.value === 'if') return Interpreter.processCondition(args);
           else if (Interpreter.stack[expr.value].type === 'Function') return Interpreter.callFunction(args, expr.value as string);
           return node;
