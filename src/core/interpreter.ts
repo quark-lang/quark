@@ -6,6 +6,7 @@ export class Interpreter {
   private static _stack: Record<any, any>[] = [];
   private static ast: Block;
   private static cwd: string;
+  private static folder: string;
   private static get stack() {
     if (this._stack.length === 0) this.pushStackFrame();
     return this._stack.slice(-1)[0];
@@ -54,13 +55,13 @@ export class Interpreter {
       case '+': // @ts-ignore
         return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) + (await this.process(cur)));
       case '-': // @ts-ignore
-        return args.reduce((acc: any, cur: any) => this.process(acc) - this.process(cur));
+        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) - (await this.process(cur)));
       case '*':
         // @ts-ignore
-        return args.reduce((acc: any, cur: any) => this.process(acc) * this.process(cur));
+        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) * (await this.process(cur)));
       case '/':
         // @ts-ignore
-        return args.reduce((acc: any, cur: any) => this.process(acc) / this.process(cur));
+        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) / (await this.process(cur)));
     }
   }
 
@@ -101,7 +102,7 @@ export class Interpreter {
     }
     const lastStatement = fn.body.slice(-1)[0];
     for (const arg of fn.args) delete this.stack[arg];
-    if (lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
+    if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
     if (lastStatement) return await this.process(lastStatement);
     this.popStackFrame();
     return 'none';
@@ -132,18 +133,23 @@ export class Interpreter {
     }
   }
 
-  private static async processImport(node: Block) {
-    const path = this.cwd + '/' + (<Element>node[0]).value;
-    if (!existsSync(path)) throw `File ${path} does not exists!`;
+  private static async processImport(node: Block, cwd: string) {
+    let path: string = ((<Element>node[0]).value as string).replace(/:/g, '/');
+    if (!existsSync(cwd + this.folder + '/' + path)) {
+      // Checking if core library
+      if (!existsSync(cwd + path)) path = cwd + 'libs/' + path;
+      else path = cwd + path;
+      if (!existsSync(path)) throw `File ${path} does not exists!`;
+    } else path = cwd + this.folder + '/' + path;
     if (!path.endsWith('.js')) {
       const array = Deno.readFileSync(path);
       const content: string = new TextDecoder('utf-8').decode(array);
 
       const ast = Parser.parse(content, true);
-      await this.process(ast);
+      const splitPath = path.split('/');
+      await this.process(ast, undefined, splitPath.slice(0, splitPath.length - 1).join('/') + '/');
     } else {
-      const absolutePath = import.meta.url.split('src/core/interpreter.ts').join('') + path;
-      const { module, namespace } = (await import(absolutePath));
+      const { module, namespace } = await import(path);
       if (Array.isArray(module)) {
         for (const func of module) {
           this.stack[namespace ? namespace + ':' + func.name : func.name] = {
@@ -178,23 +184,23 @@ export class Interpreter {
     return (await this.process(array))[await this.process(index)];
   }
 
-  private static async process(node: Block | Element, state?: string): Promise<any> {
+  private static async process(node: Block | Element, state?: string, cwd: string = this.cwd): Promise<any> {
     let returned;
     if (typeof node === 'string') return node;
     if ('value' in node) return Interpreter.processValue(node, state);
     for (const child of node) {
       if (Array.isArray(child)) {
-        returned = await this.process(child);
+        returned = await this.process(child, undefined, cwd);
       } else {
         const [expression, ...args] = node;
         if ('value' in (expression as Element)) {
           const expr = <Element>expression;
           if (expr.value === '{') {
             this.pushStackFrame();
-            await this.process(args);
+            await this.process(args, undefined, cwd);
             this.popStackFrame();
           }
-          else if (expr.value === 'import') return await Interpreter.processImport(args);
+          else if (expr.value === 'import') return await Interpreter.processImport(args, cwd);
           else if (expr.value === 'let') return await this.variableDefinition(args);
           else if (['+', '-', '/', '*'].includes(expr.value as string)) return await Interpreter.processArithmetic(expr.value as string, args);
           else if (expr.value === 'fn') return await Interpreter.functionDefinition(args);
@@ -214,8 +220,9 @@ export class Interpreter {
     }
     return 'none';
   }
-  public static async run(source: string, cwd?: string) {
+  public static async run(source: string, cwd?: string, folder?: string) {
     this.ast = Parser.parse(source);
+    this.folder = folder + '';
     this.cwd = cwd || Deno.cwd();
     await this.process(this.ast);
     return undefined;
