@@ -17,7 +17,7 @@
 ---
 
 <p align="center"> 
-    Quark is a compiled programming language written in Typescript.
+    Quark is an interpreted programming language written in Typescript.
     <br> 
 </p>
 
