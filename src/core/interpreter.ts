@@ -40,6 +40,14 @@ export class Interpreter {
   private static processArithmetic(operation: string, args: Block) {
     switch (operation) {
       case '+': return args.reduce((acc: any, cur: any) => this.process(acc) + this.process(cur));
+      case '-': // @ts-ignore
+        return args.reduce((acc: any, cur: any) => this.process(acc) - this.process(cur));
+      case '*':
+        // @ts-ignore
+        return args.reduce((acc: any, cur: any) => this.process(acc) * this.process(cur));
+      case '/':
+        // @ts-ignore
+        return args.reduce((acc: any, cur: any) => this.process(acc) / this.process(cur));
     }
   }
 
@@ -103,7 +111,7 @@ export class Interpreter {
     this.process(ast);
   }
 
-  private static process(node: Block | Element, state?: string): any | void {
+  private static process(node: Block | Element, state?: string): any {
     let returned;
     if (typeof node === 'string') return node;
     if ('value' in node) return Interpreter.processValue(node, state);
@@ -122,7 +130,7 @@ export class Interpreter {
           else if (expr.value === 'import') Interpreter.processImport(args);
           else if (expr.value === 'let') this.variableDefinition(args);
           else if (expr.value === 'print') console.log(...args.map(arg => this.process(arg)));
-          else if (expr.value === '+') return Interpreter.processArithmetic(expr.value, args);
+          else if (['+', '-', '/', '*'].includes(expr.value as string)) return Interpreter.processArithmetic(expr.value as string, args);
           else if (expr.value === 'fn') return Interpreter.functionDefinition(args);
           else if (expr.value === 'return') return Interpreter.processReturn(args);
           else if (expr.value === '=') return Interpreter.processEqualities(expr.value, args[0], args[1]);
