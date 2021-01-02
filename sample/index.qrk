@@ -3,4 +3,16 @@
   (print /* coucou */ (factorial 5)) # test
   #(print i)
   (print "Hello #test")
+  (let usernames (list "Thomas" "Ness" "ImRobot"))
+  (print usernames)
+  (print (index usernames 0))
+  (let (index usernames 0) "NessMC")
+  (print usernames)
+
+  # String mutability tests
+  (let user "Thomas")
+  (print user)
+  (let (index user 0) "L")
+  (let (index user 6) "s")
+  (print user)
 }
