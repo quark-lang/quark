@@ -1,6 +1,4 @@
 {
   (import "print.js")
-  (import "json.js")
-  (print "Hello world")
-  (print (json:stringify (list "test" "brh" (list "test"))))
+  (print "Hello world!")
 }
