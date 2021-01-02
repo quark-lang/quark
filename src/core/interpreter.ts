@@ -24,7 +24,18 @@ export class Interpreter {
   }
 
   private static variableDefinition(node: Block) {
-    this.stack[this.process(<Element>node[0], 'Identifier')] = this.process(<Element>node[1]);
+    const variable = this.process(<Element>node[0], 'Identifier');
+    const value = this.process(<Element>node[1]);
+    if (typeof variable !== 'string' && 'variable' in variable) {
+      const currentStackVariable = this.stack[variable.variable];
+      if (typeof currentStackVariable === 'string') {
+        const splitUpdate = currentStackVariable.split('');
+        splitUpdate[variable.index] = value;
+        this.stack[variable.variable] = splitUpdate.join('');
+      }
+      else currentStackVariable[variable.index] = value;
+    }
+    else this.stack[this.process(<Element>node[0], 'Identifier')] = value;
   }
 
   private static processValue(element: Element, state?: string) {
@@ -49,6 +60,10 @@ export class Interpreter {
         // @ts-ignore
         return args.reduce((acc: any, cur: any) => this.process(acc) / this.process(cur));
     }
+  }
+
+  private static processList(args: Block): Block {
+    return [...args.map((arg: Block | Element) => this.process(arg))]
   }
 
   private static functionDefinition(node: Block) {
@@ -125,6 +140,17 @@ export class Interpreter {
     }
   }
 
+  private static processListIndex(node: Block, state?: string) {
+    const [array, index] = node;
+    if (state && state === 'Identifier') {
+      return {
+        variable: this.process(array, 'Identifier'),
+        index: this.process(index),
+      };
+    }
+    return this.process(array)[this.process(index)];
+  }
+
   private static process(node: Block | Element, state?: string): any {
     let returned;
     if (typeof node === 'string') return node;
@@ -149,8 +175,10 @@ export class Interpreter {
           else if (expr.value === 'return') return Interpreter.processReturn(args);
           else if (['=', '!=', '<', '>', '<=', '>=', 'and', 'or'].includes(expr.value as string)) return Interpreter.processEqualities(expr.value as string, args[0], args[1]);
           else if (expr.value === 'if') return Interpreter.processCondition(args);
+          else if (expr.value === 'list') return Interpreter.processList(args);
           else if (expr.value === 'while') return Interpreter.processWhile(args);
-          else if (Interpreter.stack[expr.value].type === 'Function') return Interpreter.callFunction(args, expr.value as string);
+          else if (expr.value === 'index') return Interpreter.processListIndex(args, state);
+          else if (Interpreter.stack[expr.value] && Interpreter.stack[expr.value].type === 'Function') return Interpreter.callFunction(args, expr.value as string);
           return node;
         }
       }
