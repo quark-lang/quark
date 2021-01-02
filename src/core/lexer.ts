@@ -3,6 +3,7 @@ import {
   Tokens,
   Node,
 } from '../typings/token.ts';
+import { Formatter } from './formatter.ts';
 export class Lexer {
   private static code: string;
   private static commentState: number = 0;
@@ -54,10 +55,7 @@ export class Lexer {
 
   public static tokenize(source: string): Token[] {
     // Formatting content
-    this.code = source
-      .split(/\r?\n/g)
-      .map((line: string) => line.trim())
-      .join('');
+    this.code = Formatter.format(source);
     return this.lexing();
   }
 }
