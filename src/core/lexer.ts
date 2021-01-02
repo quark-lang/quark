@@ -5,6 +5,7 @@ import {
 } from '../typings/token.ts';
 export class Lexer {
   private static code: string;
+  private static commentState: number = 0;
 
   private static lexing(): Token[] {
     let state: string = '';
@@ -40,7 +41,11 @@ export class Lexer {
           tmp.splice(0, tmp.length);
         }
       } else {
-        tmp.push(char);
+        if (char === '/' && this.commentState === 0) this.commentState++;
+        else if (char === '*' && this.commentState === 1) this.commentState++;
+        else if (char === '*' && this.commentState === 2) this.commentState--;
+        else if (char === '/' && this.commentState === 1) this.commentState--;
+        else if (this.commentState === 0) tmp.push(char);
       }
     }
     // Removing empty tokens from container
