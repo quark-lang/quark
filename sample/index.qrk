@@ -1,4 +1,6 @@
 {
   (import "factorial.qrk")
-  (print (factorial 5))
+  (print /* coucou */ (factorial 5)) # test
+  #(print i)
+  (print "Hello #test")
 }
