@@ -16,5 +16,5 @@ async function input(
 console.log('Quark v0.0.1')
 while (true) {
   const code = await input('>>> ');
-  console.log(Interpreter.run(code));
+  console.log(await Interpreter.run(code));
 }
