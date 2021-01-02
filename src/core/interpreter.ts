@@ -39,6 +39,7 @@ export class Interpreter {
   }
 
   private static processValue(element: Element, state?: string) {
+    if (element.value === 'none') return undefined;
     if (element.value === 'stack') return this.stack;
     if (element.type === 'Word') {
       if (state && state === 'Identifier') return element.value;
@@ -89,9 +90,13 @@ export class Interpreter {
     for (const index in fn.args) this.stack[fn.args[index]] = values[Number(index)];
     for (const el of fn.body) {
       const res = this.process(el);
-      if (res[1] && res[1] === true) return res[0];
+      if (res && res[1] && res[1] === true) {
+        for (const arg of fn.args) delete this.stack[arg];
+        return res[0];
+      }
     }
     const lastStatement = fn.body.slice(-1)[0];
+    for (const arg of fn.args) delete this.stack[arg];
     if (lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
     if (lastStatement) return this.process(lastStatement);
     this.popStackFrame();

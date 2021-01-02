@@ -42,11 +42,12 @@ export class Lexer {
           tmp.splice(0, tmp.length);
         }
       } else {
-        if (char === '/' && this.commentState === 0) this.commentState++;
+        if (char === '/' && this.commentState === 1) this.commentState--;
+        else if (char === '/' && this.commentState < 2) this.commentState++;
         else if (char === '*' && this.commentState === 1) this.commentState++;
         else if (char === '*' && this.commentState === 2) this.commentState--;
-        else if (char === '/' && this.commentState === 1) this.commentState--;
-        else if (this.commentState === 0) tmp.push(char);
+        else if (this.commentState === 1) this.commentState = 0;
+        tmp.push(char);
       }
     }
     // Removing empty tokens from container
