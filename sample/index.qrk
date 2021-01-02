@@ -1,7 +1,6 @@
 {
-  (import "std/foreach.qrk") /* test */
-  (let user "Thomas")
-  (foreach user (fn (item) {
-    (print item "test")
-  }))
+  (import "print.js")
+  (import "json.js")
+  (print "Hello world")
+  (print (json:stringify (list "test" "brh" (list "test"))))
 }
