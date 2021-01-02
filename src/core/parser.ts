@@ -1,5 +1,5 @@
 import { Token, Tokens, } from '../typings/token.ts';
-import { Block, } from '../typings/block.ts';
+import type { Block, } from '../typings/block.ts';
 import { Lexer } from './lexer.ts';
 
 export class Parser {

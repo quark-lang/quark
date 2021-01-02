@@ -1,6 +1,7 @@
-import { Block, Element } from '../typings/block.ts';
+import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
 import { existsSync } from 'https://deno.land/std/fs/mod.ts';
+import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 
 export class Interpreter {
   private static _stack: Record<any, any>[] = [];
@@ -134,22 +135,23 @@ export class Interpreter {
   }
 
   private static async processImport(node: Block, cwd: string) {
-    let path: string = ((<Element>node[0]).value as string).replace(/:/g, '/');
-    if (!existsSync(cwd + this.folder + '/' + path)) {
+    let src: string = ((<Element>node[0]).value as string).replace(/:/g, '/');
+    if (!existsSync(path.join(cwd, this.folder, src))) {
       // Checking if core library
-      if (!existsSync(cwd + path)) path = cwd + 'libs/' + path;
-      else path = cwd + path;
-      if (!existsSync(path)) throw `File ${path} does not exists!`;
-    } else path = cwd + this.folder + '/' + path;
-    if (!path.endsWith('.js')) {
-      const array = Deno.readFileSync(path);
+      if (!existsSync(cwd + src)) src = path.join(cwd, 'libs', src);
+      else src = path.join(cwd, src);
+      if (!existsSync(src)) throw `File ${src} does not exists!`;
+    } else src = path.join(cwd, this.folder, src);
+    src = path.toFileUrl(src.replace(/\\/g, '/')).href;
+    if (!src.endsWith('.js')) {
+      const array = Deno.readFileSync(src);
       const content: string = new TextDecoder('utf-8').decode(array);
 
       const ast = Parser.parse(content, true);
-      const splitPath = path.split('/');
+      const splitPath = src.split('/');
       await this.process(ast, undefined, splitPath.slice(0, splitPath.length - 1).join('/') + '/');
     } else {
-      const { module, namespace } = await import(path);
+      const { module, namespace } = await import(src);
       if (Array.isArray(module)) {
         for (const func of module) {
           this.stack[namespace ? namespace + ':' + func.name : func.name] = {
