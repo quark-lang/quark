@@ -118,6 +118,13 @@ export class Interpreter {
     this.process(ast);
   }
 
+  private static processWhile(node: Block) {
+    const [condition, body] = node;
+    while (this.process(condition)) {
+      this.process(body);
+    }
+  }
+
   private static process(node: Block | Element, state?: string): any {
     let returned;
     if (typeof node === 'string') return node;
@@ -142,6 +149,7 @@ export class Interpreter {
           else if (expr.value === 'return') return Interpreter.processReturn(args);
           else if (['=', '!=', '<', '>', '<=', '>=', 'and', 'or'].includes(expr.value as string)) return Interpreter.processEqualities(expr.value as string, args[0], args[1]);
           else if (expr.value === 'if') return Interpreter.processCondition(args);
+          else if (expr.value === 'while') return Interpreter.processWhile(args);
           else if (Interpreter.stack[expr.value].type === 'Function') return Interpreter.callFunction(args, expr.value as string);
           return node;
         }
