@@ -1,0 +1,4 @@
+{
+  (import "print.qrk")
+  (print "test" "bruh" (+ 5 2))
+}
