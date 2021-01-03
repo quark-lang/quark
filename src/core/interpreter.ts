@@ -98,7 +98,12 @@ export class Interpreter {
   private static async callFunction(node: Block, functionName: string) {
     const values = [];
     for (const arg of node) {
-      values.push(await this.process(arg, 'Argument'));
+      const parsedArgument = await this.process(arg, 'Argument');
+      if (!['string', 'number'].includes(typeof parsedArgument)) {
+        if ('variadic' in parsedArgument) {
+          values.push(...parsedArgument.value);
+        } else values.push(parsedArgument);
+      } else values.push(parsedArgument);
     }
     if (this.stack[functionName].js === true) return this.stack[functionName].func(...values);
     this.pushStackFrame();
@@ -125,6 +130,13 @@ export class Interpreter {
     }
     this.popStackFrame();
     return 'none';
+  }
+
+  private static async processSpread(node: Block) {
+    return {
+      variadic: true,
+      value: await this.process(node[0]),
+    }
   }
 
   private static async processReturn(node: Block) {
@@ -226,6 +238,7 @@ export class Interpreter {
           else if (expr.value === 'return') return await Interpreter.processReturn(args);
           else if (['=', '!=', '<', '>', '<=', '>=', 'and', 'or'].includes(expr.value as string)) return await Interpreter.processEqualities(expr.value as string, args[0], args[1]);
           else if (expr.value === 'if') return await Interpreter.processCondition(args);
+          else if (expr.value === 'spread') return await Interpreter.processSpread(args);
           else if (expr.value === 'list') return await Interpreter.processList(args, state);
           else if (expr.value === 'while') return await Interpreter.processWhile(args);
           else if (expr.value === 'index') return await Interpreter.processListIndex(args, state);
