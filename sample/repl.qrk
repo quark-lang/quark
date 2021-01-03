@@ -1,5 +1,5 @@
 {
-  (import "print.ts")
+  (import "print.qrk")
   (print "Quark v0.1.0")
   (while 1 {
     (let code (input ">>> "))
