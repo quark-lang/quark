@@ -1,10 +1,8 @@
 {
-  (import "print.js")
-  (let mutTest (fn (array) {
-    (let (index array 0) "test")
-  }))
-  (let users (list "Ness" "Thomas" "ImRobot"))
-  (print users)
-  (mutTest users)
-  (print users)
+  (import "print.ts")
+  (print "Quark v0.1.0")
+  (while 1 {
+    (let code (input ">>> "))
+    (exec code)
+  })
 }
