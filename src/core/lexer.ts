@@ -14,8 +14,9 @@ export class Lexer {
     const container: Token[] = [];
     // Tmp variable contains temporary code chars that has been collected by tokenizer and which will be pushed to container
     const tmp: string[] = [];
-
-    for (const char of this.code) {
+    this.commentState = 0;
+    for (const index in this.code.split('')) {
+      const char = this.code[index];
       if (['(', ')', '{', '}'].includes(char) && state !== Tokens.String) {
         // Rechecking if tmp variable isn't empty before processing Node char
         if (tmp.length > 0) {
@@ -24,7 +25,7 @@ export class Lexer {
           tmp.splice(0, tmp.length);
         }
         container.push({ token: Tokens.Node, value: char as Node, });
-      } else if (char === '"') {
+      } else if (char === '"' && state !== 'COMMENT') {
         tmp.push(char);
         if (state === Tokens.String) {
           state = '';
@@ -36,18 +37,31 @@ export class Lexer {
       } else if (char === ' ' && tmp.length > 0) {
         if (state === Tokens.String) {
           tmp.push(char);
-        } else {
+        } else if (state !== 'COMMENT') {
           state = '';
           container.push({ token: Tokens.Word, value: tmp.join('').trim() });
           tmp.splice(0, tmp.length);
         }
       } else {
-        if (char === '/' && this.commentState === 1) this.commentState--;
-        else if (char === '/' && this.commentState < 2) this.commentState++;
-        else if (char === '*' && this.commentState === 1) this.commentState++;
-        else if (char === '*' && this.commentState === 2) this.commentState--;
-        else if (this.commentState === 1) this.commentState = 0;
-        tmp.push(char);
+        if (state !== Tokens.String) {
+          if (char === '/') {
+            if (this.code[Number(index) + 1] === '*') {
+              this.commentState = 1;
+              state = 'COMMENT';
+              continue;
+            } else if (this.commentState === -1 && state === 'COMMENT') {
+              this.commentState = 0;
+              state = '';
+              continue;
+            }
+          } else if (char === '*' && state === 'COMMENT') {
+            if (this.code[Number(index) + 1] === '/' && this.commentState === 1) {
+              this.commentState = -1;
+            }
+            continue;
+          }
+        }
+        if (this.commentState === 0) tmp.push(char);
       }
     }
     // Removing empty tokens from container
@@ -57,6 +71,7 @@ export class Lexer {
   public static tokenize(source: string): Token[] {
     // Formatting content
     this.code = Formatter.format(source);
+    this.commentState = 0;
     return this.lexing();
   }
 }
