@@ -148,23 +148,23 @@ export class Interpreter {
   }
 
   private static async processImport(node: Block, cwd: string) {
-    let src: string = ((<Element>node[0]).value as string).replace(/:/g, '/');
+    let src: string | URL = ((<Element>node[0]).value as string).replace(/:/g, '/');
     if (!existsSync(path.join(cwd, this.folder, src))) {
       // Checking if core library
-      if (!existsSync(cwd + src)) src = path.join(cwd, 'libs', src);
+      if (!existsSync(path.join(cwd, src))) src = path.join(cwd, 'std', src);
       else src = path.join(cwd, src);
       if (!existsSync(src)) throw `File ${src} does not exists!`;
     } else src = path.join(cwd, this.folder, src);
-    src = path.toFileUrl(src.replace(/\\/g, '/')).href;
-    if (!src.endsWith('.js')) {
+    src = path.toFileUrl(src.replace(/\\/g, '/'));
+    if (!src.href.endsWith('.ts')) {
       const array = Deno.readFileSync(src);
       const content: string = new TextDecoder('utf-8').decode(array);
 
       const ast = Parser.parse(content, true);
-      const splitPath = src.split('/');
+      const splitPath = src.href.split('/');
       await this.process(ast, undefined, splitPath.slice(0, splitPath.length - 1).join('/') + '/');
     } else {
-      const { module, namespace } = await import(src);
+      const { module, namespace } = await import(src.href);
       if (Array.isArray(module)) {
         for (const func of module) {
           this.stack[namespace ? namespace + ':' + func.name : func.name] = {
