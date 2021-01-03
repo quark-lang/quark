@@ -66,19 +66,27 @@ export class Interpreter {
     }
   }
 
-  private static async processList(args: Block): Promise<any> {
+  private static async processList(args: Block, state?: string): Promise<any> {
     const array = [];
+    if (state === 'Identifier') return {
+      arg: await this.process(args[0], 'Identifier'),
+      variadic: true,
+    };
     for (const arg of args) array.push(await this.process(arg));
     return array;
   }
 
   private static async functionDefinition(node: Block) {
     const [args, body] = node;
-    const functionArguments: string[] = [];
+    const functionArguments: any[] = [];
     // @ts-ignore
     for (const arg of args) {
-      const argumentName: string = await this.processValue(<Element>arg, 'Identifier');
-      functionArguments.push(argumentName);
+      const argumentName: string = await this.process(<Element>arg, 'Identifier');
+      if (typeof argumentName === 'string') functionArguments.push({
+        arg: argumentName,
+        variadic: false,
+      });
+      else functionArguments.push(argumentName);
     }
     return {
       args: functionArguments,
@@ -89,11 +97,16 @@ export class Interpreter {
 
   private static async callFunction(node: Block, functionName: string) {
     const values = [];
-    for (const arg of node) values.push(await this.process(arg));
+    for (const arg of node) {
+      values.push(await this.process(arg, 'Argument'));
+    }
     if (this.stack[functionName].js === true) return this.stack[functionName].func(...values);
     this.pushStackFrame();
     const fn = this.stack[functionName]
-    for (const index in fn.args) this.stack[fn.args[index]] = values[Number(index)];
+    for (const index in fn.args) {
+      if (fn.args[index].variadic === true) this.stack[fn.args[index].arg] = values.slice(Number(index));
+      else this.stack[fn.args[index].arg] = values[Number(index)];
+    }
     for (const el of fn.body) {
       const res = await this.process(el);
       if (res && res[1] && res[1] === true) {
@@ -179,8 +192,8 @@ export class Interpreter {
     const [array, index] = node;
     if (state && state === 'Identifier') {
       return {
-        variable: this.process(array, 'Identifier'),
-        index: this.process(index),
+        variable: await this.process(array, 'Identifier'),
+        index: await this.process(index),
       };
     }
     return (await this.process(array))[await this.process(index)];
@@ -209,7 +222,7 @@ export class Interpreter {
           else if (expr.value === 'return') return await Interpreter.processReturn(args);
           else if (['=', '!=', '<', '>', '<=', '>=', 'and', 'or'].includes(expr.value as string)) return await Interpreter.processEqualities(expr.value as string, args[0], args[1]);
           else if (expr.value === 'if') return await Interpreter.processCondition(args);
-          else if (expr.value === 'list') return await Interpreter.processList(args);
+          else if (expr.value === 'list') return await Interpreter.processList(args, state);
           else if (expr.value === 'while') return await Interpreter.processWhile(args);
           else if (expr.value === 'index') return await Interpreter.processListIndex(args, state);
           else if (Interpreter.stack[expr.value] && Interpreter.stack[expr.value].type === 'Function') return await Interpreter.callFunction(args, expr.value as string);
