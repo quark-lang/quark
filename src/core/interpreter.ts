@@ -243,6 +243,8 @@ export class Interpreter {
           else if (expr.value === 'while') return await Interpreter.processWhile(args);
           else if (expr.value === 'index') return await Interpreter.processListIndex(args, state);
           else if (Interpreter.stack[expr.value] && Interpreter.stack[expr.value].type === 'Function') return await Interpreter.callFunction(args, expr.value as string);
+          const potentialValue = await this.processValue(expr);
+          if (potentialValue !== 'none') return potentialValue;
           throw `Function or keyword ${expr.value} does not exists!`;
         }
       }
