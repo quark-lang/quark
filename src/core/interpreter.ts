@@ -180,20 +180,17 @@ export class Interpreter {
       const ast = Parser.parse(content, true);
       await this.process(ast, undefined, path.dirname(src.pathname).replace(/%20/g, ' ').replace(/\\|\//, ''));
     } else {
-      const { module, namespace } = await import(src.href);
-      if (Array.isArray(module)) {
-        for (const func of module) {
-          this.stack[namespace ? namespace + ':' + func.name : func.name] = {
+      let { module, namespace } = await import(src.href);
+      if (!Array.isArray(module)) module = [module];
+      for (const el of module) {
+        if (el.func) {
+          this.stack[namespace ? namespace + ':' + el.name : el.name] = {
             type: 'Function',
             js: true,
-            func: func.func,
+            func: el.func,
           };
-        }
-      } else this.stack[namespace ? namespace + ':' + module.name : module.name] = {
-        type: 'Function',
-        js: true,
-        func: module.func,
-      };
+        } else this.stack[namespace ? namespace + ':' + el.name : el.name] = el.value;
+      }
     }
   }
 
