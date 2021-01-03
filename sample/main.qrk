@@ -1,4 +1,7 @@
 {
-  (import "print.qrk")
-  (print "test" "bruh" (+ 5 2))
+  (import "io.qrk")
+  (import "factorial.qrk")
+  (let facto 5)
+  (import "misc.qrk")
+  (print "La factorielle de" facto "est" (factorial 5))
 }

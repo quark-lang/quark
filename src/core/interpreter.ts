@@ -1,6 +1,6 @@
-import type { Block, Element } from '../typings/block.ts';
-import { Parser } from './parser.ts';
-import { existsSync } from 'https://deno.land/std/fs/mod.ts';
+import type {Block, Element} from '../typings/block.ts';
+import {Parser} from './parser.ts';
+import {existsSync} from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 
 export class Interpreter {
@@ -91,7 +91,8 @@ export class Interpreter {
     return {
       args: functionArguments,
       body,
-      type: 'Function'
+      type: 'Function',
+      js: false,
     };
   }
 
@@ -116,17 +117,15 @@ export class Interpreter {
       const res = await this.process(el);
       if (res && res[1] && res[1] === true) {
         for (const arg of fn.args) delete this.stack[arg];
-        this.popStackFrame();
         return res[0];
       }
     }
     const lastStatement = fn.body.slice(-1)[0];
-    for (const arg of fn.args) delete this.stack[arg];
     if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
     if (lastStatement) {
-      const res = await this.process(lastStatement);
-      this.popStackFrame();
-      return res;
+      const processed = await this.process(lastStatement);
+      for (const arg of fn.args) delete this.stack[arg];
+      return processed;
     }
     this.popStackFrame();
     return 'none';
