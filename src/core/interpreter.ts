@@ -111,13 +111,18 @@ export class Interpreter {
       const res = await this.process(el);
       if (res && res[1] && res[1] === true) {
         for (const arg of fn.args) delete this.stack[arg];
+        this.popStackFrame();
         return res[0];
       }
     }
     const lastStatement = fn.body.slice(-1)[0];
     for (const arg of fn.args) delete this.stack[arg];
     if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
-    if (lastStatement) return await this.process(lastStatement);
+    if (lastStatement) {
+      const res = await this.process(lastStatement);
+      this.popStackFrame();
+      return res;
+    }
     this.popStackFrame();
     return 'none';
   }
@@ -161,8 +166,7 @@ export class Interpreter {
       const content: string = new TextDecoder('utf-8').decode(array);
 
       const ast = Parser.parse(content, true);
-      const splitPath = src.href.split('/');
-      await this.process(ast, undefined, splitPath.slice(0, splitPath.length - 1).join('/') + '/');
+      await this.process(ast, undefined, path.dirname(src.pathname).replace(/%20/g, ' ').replace(/\\|\//, ''));
     } else {
       const { module, namespace } = await import(src.href);
       if (Array.isArray(module)) {
