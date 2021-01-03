@@ -1,3 +1,6 @@
 [submodule "std"]
 	path = std
 	url = https://github.com/quark-lang/std
+[submodule "cli"]
+	path = cli
+	url = https://github.com/quark-lang/cli
