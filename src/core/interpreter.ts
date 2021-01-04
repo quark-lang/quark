@@ -116,8 +116,16 @@ export class Interpreter {
       if (fn.args[index].variadic === true) this.stack[fn.args[index].arg] = values.slice(Number(index));
       else this.stack[fn.args[index].arg] = values[Number(index)];
     }
-    for (const el of fn.body) {
-      const res = await this.process(el);
+    if ((<Block>fn.body).every((child) => Array.isArray(child))) {
+      for (const el of fn.body) {
+        const res = await this.process(el);
+        if (res && res[1] && res[1] === true) {
+          this.popStackFrame();
+          return res[0];
+        }
+      }
+    } else {
+      const res = await this.process(fn.body);
       if (res && res[1] && res[1] === true) {
         this.popStackFrame();
         return res[0];
