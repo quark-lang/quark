@@ -7,8 +7,8 @@ import { File } from '../utils/file.ts';
 export class Interpreter {
   private static _stack: Record<any, any>[] = [];
   private static ast: Block;
-  private static cwd: string;
-  private static get stack() {
+  static cwd: string;
+  static get stack() {
     if (this._stack.length === 0) this.pushStackFrame();
     return this._stack.slice(-1)[0];
   }
@@ -52,18 +52,20 @@ export class Interpreter {
   }
 
   private static async processArithmetic(operation: string, args: Block): Promise<any> {
-    switch (operation) {
-      case '+': // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) + (await this.process(cur)));
-      case '-': // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) - (await this.process(cur)));
-      case '*':
-        // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) * (await this.process(cur)));
-      case '/':
-        // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) / (await this.process(cur)));
+    // @ts-ignore
+    let result: any = await this.process(args[0]);
+    for (const arg of args.slice(1)) {
+      if (operation === '+') {
+        result += await this.process(arg);
+      } else if (operation === '-') {
+        result -= await this.process(arg);
+      } else if (operation === '*') {
+        result *= await this.process(arg);
+      } else if (operation === '/') {
+        result /= await this.process(arg);
+      }
     }
+    return result;
   }
 
   private static async processList(args: Block, state?: string): Promise<any> {
@@ -96,7 +98,7 @@ export class Interpreter {
     };
   }
 
-  private static async callFunction(node: Block, functionName: string) {
+  static async callFunction(node: any[], functionName: any) {
     const values = [];
     for (const arg of node) {
       const parsedArgument = await this.process(arg, 'Argument');
@@ -107,25 +109,37 @@ export class Interpreter {
         } else values.push(parsedArgument);
       } else values.push(parsedArgument);
     }
-    if (this.stack[functionName].js === true) return this.stack[functionName].func(...values);
+    if (typeof functionName === 'string' && this.stack[functionName].js === true) return this.stack[functionName].func(...values);
     this.pushStackFrame();
-    const fn = this.stack[functionName]
+    const fn = functionName.type === 'Function' ? functionName : this.stack[functionName];
     for (const index in fn.args) {
       if (fn.args[index].variadic === true) this.stack[fn.args[index].arg] = values.slice(Number(index));
       else this.stack[fn.args[index].arg] = values[Number(index)];
     }
-    for (const el of fn.body) {
-      const res = await this.process(el);
+    if ((<Block>fn.body).every((child) => Array.isArray(child))) {
+      for (const el of fn.body) {
+        const res = await this.process(el);
+        if (res && res[1] && res[1] === true) {
+          this.popStackFrame();
+          return res[0];
+        }
+      }
+    } else {
+      const res = await this.process(fn.body);
       if (res && res[1] && res[1] === true) {
-        for (const arg of fn.args) delete this.stack[arg];
+        this.popStackFrame();
         return res[0];
       }
     }
     const lastStatement = fn.body.slice(-1)[0];
-    if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
+    if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') {
+      this.popStackFrame();
+      return 'none';
+    }
     if (lastStatement) {
       const processed = await this.process(lastStatement);
       for (const arg of fn.args) delete this.stack[arg];
+      this.popStackFrame();
       return processed;
     }
     this.popStackFrame();
@@ -141,7 +155,6 @@ export class Interpreter {
 
   private static async processReturn(node: Block) {
     const value = await this.process(node[0]);
-    this.popStackFrame();
     return [value, true];
   }
 
@@ -186,25 +199,7 @@ export class Interpreter {
       // Processing with module directory as cwd
       await this.process(Parser.parse(content, true), undefined, this.parentDir(finalPath))
     } else {
-      let module = await import(finalPath);
-      let namespace: string = module.namespace ? module.namespace : '';
-
-      if (!module || !module.module) throw 'No modules found in ' + src;
-      if (!Array.isArray(module.module)) module.module = [module.module];
-
-      const name: string = namespace.length > 0 ? `${namespace}:` : '';
-
-      for (const mod of module.module) {
-        if ('func' in mod) {
-          this.stack[name + mod.name] = {
-            type: 'Function',
-            js: true,
-            func: mod.func,
-          };
-        } else {
-          this.stack[name + mod.name] = mod.value;
-        }
-      }
+      await import(finalPath);
     }
   }
 
@@ -237,7 +232,7 @@ export class Interpreter {
   private static async process(node: Block | Element, state?: string, cwd: string = this.cwd): Promise<any> {
     let returned;
     if (typeof node === 'string') return node;
-    if ('value' in node) return Interpreter.processValue(node, state);
+    if ('value' in node) return await Interpreter.processValue(node, state);
     for (const child of node) {
       if (Array.isArray(child)) {
         returned = await this.process(child, undefined, cwd);
