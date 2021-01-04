@@ -173,7 +173,7 @@ export class Interpreter {
     // Coming 3 folders back due to Interpreter path
     const stdPath: string = path.join(this.parentDir(path.fromFileUrl(import.meta.url), 3), 'std');
     // Checking if file exists and setting correct path
-    let finalPath: string;
+    let finalPath: string | undefined = undefined;
     if (existsSync(path.join(stdPath, src))) finalPath = path.join(stdPath, src);
     else if (existsSync(path.join(this.cwd, src))) finalPath = path.join(this.cwd, src);
     if (!finalPath) throw 'Request module file ' + src + ' not found!';
