@@ -100,7 +100,8 @@ export class Interpreter {
     const values = [];
     for (const arg of node) {
       const parsedArgument = await this.process(arg, 'Argument');
-      if (!['string', 'number'].includes(typeof parsedArgument)) {
+      if (parsedArgument === undefined) values.push('none');
+      else if (!['string', 'number'].includes(typeof parsedArgument)) {
         if ('variadic' in parsedArgument) {
           values.push(...parsedArgument.value);
         } else values.push(parsedArgument);
