@@ -1,7 +1,21 @@
 {
-  (import "io.qrk")
   (import "factorial.qrk")
+  (let push (fn (array value) {
+    (let (index array (length array)) value)
+  }))
   (let facto 5)
-  (import "misc.qrk")
-  (print "La factorielle de" facto "est" (factorial 5))
+  (let fac (fn (n) {
+    (let acc 1)
+    (let i 1)
+    (if (= n 0) (return 1))
+    (while (< i (+ n 1)) (return n))
+    (return acc)
+  }))
+  (let listProcessTest (fn (array) {
+    (print array)
+    (print array)
+    (print array)
+    (push array "test")
+  }))
+  (print (fac 2))
 }
