@@ -275,7 +275,7 @@ export class Interpreter {
   }
   public static async run(source: string, src: string) {
     this.ast = Parser.parse(source);
-    this.cwd = path.dirname(src);
+    this.cwd = src;
     await this.process(this.ast);
     return undefined;
   }
