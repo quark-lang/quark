@@ -52,18 +52,20 @@ export class Interpreter {
   }
 
   private static async processArithmetic(operation: string, args: Block): Promise<any> {
-    switch (operation) {
-      case '+': // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) + (await this.process(cur)));
-      case '-': // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) - (await this.process(cur)));
-      case '*':
-        // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) * (await this.process(cur)));
-      case '/':
-        // @ts-ignore
-        return args.reduce(async (acc: any, cur: any) => (await this.process(acc)) / (await this.process(cur)));
+    // @ts-ignore
+    let result: any = await this.process(args[0]);
+    for (const arg of args.slice(1)) {
+      if (operation === '+') {
+        result += await this.process(arg);
+      } else if (operation === '-') {
+        result -= await this.process(arg);
+      } else if (operation === '*') {
+        result *= await this.process(arg);
+      } else if (operation === '/') {
+        result /= await this.process(arg);
+      }
     }
+    return result;
   }
 
   private static async processList(args: Block, state?: string): Promise<any> {
@@ -117,15 +119,19 @@ export class Interpreter {
     for (const el of fn.body) {
       const res = await this.process(el);
       if (res && res[1] && res[1] === true) {
-        for (const arg of fn.args) delete this.stack[arg];
+        this.popStackFrame();
         return res[0];
       }
     }
     const lastStatement = fn.body.slice(-1)[0];
-    if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') return 'none';
+    if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') {
+      this.popStackFrame();
+      return 'none';
+    }
     if (lastStatement) {
       const processed = await this.process(lastStatement);
       for (const arg of fn.args) delete this.stack[arg];
+      this.popStackFrame();
       return processed;
     }
     this.popStackFrame();
@@ -141,7 +147,6 @@ export class Interpreter {
 
   private static async processReturn(node: Block) {
     const value = await this.process(node[0]);
-    this.popStackFrame();
     return [value, true];
   }
 
@@ -237,7 +242,7 @@ export class Interpreter {
   private static async process(node: Block | Element, state?: string, cwd: string = this.cwd): Promise<any> {
     let returned;
     if (typeof node === 'string') return node;
-    if ('value' in node) return Interpreter.processValue(node, state);
+    if ('value' in node) return await Interpreter.processValue(node, state);
     for (const child of node) {
       if (Array.isArray(child)) {
         returned = await this.process(child, undefined, cwd);
