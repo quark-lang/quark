@@ -27,6 +27,7 @@
 -   [Getting Started](#getting_started)
 -   [Manual installation](#manual)
 -   [Build](#build)
+-   [Getting started](./GUIDE.md)
 -   [Usage](#usage)
 -   [TODO](./TODO.md)
 -   [Contributing](./CONTRIBUTING.md)
@@ -113,6 +114,10 @@ To build the project, do:
 ## ✍️ Authors <a name = "authors"></a>
 
 -   [@thomasvergne](https://github.com/thomasvergne) - Idea & Initial work
+
+<a href="https://github.com/quark-lang/quark/graphs/contributors">
+  <img src="https://contributors-img.web.app/image?repo=quark-lang/quark" />
+</a>
 
 See also the list of
 [contributors](https://github.com/quark-lang/quark/contributors) who
