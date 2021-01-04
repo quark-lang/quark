@@ -8,7 +8,6 @@ export class Interpreter {
   private static _stack: Record<any, any>[] = [];
   private static ast: Block;
   private static cwd: string;
-  private static folder: string;
   private static get stack() {
     if (this._stack.length === 0) this.pushStackFrame();
     return this._stack.slice(-1)[0];
@@ -169,7 +168,7 @@ export class Interpreter {
     return src;
   }
 
-  private static async processImport(node: Block, cwd: string) {
+  private static async processImport(node: Block) {
     let src: string | URL = ((<Element>node[0]).value as string).replace(/:/g, '/');
     // Coming 3 folders back due to Interpreter path
     const stdPath: string = path.join(this.parentDir(path.fromFileUrl(import.meta.url), 3), 'std');
@@ -250,7 +249,7 @@ export class Interpreter {
             await this.process(args, undefined, cwd);
             this.popStackFrame();
           }
-          else if (expr.value === 'import') return await Interpreter.processImport(args, cwd);
+          else if (expr.value === 'import') return await Interpreter.processImport(args);
           else if (expr.value === 'let') return await this.variableDefinition(args);
           else if (['+', '-', '/', '*'].includes(expr.value as string)) return await Interpreter.processArithmetic(expr.value as string, args);
           else if (expr.value === 'fn') return await Interpreter.functionDefinition(args);
