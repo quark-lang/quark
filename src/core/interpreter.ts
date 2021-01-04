@@ -1,6 +1,6 @@
-import type {Block, Element} from '../typings/block.ts';
-import {Parser} from './parser.ts';
-import {existsSync} from 'https://deno.land/std/fs/mod.ts';
+import type { Block, Element } from '../typings/block.ts';
+import { Parser } from './parser.ts';
+import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 
 export class Interpreter {
@@ -145,9 +145,9 @@ export class Interpreter {
   }
 
   private static async processCondition(node: Block) {
-    if (await this.process(node[0])) return this.process(node[1]);
-    if (node[2]) return this.process(node[2]);
-    return [undefined, false]
+    if (await this.process(node[0])) return await this.process(node[1]);
+    else if (node[2]) return await this.process(node[2]);
+    else return [undefined, false];
   }
 
   private static async processEqualities(operation: string, lhs: Block | Element, rhs: Block | Element) {
@@ -171,13 +171,15 @@ export class Interpreter {
       else src = path.join(cwd, src);
       if (!existsSync(src)) throw `File ${src} does not exists!`;
     } else src = path.join(cwd, this.folder, src);
-    src = path.toFileUrl(src.replace(/\\/g, '/'));
+    if (Deno.build.os !== 'darwin') src.replace(/\\/g, '/');
+    src = path.toFileUrl(src);
     if (!src.href.endsWith('.ts')) {
       const array = Deno.readFileSync(src);
       const content: string = new TextDecoder('utf-8').decode(array);
 
       const ast = Parser.parse(content, true);
-      await this.process(ast, undefined, path.dirname(src.pathname).replace(/%20/g, ' ').replace(/\\|\//, ''));
+      const newSrc = path.dirname(path.dirname(src.pathname));
+      await this.process(ast, undefined, Deno.build.os === 'darwin' ? newSrc : newSrc.replace(/%20/g, ' ').replace(/\\|\//, ''));
     } else {
       let { module, namespace } = await import(src.href);
       if (!Array.isArray(module)) module = [module];
@@ -196,7 +198,15 @@ export class Interpreter {
   private static async processWhile(node: Block) {
     const [condition, body] = node;
     while (await this.process(condition)) {
-      await this.process(body);
+      if ((<Block>body).every((child) => Array.isArray(child))) {
+        for (const el of body) {
+          const res = await this.process(el);
+          if (res && res[1] && res[1] === true) return res;
+        }
+      } else {
+        const res = await this.process(body);
+        if (res && res[1] && res[1] === true) return res;
+      }
     }
   }
 
