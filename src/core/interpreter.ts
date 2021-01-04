@@ -82,7 +82,7 @@ export class Interpreter {
     const [args, body] = node;
     const functionArguments: any[] = [];
     // @ts-ignore
-    for (const arg of args) {
+    if (args.length > 0) for (const arg of args) {
       const argumentName: string = await this.process(<Element>arg, 'Identifier');
       if (typeof argumentName === 'string') functionArguments.push({
         arg: argumentName,
@@ -91,7 +91,7 @@ export class Interpreter {
       else functionArguments.push(argumentName);
     }
     return {
-      args: functionArguments,
+      args: functionArguments || [],
       body,
       type: 'Function',
       js: false,
@@ -112,7 +112,7 @@ export class Interpreter {
     if (typeof functionName === 'string' && this.stack[functionName].js === true) return this.stack[functionName].func(...values);
     this.pushStackFrame();
     const fn = functionName.type === 'Function' ? functionName : this.stack[functionName];
-    for (const index in fn.args) {
+    if (fn.args.length > 0) for (const index in fn.args) {
       if (fn.args[index].variadic === true) this.stack[fn.args[index].arg] = values.slice(Number(index));
       else this.stack[fn.args[index].arg] = values[Number(index)];
     }
