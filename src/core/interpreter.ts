@@ -7,8 +7,8 @@ import { File } from '../utils/file.ts';
 export class Interpreter {
   private static _stack: Record<any, any>[] = [];
   private static ast: Block;
-  private static cwd: string;
-  private static get stack() {
+  static cwd: string;
+  static get stack() {
     if (this._stack.length === 0) this.pushStackFrame();
     return this._stack.slice(-1)[0];
   }
@@ -98,7 +98,7 @@ export class Interpreter {
     };
   }
 
-  private static async callFunction(node: Block, functionName: string) {
+  static async callFunction(node: any[], functionName: any) {
     const values = [];
     for (const arg of node) {
       const parsedArgument = await this.process(arg, 'Argument');
@@ -109,9 +109,9 @@ export class Interpreter {
         } else values.push(parsedArgument);
       } else values.push(parsedArgument);
     }
-    if (this.stack[functionName].js === true) return this.stack[functionName].func(...values);
+    if (typeof functionName === 'string' && this.stack[functionName].js === true) return this.stack[functionName].func(...values);
     this.pushStackFrame();
-    const fn = this.stack[functionName]
+    const fn = functionName.type === 'Function' ? functionName : this.stack[functionName];
     for (const index in fn.args) {
       if (fn.args[index].variadic === true) this.stack[fn.args[index].arg] = values.slice(Number(index));
       else this.stack[fn.args[index].arg] = values[Number(index)];
@@ -191,25 +191,7 @@ export class Interpreter {
       // Processing with module directory as cwd
       await this.process(Parser.parse(content, true), undefined, this.parentDir(finalPath))
     } else {
-      let module = await import(finalPath);
-      let namespace: string = module.namespace ? module.namespace : '';
-
-      if (!module || !module.module) throw 'No modules found in ' + src;
-      if (!Array.isArray(module.module)) module.module = [module.module];
-
-      const name: string = namespace.length > 0 ? `${namespace}:` : '';
-
-      for (const mod of module.module) {
-        if ('func' in mod) {
-          this.stack[name + mod.name] = {
-            type: 'Function',
-            js: true,
-            func: mod.func,
-          };
-        } else {
-          this.stack[name + mod.name] = mod.value;
-        }
-      }
+      await import(finalPath);
     }
   }
 
