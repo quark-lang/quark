@@ -1,8 +1,8 @@
 import {
   Token,
   Tokens,
-  Node,
 } from '../typings/token.ts';
+import type { Node } from '../typings/token.ts';
 import { Formatter } from './formatter.ts';
 export class Lexer {
   private static code: string;
