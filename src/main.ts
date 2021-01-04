@@ -5,9 +5,10 @@ import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 
 async function main(): Promise<void> {
   // Getting sample code content and interpreting it
-  const cwd = path.resolve();
-  const script: string = await File.read(path.join(cwd, 'cli', 'main.qrk'));
-  await Interpreter.run(script, cwd, 'cli');
+  const cwd = Deno.cwd();
+  const src = path.join(cwd, 'cli', 'main.qrk');
+  const script: string = await File.read(src);
+  await Interpreter.run(script, src);
 
 }
 

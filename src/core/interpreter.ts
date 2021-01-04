@@ -2,6 +2,7 @@ import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
 import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
+import { File } from '../utils/file.ts';
 
 export class Interpreter {
   private static _stack: Record<any, any>[] = [];
@@ -163,34 +164,46 @@ export class Interpreter {
     }
   }
 
+  private static parentDir(src: string, it: number = 1): string {
+    for (let i = 0; i < it; i++) src = path.dirname(src);
+    return src;
+  }
+
   private static async processImport(node: Block, cwd: string) {
     let src: string | URL = ((<Element>node[0]).value as string).replace(/:/g, '/');
-    if (!existsSync(path.join(cwd, this.folder, src))) {
-      // Checking if core library
-      if (!existsSync(path.join(cwd, src))) src = path.join(cwd, 'std', src);
-      else src = path.join(cwd, src);
-      if (!existsSync(src)) throw `File ${src} does not exists!`;
-    } else src = path.join(cwd, this.folder, src);
-    if (Deno.build.os !== 'darwin') src.replace(/\\/g, '/');
-    src = path.toFileUrl(src);
-    if (!src.href.endsWith('.ts')) {
-      const array = Deno.readFileSync(src);
-      const content: string = new TextDecoder('utf-8').decode(array);
+    // Coming 3 folders back due to Interpreter path
+    const stdPath: string = path.join(this.parentDir(path.fromFileUrl(import.meta.url), 3), 'std');
+    // Checking if file exists and setting correct path
+    let finalPath: string;
+    if (existsSync(path.join(stdPath, src))) finalPath = path.join(stdPath, src);
+    else if (existsSync(path.join(this.cwd, src))) finalPath = path.join(this.cwd, src);
+    if (!finalPath) throw 'Request module file ' + src + ' not found!';
 
-      const ast = Parser.parse(content, true);
-      const newSrc = path.dirname(path.dirname(src.pathname));
-      await this.process(ast, undefined, Deno.build.os === 'darwin' ? newSrc : newSrc.replace(/%20/g, ' ').replace(/\\|\//, ''));
+    // Getting file extension for choosing which parsing to use
+    const ext: string = path.extname(finalPath);
+    if (ext === '.qrk') {
+      const content: string = await File.read(finalPath);
+      // Processing with module directory as cwd
+      await this.process(Parser.parse(content, true), undefined, this.parentDir(finalPath))
     } else {
-      let { module, namespace } = await import(src.href);
-      if (!Array.isArray(module)) module = [module];
-      for (const el of module) {
-        if (el.func) {
-          this.stack[namespace ? namespace + ':' + el.name : el.name] = {
+      let module = await import(finalPath);
+      let namespace: string = module.namespace ? module.namespace : '';
+
+      if (!module || !module.module) throw 'No modules found in ' + src;
+      if (!Array.isArray(module.module)) module.module = [module.module];
+
+      const name: string = namespace.length > 0 ? `${namespace}:` : '';
+
+      for (const mod of module.module) {
+        if ('func' in mod) {
+          this.stack[name + mod.name] = {
             type: 'Function',
             js: true,
-            func: el.func,
+            func: mod.func,
           };
-        } else this.stack[namespace ? namespace + ':' + el.name : el.name] = el.value;
+        } else {
+          this.stack[name + mod.name] = mod.value;
+        }
       }
     }
   }
@@ -260,10 +273,9 @@ export class Interpreter {
     }
     return 'none';
   }
-  public static async run(source: string, cwd?: string, folder?: string) {
+  public static async run(source: string, src: string) {
     this.ast = Parser.parse(source);
-    this.folder = folder + '';
-    this.cwd = cwd || Deno.cwd();
+    this.cwd = path.dirname(src);
     await this.process(this.ast);
     return undefined;
   }
