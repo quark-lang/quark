@@ -163,7 +163,7 @@ export class Interpreter {
     }
   }
 
-  private static parentDir(src: string, it: number = 1): string {
+  public static parentDir(src: string, it: number = 1): string {
     for (let i = 0; i < it; i++) src = path.dirname(src);
     return src;
   }
