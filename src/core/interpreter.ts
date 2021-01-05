@@ -14,10 +14,18 @@ export class Interpreter {
   }
 
   private static pushStackFrame() {
-    let variables = {};
-    for (const stack of this._stack) variables = { ...variables, ...stack };
-    this._stack.push(variables);
+    this._stack.push({});
     return this.stack;
+  }
+
+  private static findValueInFrame(value: string): Record<any, any>  | undefined {
+    for (const index in this._stack.reverse()) {
+      if (this._stack[index][value]) return {
+        index,
+        value,
+      };
+    }
+    return undefined;
   }
 
   private static popStackFrame() {
@@ -28,16 +36,11 @@ export class Interpreter {
   private static async variableDefinition(node: Block) {
     const variable = await this.process(<Element>node[0], 'Identifier');
     const value = await this.process(<Element>node[1]);
-    if (typeof variable !== 'string' && 'variable' in variable) {
-      const currentStackVariable = this.stack[variable.variable];
-      if (typeof currentStackVariable === 'string') {
-        const splitUpdate = currentStackVariable.split('');
-        splitUpdate[variable.index] = value;
-        this.stack[variable.variable] = splitUpdate.join('');
-      }
-      else currentStackVariable[variable.index] = value;
-    }
-    else this.stack[await this.process(<Element>node[0], 'Identifier')] = value;
+
+    const stackElement = this.findValueInFrame(variable as string);
+
+    if (!stackElement) return this.stack[variable] = value;
+    else return this._stack[stackElement.index][stackElement.value] = value;
   }
 
   private static processValue(element: Element, state?: string) {
@@ -45,7 +48,9 @@ export class Interpreter {
     if (element.value === 'stack') return this.stack;
     if (element.type === 'Word') {
       if (state && state === 'Identifier') return element.value;
-      if (this.stack[element.value] !== undefined) return this.stack[element.value];
+      const stackElement = this.findValueInFrame(element.value as string);
+      const value = stackElement ? this._stack[stackElement.index][stackElement.value] : undefined;
+      if (value !== undefined) return stackElement;
       return 'none';
     }
     return element.value as string;
@@ -232,7 +237,7 @@ export class Interpreter {
   private static async process(node: Block | Element, state?: string, cwd: string = this.cwd): Promise<any> {
     let returned;
     if (typeof node === 'string') return node;
-    if ('value' in node) return await Interpreter.processValue(node, state);
+    if ('value' in node) return Interpreter.processValue(node, state);
     for (const child of node) {
       if (Array.isArray(child)) {
         returned = await this.process(child, undefined, cwd);
@@ -240,12 +245,23 @@ export class Interpreter {
         const [expression, ...args] = node;
         if ('value' in (expression as Element)) {
           const expr = <Element>expression;
+          const stackElement = this.findValueInFrame(expr.value as string);
+          const value = stackElement ? this._stack[stackElement.index][stackElement.value] : undefined;
           if (expr.value === '{') {
             this.pushStackFrame();
             await this.process(args, undefined, cwd);
             this.popStackFrame();
           }
           else if (expr.value === 'import') return await Interpreter.processImport(args);
+          else if (expr.value === 'print') {
+            const values = [];
+            for (const arg of args) {
+              const processed = await this.process(arg);
+              const value = processed ? this._stack[processed.index][processed.value] : undefined;
+              values.push(value);
+            }
+            return console.log(...values);
+          }
           else if (expr.value === 'let') return await this.variableDefinition(args);
           else if (['+', '-', '/', '*'].includes(expr.value as string)) return await Interpreter.processArithmetic(expr.value as string, args);
           else if (expr.value === 'fn') return await Interpreter.functionDefinition(args);
@@ -256,7 +272,7 @@ export class Interpreter {
           else if (expr.value === 'list') return await Interpreter.processList(args, state);
           else if (expr.value === 'while') return await Interpreter.processWhile(args);
           else if (expr.value === 'index') return await Interpreter.processListIndex(args, state);
-          else if (Interpreter.stack[expr.value] && Interpreter.stack[expr.value].type === 'Function') return await Interpreter.callFunction(args, expr.value as string);
+          else if (value && value.type === 'Function') return await Interpreter.callFunction(args, expr.value as string);
           const potentialValue = await this.processValue(expr);
           if (potentialValue !== 'none') return potentialValue;
           throw `Function or keyword ${expr.value} does not exists!`;
