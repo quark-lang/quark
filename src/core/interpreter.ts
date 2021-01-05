@@ -19,28 +19,39 @@ export class Interpreter {
   }
 
   private static findValueInFrame(value: string): Record<any, any>  | undefined {
-    for (const index in this._stack.reverse()) {
-      if (this._stack[index][value]) return {
-        index,
-        value,
-      };
+    if (this._stack.length === 0) {
+      this.pushStackFrame();
+      return undefined;
+    }
+    for (const index in this._stack.slice().reverse()) {
+      if (this._stack[index][value] !== undefined) {
+        return {
+          index: index,
+          value,
+        };
+      }
     }
     return undefined;
   }
 
   private static popStackFrame() {
     this._stack.pop();
-    return this.stack;
   }
 
   private static async variableDefinition(node: Block) {
     const variable = await this.process(<Element>node[0], 'Identifier');
     const value = await this.process(<Element>node[1]);
+    this.stack[variable] = value;
+  }
 
-    const stackElement = this.findValueInFrame(variable as string);
+  private static async variableModification(node: Block) {
+    const variable = await this.process(<Element>node[0], 'Identifier');
+    const value = await this.process(<Element>node[1]);
+    this.stack[variable] = value;
 
-    if (!stackElement) return this.stack[variable] = value;
-    else return this._stack[stackElement.index][stackElement.value] = value;
+    const stackElement = this.findValueInFrame(variable);
+    if (stackElement) this._stack[stackElement.index][stackElement.value] = value;
+    else await this.variableDefinition(node);
   }
 
   private static processValue(element: Element, state?: string) {
@@ -103,50 +114,26 @@ export class Interpreter {
     };
   }
 
-  static async callFunction(node: any[], functionName: any) {
-    const values = [];
-    for (const arg of node) {
-      const parsedArgument = await this.process(arg, 'Argument');
-      if (parsedArgument === undefined) values.push('none');
-      else if (!['string', 'number'].includes(typeof parsedArgument)) {
-        if ('variadic' in parsedArgument) {
-          values.push(...parsedArgument.value);
-        } else values.push(parsedArgument);
-      } else values.push(parsedArgument);
+  static async callFunction(args: any[], functionName: any) {
+    const callArguments = [];
+    for (const arg of args) {
+      const processed = await this.process(arg);
+      const value = this.isObject(processed) ? this._stack[processed.index][processed.value] : processed;
+      callArguments.push(value);
     }
-    if (typeof functionName === 'string' && this.stack[functionName].js === true) return this.stack[functionName].func(...values);
+    const foundFunc = this.findValueInFrame(functionName);
+    const func = foundFunc ? this._stack[foundFunc.index][foundFunc.value] : undefined;
+    if (func === undefined) throw `Function ${functionName} does not exists!`;
     this.pushStackFrame();
-    const fn = functionName.type === 'Function' ? functionName : this.stack[functionName];
-    if (fn.args.length > 0) for (const index in fn.args) {
-      if (fn.args[index].variadic === true) this.stack[fn.args[index].arg] = values.slice(Number(index));
-      else this.stack[fn.args[index].arg] = values[Number(index)];
+    for (const index in func.args) {
+      const arg = func.args[index];
+      if (arg.variadic === false) this.stack[arg.arg] = callArguments[Number(index)];
     }
-    if ((<Block>fn.body).every((child) => Array.isArray(child))) {
-      for (const el of fn.body) {
-        const res = await this.process(el);
-        if (res && res[1] && res[1] === true) {
-          this.popStackFrame();
-          return res[0];
-        }
+    if ((<Block>func.body).every((child) => Array.isArray(child))) {
+      for (const instruction of func.body) {
+        const res = await this.process(instruction);
       }
-    } else {
-      const res = await this.process(fn.body);
-      if (res && res[1] && res[1] === true) {
-        this.popStackFrame();
-        return res[0];
-      }
-    }
-    const lastStatement = fn.body.slice(-1)[0];
-    if (lastStatement && lastStatement.length > 1 && lastStatement[0].value !== 'return') {
-      this.popStackFrame();
-      return 'none';
-    }
-    if (lastStatement) {
-      const processed = await this.process(lastStatement);
-      for (const arg of fn.args) delete this.stack[arg];
-      this.popStackFrame();
-      return processed;
-    }
+    } else return await this.process(func.body);
     this.popStackFrame();
     return 'none';
   }
@@ -208,6 +195,10 @@ export class Interpreter {
     }
   }
 
+  private static isObject(variable: any) {
+    return !Array.isArray(variable) && typeof variable === 'object';
+  }
+
   private static async processWhile(node: Block) {
     const [condition, body] = node;
     while (await this.process(condition)) {
@@ -237,7 +228,9 @@ export class Interpreter {
   private static async process(node: Block | Element, state?: string, cwd: string = this.cwd): Promise<any> {
     let returned;
     if (typeof node === 'string') return node;
-    if ('value' in node) return Interpreter.processValue(node, state);
+    if ('value' in node) {
+      return Interpreter.processValue(node, state);
+    }
     for (const child of node) {
       if (Array.isArray(child)) {
         returned = await this.process(child, undefined, cwd);
@@ -245,8 +238,6 @@ export class Interpreter {
         const [expression, ...args] = node;
         if ('value' in (expression as Element)) {
           const expr = <Element>expression;
-          const stackElement = this.findValueInFrame(expr.value as string);
-          const value = stackElement ? this._stack[stackElement.index][stackElement.value] : undefined;
           if (expr.value === '{') {
             this.pushStackFrame();
             await this.process(args, undefined, cwd);
@@ -257,12 +248,13 @@ export class Interpreter {
             const values = [];
             for (const arg of args) {
               const processed = await this.process(arg);
-              const value = processed ? this._stack[processed.index][processed.value] : undefined;
+              const value = processed ? this.isObject(processed) ? this._stack[processed.index][processed.value] : processed : undefined;
               values.push(value);
             }
             return console.log(...values);
           }
           else if (expr.value === 'let') return await this.variableDefinition(args);
+          else if (expr.value === 'set') return await this.variableModification(args);
           else if (['+', '-', '/', '*'].includes(expr.value as string)) return await Interpreter.processArithmetic(expr.value as string, args);
           else if (expr.value === 'fn') return await Interpreter.functionDefinition(args);
           else if (expr.value === 'return') return await Interpreter.processReturn(args);
@@ -272,10 +264,10 @@ export class Interpreter {
           else if (expr.value === 'list') return await Interpreter.processList(args, state);
           else if (expr.value === 'while') return await Interpreter.processWhile(args);
           else if (expr.value === 'index') return await Interpreter.processListIndex(args, state);
-          else if (value && value.type === 'Function') return await Interpreter.callFunction(args, expr.value as string);
-          const potentialValue = await this.processValue(expr);
-          if (potentialValue !== 'none') return potentialValue;
-          throw `Function or keyword ${expr.value} does not exists!`;
+          const stackElement = this.findValueInFrame(expr.value as string);
+          const value = stackElement !== undefined ? this._stack[stackElement.index][stackElement.value] : undefined;
+          if (value && value.type === 'Function') return await Interpreter.callFunction(args, expr.value as string);
+          throw 'test';
         }
       }
     }
