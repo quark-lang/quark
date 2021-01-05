@@ -132,6 +132,10 @@ export class Interpreter {
     if ((<Block>func.body).every((child) => Array.isArray(child))) {
       for (const instruction of func.body) {
         const res = await this.process(instruction);
+        if (res && res[1] && res[1] === true) {
+          this.popStackFrame();
+          return res[0];
+        }
       }
     } else return await this.process(func.body);
     this.popStackFrame();
