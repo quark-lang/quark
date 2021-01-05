@@ -24,11 +24,12 @@ export class Interpreter {
       return undefined;
     }
     for (const index in this._stack.slice().reverse()) {
-      if (this._stack[index][value] !== undefined) {
+      const stack = this._stack.slice().reverse()[this._stack.length - (Number(index) + 1)];
+      if (stack[value] !== undefined) {
         return {
-          index: index,
+          index: Number(index),
           value,
-        };
+        }
       }
     }
     return undefined;
@@ -52,6 +53,14 @@ export class Interpreter {
     const stackElement = this.findValueInFrame(variable);
     if (stackElement) this._stack[stackElement.index][stackElement.value] = value;
     else await this.variableDefinition(node);
+  }
+
+  private static async variableDeletion(node: Block) {
+    for (const arg of node) {
+      const variableToDelete = await this.process(arg, 'Identifier');
+      const foundVariable = this.findValueInFrame(variableToDelete);
+      if (foundVariable !== undefined) return delete this._stack[foundVariable.index][foundVariable.value];
+    }
   }
 
   private static processValue(element: Element, state?: string) {
@@ -259,6 +268,7 @@ export class Interpreter {
           }
           else if (expr.value === 'let') return await this.variableDefinition(args);
           else if (expr.value === 'set') return await this.variableModification(args);
+          else if (expr.value === 'del') return await this.variableDeletion(args);
           else if (['+', '-', '/', '*'].includes(expr.value as string)) return await Interpreter.processArithmetic(expr.value as string, args);
           else if (expr.value === 'fn') return await Interpreter.functionDefinition(args);
           else if (expr.value === 'return') return await Interpreter.processReturn(args);
@@ -271,7 +281,7 @@ export class Interpreter {
           const stackElement = this.findValueInFrame(expr.value as string);
           const value = stackElement !== undefined ? this._stack[stackElement.index][stackElement.value] : undefined;
           if (value && value.type === 'Function') return await Interpreter.callFunction(args, expr.value as string);
-          throw 'test';
+          throw JSON.stringify(node);
         }
       }
     }
