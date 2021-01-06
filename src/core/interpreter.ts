@@ -5,12 +5,13 @@ import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { File } from '../utils/file.ts';
 
 type ProcessResponse = [any | undefined, boolean];
-type Stack = { variables: { name: string, value: Value }[] }[];
+type StackVariable = { name: string, value: Value };
+type Stack = { variables: StackVariable[] }[];
 
 // Values
 type String = { type: 'String', value: string, };
 type Integer = { type: 'Integer', value: number };
-type Function = { type: 'Function', args: Value[], body: Block }
+type Function = { type: 'Function', args: string[], body: Block }
 
 type Value = String | Integer | Function;
 
@@ -57,7 +58,7 @@ export class Interpreter {
   private static processFunctionDefinition(args: Block, body: Block): Function {
     return {
       type: 'Function',
-      args: args.map((acc) => this.processValue(acc)),
+      args: args.map((acc) => this.processValue(acc).value),
       body,
     }
   }
@@ -95,20 +96,47 @@ export class Interpreter {
     return [undefined, false];
   }
 
-  private static getValue(element: Element | Block): Value {
+  private static getValue(element: Element | Block): Value | 'none' | Element {
     if (Array.isArray(element)) {
-
-    } else {
-      const stackElement = this.getStackVariables.get(element.value);
-      return stackElement.value;
+      const [expr, ...args] = element;
+      const expression = (<Element>expr).value;
+      const stackElement = this.getStackVariables.get(expression);
+      if (!stackElement) return 'none';
+      if (stackElement.value.type === 'Function') {
+        const res = this.processFunctionCall(stackElement.value, args);
+        if (res) return res;
+        return 'none';
+      }
+      else return 'none';
     }
-    return element as unknown as Value;
+    if (element.type !== 'Word') return element;
+    const stackElement = this.getStackVariables.get(element.value);
+    if (!stackElement) return 'none';
+    return stackElement.value;
   }
 
   private static processPrint(args: Block): ProcessResponse {
     const processedArguments = args.map((arg) => this.getValue(arg));
-    console.log(...processedArguments.map((acc) => acc.value));
+    console.log(...processedArguments.map((acc) => acc.value || 'none'));
     return [undefined, false]
+  }
+
+  private static processFunctionCall(func: Function, args: Block) {
+    const bindings = func.args.map((name, i) => (
+      {
+        name,
+        value: this.getValue(args[i]),
+      }
+    ));
+    this.pushStackFrame();
+    this.stack[this.stack.length - 1].variables.push(...bindings as StackVariable[]);
+    let returnValue = this.processBlock(func.body);
+    this.popStackFrame();
+    return returnValue[0];
+  }
+
+  private static processReturn(arg: Block): ProcessResponse {
+    return [this.getValue(arg), true];
   }
 
   private static processBlock(block: Block): any {
@@ -126,8 +154,10 @@ export class Interpreter {
         if (expression === 'let') res = this.processVariableDefinition(<Element>args[0], args[1]);
         else if (expression === 'set') res = this.processVariableUpdate(<Element>args[0], args[1]);
         else if (expression === 'print') res = this.processPrint(args);
-
-        if (res[1]) return res;
+        else if (expression === 'return') res = this.processReturn(args[0] as Block);
+        const potentialVariable = this.getStackVariables.get(expression);
+        if (potentialVariable && potentialVariable.value.type === 'Function') res = this.processFunctionCall(potentialVariable.value, args);
+        if (res[1] === true) return res;
       }
     }
   }
