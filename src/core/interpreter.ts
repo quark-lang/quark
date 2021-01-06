@@ -19,6 +19,14 @@ export class Interpreter {
   private static ast: Block;
   static cwd: string;
 
+  private static pushStackFrame() {
+    this.stack.push({ variables: [] });
+  }
+
+  private static popStackFrame() {
+    this.stack.pop();
+  }
+
   public static parentDir(src: string, it: number = 1): string {
     for (let i = 0; i < it; i++) src = path.dirname(src);
     return src;
@@ -66,19 +74,60 @@ export class Interpreter {
     return [undefined, false];
   }
 
+  private static get getStackVariables(): Map<any, any> {
+    let map = new Map();
+    for (const index in this.stack) {
+      const frame = this.stack[index];
+      for (const variable of frame.variables) map.set(variable.name, { scope: Number(index), value: variable.value });
+    }
+    return map;
+  }
+
+  private static processVariableUpdate(identifier: Element, value: Element | Block): ProcessResponse {
+    const variable = this.processIdentifier(identifier);
+    const stackElement = this.getStackVariables.get(variable);
+
+    const stackVariables = this.stack[stackElement.scope].variables;
+    const foundVariable = stackVariables.find((acc) => acc.name === variable);
+    if (!foundVariable) throw 'Variable does not exists!';
+    foundVariable.value = this.processValue(value);
+
+    return [undefined, false];
+  }
+
+  private static getValue(element: Element | Block): Value {
+    if (Array.isArray(element)) {
+
+    } else {
+      const stackElement = this.getStackVariables.get(element.value);
+      return stackElement.value;
+    }
+    return element as unknown as Value;
+  }
+
+  private static processPrint(args: Block): ProcessResponse {
+    const processedArguments = args.map((arg) => this.getValue(arg));
+    console.log(...processedArguments.map((acc) => acc.value));
+    return [undefined, false]
+  }
+
   private static processBlock(block: Block): any {
     for (const instruction of block) {
       if (this.isContainer(instruction)) {
-        return this.processBlock(instruction as Block);
+        this.pushStackFrame();
+        this.processBlock(instruction as Block);
+        this.popStackFrame();
       } else {
         // @ts-ignore
         const [expr, ...args] = instruction;
         const expression = (<Element>expr).value;
         let res: ProcessResponse = [undefined, false];
+
         if (expression === 'let') res = this.processVariableDefinition(<Element>args[0], args[1]);
-        if (res[1]) {
-          return res;
-        }
+        else if (expression === 'set') res = this.processVariableUpdate(<Element>args[0], args[1]);
+        else if (expression === 'print') res = this.processPrint(args);
+
+        if (res[1]) return res;
       }
     }
   }
