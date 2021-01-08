@@ -14,20 +14,26 @@ export class Node {
 
 export class VariableDefinition {
   public static process(variable: Element, value: Block | Element) {
-
-    console.log(Identifier.process(variable), value, Frame.variables);
+    Frame.frame.variables.push({
+      name: Identifier.process(variable),
+      value: Interpreter.process(value) as ValueElement,
+    });
   }
 }
 
 export class Identifier {
-  public static process(element: Element) {
-   if ('value' in element) return element.value;
+  public static process(element: Element): string {
+   if ('value' in element) return element.value as string;
    throw 'Variable name is not correct!';
   }
 }
 
 export class Value {
-  public static process(value: Element) {
+  public static process(value: Element): ValueElement {
+    if (value.type === 'Word' && Frame.variables.get(value.value as string)) {
+      return Frame.variables.get(value.value as string) as ValueElement;
+    }
+    return value as ValueElement;
   }
 }
 
@@ -92,9 +98,19 @@ export class Frame {
 export class Interpreter {
   public static process(block: Block | Element) {
     if (isValue(block)) return Value.process(block as Element);
-    if (isContainer(block)) return Node.process(block as Block);
-    const [ expression, ...args ] = block as (Block | Element)[];
-    if (expression.value === 'let') return VariableDefinition.process(args[0], args[1]);
+    if (isContainer(block)) {
+      Frame.pushStackFrame();
+      let res = Node.process(block as Block)
+      Frame.popStackFrame();
+      return res;
+    }
+    const [ expr, ...args ] = block as (Block | Element)[];
+    const expression: Element = expr as Element;
+    if (expression.value === 'let') return VariableDefinition.process(args[0] as Element, args[1]);
+    if (expression.value === 'print') {
+      const values = args.map(Interpreter.process);
+      console.log(...values.map((x: any) => x.value));
+    }
   }
 
   public static run(source: string) {
