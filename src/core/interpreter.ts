@@ -1,8 +1,5 @@
 import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
-import { existsSync } from 'https://deno.land/std/fs/mod.ts';
-import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
-import { File } from '../utils/file.ts';
 
 export class Node {
   public static process(block: Block) {
@@ -19,10 +16,11 @@ export class Variable {
       value: Interpreter.process(value) as ValueElement,
     });
   }
+
   public static update(variable: Element, value: Element | Block) {
     const identifier: string = Identifier.process(variable);
     const frameItem = Frame.variables.get(identifier) as ValueElement;
-    if (!frameItem) throw 'Variable ' + identifier + ' does not exists!';
+    if (!Frame.exists(identifier)) throw 'Variable ' + identifier + ' does not exists!';
     Value.update(frameItem, Interpreter.process(value));
   }
 }
@@ -95,6 +93,10 @@ export class Frame {
     this.stack.pop();
   }
 
+  public static exists(identifier: string) {
+    return this.variables.get(identifier);
+  }
+
   public static get variables(): Map<string, Value> {
     let map = new Map();
     for (const frame of this.stack) {
@@ -111,7 +113,7 @@ export class Interpreter {
     if (isValue(block)) return Value.process(block as Element);
     if (isContainer(block)) {
       Frame.pushStackFrame();
-      let res = Node.process(block as Block)
+      const res = Node.process(block as Block);
       Frame.popStackFrame();
       return res;
     }
@@ -123,6 +125,8 @@ export class Interpreter {
       const values: (ValueElement | void)[] = args.map(Interpreter.process);
       return console.log(...values.map((x: any) => x.value));
     }
+    if (Frame.exists(expression.value as string)) return Value.process(expression);
+    throw `Can't recognize this expression: ${expression.value}`;
   }
 
   public static run(source: string) {
