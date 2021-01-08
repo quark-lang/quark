@@ -64,8 +64,24 @@ interface Stack {
 
 export class Frame {
   private static stack: Stack[];
-  public static pushStackFrame() {
+  public static pushStackFrame(): void {
+    this.stack.push({
+      variables: [],
+    });
+  }
 
+  public static popStackFrame(): void {
+    this.stack.pop();
+  }
+
+  public static get variables(): Map<string, Value> {
+    let map = new Map();
+    for (const frame of this.stack) {
+      for (const variable of frame.variables) {
+        map.set(variable.name, variable.value);
+      }
+    }
+    return map;
   }
 }
 
