@@ -12,12 +12,18 @@ export class Node {
   }
 }
 
-export class VariableDefinition {
-  public static process(variable: Element, value: Block | Element) {
+export class Variable {
+  public static declare(variable: Element, value: Block | Element) {
     Frame.frame.variables.push({
       name: Identifier.process(variable),
       value: Interpreter.process(value) as ValueElement,
     });
+  }
+  public static update(variable: Element, value: Element | Block) {
+    const identifier: string = Identifier.process(variable);
+    const frameItem = Frame.variables.get(identifier) as ValueElement;
+    if (!frameItem) throw 'Variable ' + identifier + ' does not exists!';
+    Value.update(frameItem, Interpreter.process(value));
   }
 }
 
@@ -34,6 +40,11 @@ export class Value {
       return Frame.variables.get(value.value as string) as ValueElement;
     }
     return value as ValueElement;
+  }
+
+  public static update(current: any, next: any): void {
+    const loop = Object.entries(next);
+    for (const item of loop) current[item[0]] = item[1];
   }
 }
 
@@ -106,10 +117,11 @@ export class Interpreter {
     }
     const [ expr, ...args ] = block as (Block | Element)[];
     const expression: Element = expr as Element;
-    if (expression.value === 'let') return VariableDefinition.process(args[0] as Element, args[1]);
+    if (expression.value === 'let') return Variable.declare(args[0] as Element, args[1]);
+    if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
     if (expression.value === 'print') {
-      const values = args.map(Interpreter.process);
-      console.log(...values.map((x: any) => x.value));
+      const values: (ValueElement | void)[] = args.map(Interpreter.process);
+      return console.log(...values.map((x: any) => x.value));
     }
   }
 
