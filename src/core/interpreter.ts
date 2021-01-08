@@ -14,7 +14,8 @@ export class Node {
 
 export class VariableDefinition {
   public static process(variable: Element, value: Block | Element) {
-    console.log(Identifier.process(variable), value);
+
+    console.log(Identifier.process(variable), value, Frame.variables);
   }
 }
 
@@ -27,7 +28,6 @@ export class Identifier {
 
 export class Value {
   public static process(value: Element) {
-
   }
 }
 
@@ -63,11 +63,15 @@ interface Stack {
 }
 
 export class Frame {
-  private static stack: Stack[];
+  private static stack: Stack[] = [{ variables: [] }];
   public static pushStackFrame(): void {
     this.stack.push({
       variables: [],
     });
+  }
+
+  public static get frame(): Stack extends null | undefined ? never : Stack {
+    return this.stack[this.stack.length - 1];
   }
 
   public static popStackFrame(): void {
