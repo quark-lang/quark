@@ -57,19 +57,26 @@ function isValue(element: Block | Element): boolean {
 enum Types {
   String = 'String',
   Integer = 'Integer',
+  Function = 'Function'
 }
 
-interface String {
+interface StringType {
   type: Types.String,
   value: string,
 }
 
-interface Integer {
+interface IntegerType {
   type: Types.Integer,
   value: number,
 }
 
-type ValueElement = String | Integer;
+interface FunctionType {
+  type: Types.Function,
+  args: Element[],
+  body: Block,
+}
+
+type ValueElement = StringType | IntegerType | FunctionType;
 interface Stack {
   variables: {
     name: string,
@@ -108,6 +115,25 @@ export class Frame {
   }
 }
 
+export class Function {
+  public static declare(args: (Element extends Block ? never : Element)[], body: Block): FunctionType {
+    return {
+      type: Types.Function,
+      args,
+      body,
+    }
+  }
+
+  public static call(functionName: string, args: (Block | Element)[]) {
+    const fn: FunctionType = Frame.variables.get(functionName) as FunctionType;
+    Frame.pushStackFrame();
+    for (let binding in fn.args) Variable.declare(fn.args[binding], args[Number(binding)]);
+    let res: any = Interpreter.process(fn.body);
+    Frame.popStackFrame();
+    return res;
+  }
+}
+
 export class Interpreter {
   public static process(block: Block | Element) {
     if (isValue(block)) return Value.process(block as Element);
@@ -121,11 +147,17 @@ export class Interpreter {
     const expression: Element = expr as Element;
     if (expression.value === 'let') return Variable.declare(args[0] as Element, args[1]);
     if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
+    if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
     if (expression.value === 'print') {
       const values: (ValueElement | void)[] = args.map(Interpreter.process);
       return console.log(...values.map((x: any) => x.value));
     }
-    if (Frame.exists(expression.value as string)) return Value.process(expression);
+    if (Frame.exists(expression.value as string)) {
+      const item: ValueElement = Frame.variables.get(expression.value as string) as ValueElement;
+      if (item.type === Types.Function) {
+        return Function.call(expression.value as string, args);
+      } else return item;
+    }
     throw `Can't recognize this expression: ${expression.value}`;
   }
 
