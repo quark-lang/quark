@@ -37,7 +37,7 @@ export class Identifier {
 
 export class Value {
   public static process(value: Element): ValueElement {
-    if (value.type === 'Word' && Frame.variables.get(value.value as string)) {
+    if (value.type === 'Word' && Frame.exists(value.value as string)) {
       return Frame.variables.get(value.value as string) as ValueElement;
     }
     return value as ValueElement;
@@ -60,7 +60,8 @@ function isValue(element: Block | Element): boolean {
 enum Types {
   String = 'String',
   Integer = 'Integer',
-  Function = 'Function'
+  Function = 'Function',
+  Boolean = 'Boolean',
 }
 
 interface StringType {
@@ -79,7 +80,12 @@ interface FunctionType {
   body: Block,
 }
 
-type ValueElement = StringType | IntegerType | FunctionType;
+interface BooleanType {
+  type: Types.Boolean,
+  value: boolean,
+}
+
+type ValueElement = StringType | IntegerType | FunctionType | BooleanType;
 interface Stack {
   variables: {
     name: string,
@@ -141,6 +147,43 @@ export class Function {
   }
 }
 
+export class Equalities {
+
+  public static process(operation: string, left: Block | Element, right: Block | Element): BooleanType {
+    const lhs = Interpreter.process(left).value;
+    const rhs = Interpreter.process(right).value;
+    switch (operation) {
+      case '<': return { type: Types.Boolean, value: lhs < rhs };
+    }
+    return { type: Types.Boolean, value: false, }
+  }
+}
+
+export class Arithmetic {
+  private static determineType(lhs: ValueElement, rhs: ValueElement, operation: string): Types.Integer | Types.String {
+    if (operation === '+') {
+      if (lhs.type === Types.String || rhs.type === Types.Integer) return Types.String;
+    }
+    return Types.Integer;
+  }
+
+  public static process(operation: string, left: Block | Element, right: Block | Element): StringType | IntegerType {
+    const lhs: Exclude<ValueElement, FunctionType | BooleanType> = Interpreter.process(left);
+    const rhs: Exclude<ValueElement, FunctionType | BooleanType> = Interpreter.process(right);
+    const type: Types = this.determineType(lhs, rhs, operation);
+
+    switch (operation) {
+      case '+': return { type, value: <any>lhs.value + rhs.value };
+      case '-': return { type, value: <any>lhs.value - <any>rhs.value } as IntegerType;
+    }
+
+    return {
+      type: Types.String,
+      value: 'none',
+    };
+  }
+}
+
 export class Interpreter {
   public static process(block: Block | Element) {
     if (isValue(block)) return Value.process(block as Element);
@@ -156,6 +199,8 @@ export class Interpreter {
     if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
     if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
     if (expression.value === 'return') return Function.return(args[0]);
+    if (['<'].includes(expression.value as string)) return Equalities.process(expression.value as string, args[0], args[1]);
+    if (['+', '-'].includes(expression.value as string)) return Arithmetic.process(expression.value as string, args[0], args[1]);
     if (expression.value === 'print') {
       const values: (ValueElement | void)[] = args.map(Interpreter.process);
       return console.log(...values.map((x: any) => x.value));
@@ -164,7 +209,8 @@ export class Interpreter {
       const item: ValueElement = Frame.variables.get(expression.value as string) as ValueElement;
       if (item.type === Types.Function) {
         return Function.call(expression.value as string, args);
-      } else return item;
+      }
+      return item;
     }
     throw `Can't recognize this expression: ${expression.value}`;
   }
