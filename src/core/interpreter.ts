@@ -133,7 +133,7 @@ export class Function {
     for (let binding in fn.args) Variable.declare(fn.args[binding], args[Number(binding)]);
     let res: any = Interpreter.process(fn.body);
     Frame.popStackFrame();
-    return res;
+    return res || { type: 'String', value: 'none' };
   }
 
   public static return(value: Block | Element): [ValueElement, boolean] {
