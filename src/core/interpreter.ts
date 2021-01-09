@@ -148,7 +148,6 @@ export class Function {
 }
 
 export class Equalities {
-
   public static process(operation: string, left: Block | Element, right: Block | Element): BooleanType {
     const lhs = Interpreter.process(left).value;
     const rhs = Interpreter.process(right).value;
@@ -156,6 +155,15 @@ export class Equalities {
       case '<': return { type: Types.Boolean, value: lhs < rhs };
     }
     return { type: Types.Boolean, value: false, }
+  }
+}
+
+export class While {
+  public static process(condition: Block | Element, body: Block | Element): [ValueElement, boolean] | void {
+    while (Interpreter.process(condition).value) {
+      const res = Interpreter.process(body);
+      if (res) return [res, true];
+    }
   }
 }
 
@@ -199,6 +207,7 @@ export class Interpreter {
     if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
     if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
     if (expression.value === 'return') return Function.return(args[0]);
+    if (expression.value === 'while') return While.process(args[0], args[1]);
     if (['<'].includes(expression.value as string)) return Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-'].includes(expression.value as string)) return Arithmetic.process(expression.value as string, args[0], args[1]);
     if (expression.value === 'print') {
