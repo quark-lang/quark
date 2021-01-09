@@ -21,7 +21,7 @@ export class Variable {
   }
 
   public static update(variable: Element, value: Element | Block) {
-    const identifier: string = Identifier.process(variable);
+    let identifier = Identifier.process(variable);
     const frameItem = Frame.variables.get(identifier) as ValueElement;
     if (!Frame.exists(identifier)) throw 'Variable ' + identifier + ' does not exists!';
     Value.update(frameItem, Interpreter.process(value));
@@ -37,11 +37,12 @@ export class Identifier {
 
 export class Value {
   public static process(value: Element): ValueElement extends FunctionType ? never : ValueElement {
+    if (value.value === 'none') return { type: Types.None, value: undefined };
     if (value.type === 'Word' && Frame.exists(value.value as string)) {
       const variable: ValueElement = Frame.variables.get(value.value as string) as ValueElement;
       return variable.type === Types.Function ? { type: Types.String, value: 'none' } : variable;
     }
-    return value.value ? value as ValueElement : { type: Types.String, value: 'none' };
+    return value.value !== undefined ? value as ValueElement : { type: Types.String, value: 'none' };
   }
 
   public static update(current: any, next: any): void {
@@ -58,16 +59,32 @@ function isValue(element: Block | Element): boolean {
   return element && 'value' in element && 'type' in element;
 }
 
+function isObject(element: any): boolean {
+  return !Array.isArray(element) && typeof element === 'object';
+}
+
 enum Types {
   String = 'String',
   Integer = 'Integer',
   Function = 'Function',
   Boolean = 'Boolean',
+  None = 'None',
+  List = 'List',
+}
+
+interface ListType {
+  type: Types.List,
+  value: ValueElement[],
 }
 
 interface StringType {
   type: Types.String,
   value: string,
+}
+
+interface NoneType {
+  type: Types.None,
+  value: undefined,
 }
 
 interface IntegerType {
@@ -86,7 +103,7 @@ interface BooleanType {
   value: boolean,
 }
 
-type ValueElement = StringType | IntegerType | FunctionType | BooleanType;
+type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType;
 interface Stack {
   variables: {
     name: string,
@@ -193,6 +210,21 @@ export class Arithmetic {
   }
 }
 
+export class List {
+  public static create(args: (Element | Block)[]): ListType {
+    return { type: Types.List, value: args.map(Interpreter.process) };
+  }
+
+  public static index(variable: Element, index: IntegerType): any {
+    const element = Value.process(variable);
+    if (element.type === Types.Function) return { type: Types.None, value: undefined };
+    if ('value' in element && element.value !== undefined) { // @ts-ignore
+      return element.value[index.value] || { variable: variable.value, index: index.value };
+    }
+    return { type: Types.None, value: undefined };
+  }
+}
+
 export class Interpreter {
   public static process(block: Block | Element) {
     if (isValue(block)) return Value.process(block as Element);
@@ -202,26 +234,32 @@ export class Interpreter {
       Frame.popStackFrame();
       return res;
     }
+    if (block === undefined) return { type: Types.None, value: undefined };
     const [ expr, ...args ] = block as (Block | Element)[];
     const expression: Element = expr as Element;
+
     if (expression.value === 'let') return Variable.declare(args[0] as Element, args[1]);
     if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
     if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
     if (expression.value === 'return') return Function.return(args[0]);
     if (expression.value === 'while') return While.process(args[0], args[1]);
+    if (expression.value === 'list') return List.create(args);
+    if (expression.value === 'index') return List.index(args[0] as Element, args[1] as unknown as IntegerType)
     if (['<'].includes(expression.value as string)) return Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-'].includes(expression.value as string)) return Arithmetic.process(expression.value as string, args[0], args[1]);
+
     if (expression.value === 'print') {
       const values: (ValueElement | void)[] = args.map(Interpreter.process);
       return console.log(...values.map((x: any) => x.value));
     }
+
     if (Frame.exists(expression.value as string)) {
       const item: ValueElement = Frame.variables.get(expression.value as string) as ValueElement;
-      if (item.type === Types.Function) {
-        return Function.call(expression.value as string, args);
-      }
+      if (item.type === Types.Function) return Function.call(expression.value as string, args);
       return item;
     }
+    if ([Types.String, Types.Integer, Types.Boolean].includes(expression.type as Types)) return expression;
+
     throw `Can't recognize this expression: ${expression.value}`;
   }
 
