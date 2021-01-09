@@ -2,9 +2,12 @@ import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
 
 export class Node {
-  public static process(block: Block) {
+  public static process(block: Block): void | ValueElement {
     for (const child of block) {
-      Interpreter.process(child);
+      let res: undefined | [ValueElement, boolean] = Interpreter.process(child);
+      if (res && res[1] && res[1] === true) {
+        return res[0];
+      }
     }
   }
 }
@@ -132,6 +135,10 @@ export class Function {
     Frame.popStackFrame();
     return res;
   }
+
+  public static return(value: Block | Element): [ValueElement, boolean] {
+    return [Interpreter.process(value), true];
+  }
 }
 
 export class Interpreter {
@@ -148,6 +155,7 @@ export class Interpreter {
     if (expression.value === 'let') return Variable.declare(args[0] as Element, args[1]);
     if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
     if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
+    if (expression.value === 'return') return Function.return(args[0]);
     if (expression.value === 'print') {
       const values: (ValueElement | void)[] = args.map(Interpreter.process);
       return console.log(...values.map((x: any) => x.value));
