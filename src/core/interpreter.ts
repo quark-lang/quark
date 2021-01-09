@@ -36,11 +36,12 @@ export class Identifier {
 }
 
 export class Value {
-  public static process(value: Element): ValueElement {
+  public static process(value: Element): ValueElement extends FunctionType ? never : ValueElement {
     if (value.type === 'Word' && Frame.exists(value.value as string)) {
-      return Frame.variables.get(value.value as string) as ValueElement;
+      const variable: ValueElement = Frame.variables.get(value.value as string) as ValueElement;
+      return variable.type === Types.Function ? { type: Types.String, value: 'none' } : variable;
     }
-    return value as ValueElement;
+    return value.value ? value as ValueElement : { type: Types.String, value: 'none' };
   }
 
   public static update(current: any, next: any): void {
