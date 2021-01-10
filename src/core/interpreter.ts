@@ -33,7 +33,7 @@ export class Variable {
     if (typeof identifier === 'string') {
       const frameItem = Frame.variables.get(identifier) as ValueElement;
       if (!Frame.exists(identifier)) throw 'Variable ' + identifier + ' does not exists!';
-      return Value.update(frameItem, Interpreter.process(value));
+      return Value.update(frameItem, await Interpreter.process(value));
     }
     if ('index' in identifier) {
       const variable = Frame.variables.get(identifier.variable) as ValueElement;
@@ -126,7 +126,7 @@ interface IntegerType {
 
 interface FunctionType {
   type: Types.Function,
-  args: Element[],
+  args: Argument[],
   body: Block | (() => {}),
   js: boolean,
 }
@@ -134,6 +134,10 @@ interface FunctionType {
 interface BooleanType {
   type: Types.Boolean,
   value: boolean,
+}
+
+interface Argument extends Element {
+  variadic: boolean,
 }
 
 export type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType;
@@ -181,6 +185,18 @@ export class Frame {
 
 export class Function {
   public static declare(args: (Element extends Block ? never : Element)[], body: Block, js: boolean = false): FunctionType {
+    args = args.map((arg) => {
+      if (Array.isArray(arg) && arg[0].value === 'list') {
+        return {
+          ...arg[1],
+          variadic: true,
+        }
+      }
+      return {
+        ...arg,
+        variadic: false,
+      };
+    });
     return {
       type: Types.Function,
       args,
@@ -197,7 +213,17 @@ export class Function {
       return (<(...args: any[]) => {}><unknown>fn.body)(...values);
     }
     Frame.pushStackFrame();
-    for (let binding in fn.args) await Variable.declare(fn.args[binding], args[Number(binding)]);
+    for (let binding in fn.args) {
+      const fnArgument = fn.args[binding];
+      if (fnArgument.variadic === true) {
+        await Variable.declare(fnArgument, {
+          type: Types.List,
+          value: args.slice(binding),
+        });
+        break;
+      }
+      await Variable.declare(fnArgument, args[Number(binding)])
+    }
     let res: any = await Interpreter.process(<Block>fn.body);
     Frame.popStackFrame();
     return res || { type: Types.None, value: undefined };
