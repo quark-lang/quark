@@ -59,9 +59,9 @@ export class Value {
     if (value.value === 'none') return { type: Types.None, value: undefined };
     if (value.type === 'Word' && Frame.exists(value.value as string)) {
       const variable: ValueElement = Frame.variables.get(value.value as string) as ValueElement;
-      return variable.type === Types.Function ? { type: Types.String, value: 'none' } : variable;
+      return variable.type === Types.Function ? { type: Types.None, value: undefined } : variable;
     }
-    return value.value !== undefined ? value as ValueElement : { type: Types.String, value: 'none' };
+    return value.value !== undefined ? value as ValueElement : { type: Types.None, value: undefined };
   }
 
   public static update(current: any, next: any): void {
@@ -176,7 +176,7 @@ export class Function {
     for (let binding in fn.args) Variable.declare(fn.args[binding], args[Number(binding)]);
     let res: any = Interpreter.process(fn.body);
     Frame.popStackFrame();
-    return res || { type: 'String', value: 'none' };
+    return res || { type: Types.None, value: undefined };
   }
 
   public static return(value: Block | Element): [ValueElement, boolean] {
@@ -190,6 +190,11 @@ export class Equalities {
     const rhs = Interpreter.process(right).value;
     switch (operation) {
       case '<': return { type: Types.Boolean, value: lhs < rhs };
+      case '>': return { type: Types.Boolean, value: lhs > rhs };
+      case '<=': return { type: Types.Boolean, value: lhs <= rhs };
+      case '>=': return { type: Types.Boolean, value: lhs >= rhs };
+      case '=': return { type: Types.Boolean, value: lhs == rhs };
+      case '!=': return { type: Types.Boolean, value: lhs != rhs };
     }
     return { type: Types.Boolean, value: false, }
   }
@@ -212,7 +217,7 @@ export class Arithmetic {
     return Types.Integer;
   }
 
-  public static process(operation: string, left: Block | Element, right: Block | Element): StringType | IntegerType {
+  public static process(operation: string, left: Block | Element, right: Block | Element): StringType | IntegerType | NoneType {
     const lhs: Exclude<ValueElement, FunctionType | BooleanType> = Interpreter.process(left);
     const rhs: Exclude<ValueElement, FunctionType | BooleanType> = Interpreter.process(right);
     const type: Types = this.determineType(lhs, rhs, operation);
@@ -220,12 +225,18 @@ export class Arithmetic {
     switch (operation) {
       case '+': return { type, value: <any>lhs.value + rhs.value };
       case '-': return { type, value: <any>lhs.value - <any>rhs.value } as IntegerType;
+      case '*': return { type, value: <any>lhs.value * <any>rhs.value } as IntegerType;
+      case '/': return { type, value: <any>lhs.value / <any>rhs.value } as IntegerType;
     }
 
-    return {
-      type: Types.String,
-      value: 'none',
-    };
+    return { type: Types.None, value: undefined }
+  }
+}
+
+export class Condition {
+  public static check(condition: Element | Block, then: Element | Block, or: Element | Block): any {
+    if (Interpreter.process(condition).value) return Interpreter.process(then);
+    return Interpreter.process(or);
   }
 }
 
@@ -234,11 +245,14 @@ export class List {
     return { type: Types.List, value: args.map(Interpreter.process) };
   }
 
-  public static index(variable: Element, index: IntegerType): any {
+  public static index(variable: Element, index: Element): any {
     const element = Interpreter.process(variable);
+    index = Interpreter.process(index);
     if (element.type === Types.Function) return { type: Types.None, value: undefined };
     if ('value' in element && element.value !== undefined) { // @ts-ignore
-      return element.value[index.value] || { variable: variable.value, index: index.value };
+      const foundIndex = element.value[index.value];
+      if (typeof foundIndex === 'string') return { type: element.type, value: foundIndex };
+      return foundIndex || { variable: variable.value, index: index.value };
     }
     return { type: Types.None, value: undefined };
   }
@@ -260,12 +274,13 @@ export class Interpreter {
     if (expression.value === 'let') return Variable.declare(args[0] as Element, args[1]);
     if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
     if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
+    if (expression.value === 'if') return Condition.check(args[0], args[1], args[2]);
     if (expression.value === 'return') return Function.return(args[0]);
     if (expression.value === 'while') return While.process(args[0], args[1]);
     if (expression.value === 'list') return List.create(args);
-    if (expression.value === 'index') return List.index(args[0] as Element, args[1] as unknown as IntegerType)
-    if (['<'].includes(expression.value as string)) return Equalities.process(expression.value as string, args[0], args[1]);
-    if (['+', '-'].includes(expression.value as string)) return Arithmetic.process(expression.value as string, args[0], args[1]);
+    if (expression.value === 'index') return List.index(args[0] as Element, args[1] as Element)
+    if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return Equalities.process(expression.value as string, args[0], args[1]);
+    if (['+', '-', '*', '/'].includes(expression.value as string)) return Arithmetic.process(expression.value as string, args[0], args[1]);
 
     if (expression.value === 'print') {
       const values: (ValueElement | void)[] = args.map(Interpreter.process);
