@@ -15,23 +15,42 @@ export class Node {
 export class Variable {
   public static declare(variable: Element, value: Block | Element) {
     Frame.frame.variables.push({
-      name: Identifier.process(variable),
+      name: Identifier.process(variable) as string,
       value: Interpreter.process(value) as ValueElement,
     });
   }
 
-  public static update(variable: Element, value: Element | Block) {
+  public static update(variable: Element, value: Element | Block): void {
     let identifier = Identifier.process(variable);
-    const frameItem = Frame.variables.get(identifier) as ValueElement;
-    if (!Frame.exists(identifier)) throw 'Variable ' + identifier + ' does not exists!';
-    Value.update(frameItem, Interpreter.process(value));
+    if (typeof identifier === 'string') {
+      const frameItem = Frame.variables.get(identifier) as ValueElement;
+      if (!Frame.exists(identifier)) throw 'Variable ' + identifier + ' does not exists!';
+      return Value.update(frameItem, Interpreter.process(value));
+    }
+    if ('index' in identifier) {
+      const variable = Frame.variables.get(identifier.variable) as ValueElement;
+      if ('value' in variable && variable.value) {
+        const split = (<string>variable.value).split('');
+        const updateValue = Interpreter.process(value);
+        split.splice(identifier.index, updateValue.value.length, updateValue.value)
+        variable.value = split.join('');
+      }
+    }
+    return Value.update(identifier, Interpreter.process(value));
   }
 }
 
 export class Identifier {
-  public static process(element: Element): string {
-   if ('value' in element) return element.value as string;
-   throw 'Variable name is not correct!';
+  public static process(element: Element): string | { variable: any, index: any, } {
+    if (Array.isArray(element) && element[0].type === 'Word' && element[0].value === 'index') {
+      const index = List.index(element[1], element[2]);
+      if (isObject(index)) {
+        return index;
+      }
+      return { variable: element[1].value, index: element[2].value };
+    }
+    if ('value' in element) return element.value as string;
+    throw 'Variable name is not correct!';
   }
 }
 
