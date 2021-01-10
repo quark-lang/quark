@@ -2,9 +2,9 @@ import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
 
 export class Node {
-  public static process(block: Block): void | ValueElement {
+  public static async process(block: Block): Promise<void | ValueElement> {
     for (const child of block) {
-      let res: undefined | [ValueElement, boolean] = Interpreter.process(child);
+      let res: undefined | [ValueElement, boolean] = await Interpreter.process(child);
       if (res && res[1] && res[1] === true) {
         return res[0];
       }
@@ -13,15 +13,15 @@ export class Node {
 }
 
 export class Variable {
-  public static declare(variable: Element, value: Block | Element) {
+  public static async declare(variable: Element, value: Block | Element) {
     Frame.frame.variables.push({
-      name: Identifier.process(variable) as string,
-      value: Interpreter.process(value) as ValueElement,
+      name: await Identifier.process(variable) as string,
+      value: await Interpreter.process(value) as ValueElement,
     });
   }
 
-  public static update(variable: Element, value: Element | Block): void {
-    let identifier = Identifier.process(variable);
+  public static async update(variable: Element, value: Element | Block): Promise<void> {
+    let identifier = await Identifier.process(variable);
     if (typeof identifier === 'string') {
       const frameItem = Frame.variables.get(identifier) as ValueElement;
       if (!Frame.exists(identifier)) throw 'Variable ' + identifier + ' does not exists!';
@@ -31,7 +31,7 @@ export class Variable {
       const variable = Frame.variables.get(identifier.variable) as ValueElement;
       if ('value' in variable && variable.value) {
         const split = (<string>variable.value).split('');
-        const updateValue = Interpreter.process(value);
+        const updateValue = await Interpreter.process(value);
         split.splice(identifier.index, updateValue.value.length, updateValue.value)
         variable.value = split.join('');
       }
@@ -41,9 +41,9 @@ export class Variable {
 }
 
 export class Identifier {
-  public static process(element: Element): string | { variable: any, index: any, } {
+  public static async process(element: Element): Promise<string | { variable: any, index: any, }> {
     if (Array.isArray(element) && element[0].type === 'Word' && element[0].value === 'index') {
-      const index = List.index(element[1], element[2]);
+      const index = await List.index(element[1], element[2]);
       if (isObject(index)) {
         return index;
       }
@@ -170,24 +170,24 @@ export class Function {
     }
   }
 
-  public static call(functionName: string, args: (Block | Element)[]) {
+  public static async call(functionName: string, args: (Block | Element)[]) {
     const fn: FunctionType = Frame.variables.get(functionName) as FunctionType;
     Frame.pushStackFrame();
-    for (let binding in fn.args) Variable.declare(fn.args[binding], args[Number(binding)]);
-    let res: any = Interpreter.process(fn.body);
+    for (let binding in fn.args) await Variable.declare(fn.args[binding], args[Number(binding)]);
+    let res: any = await Interpreter.process(fn.body);
     Frame.popStackFrame();
     return res || { type: Types.None, value: undefined };
   }
 
-  public static return(value: Block | Element): [ValueElement, boolean] {
-    return [Interpreter.process(value), true];
+  public static async return(value: Block | Element): Promise<[ValueElement, boolean]> {
+    return [await Interpreter.process(value), true];
   }
 }
 
 export class Equalities {
-  public static process(operation: string, left: Block | Element, right: Block | Element): BooleanType {
-    const lhs = Interpreter.process(left).value;
-    const rhs = Interpreter.process(right).value;
+  public static async process(operation: string, left: Block | Element, right: Block | Element): Promise<BooleanType> {
+    const lhs = (await Interpreter.process(left)).value;
+    const rhs = (await Interpreter.process(right)).value;
     switch (operation) {
       case '<': return { type: Types.Boolean, value: lhs < rhs };
       case '>': return { type: Types.Boolean, value: lhs > rhs };
@@ -201,9 +201,9 @@ export class Equalities {
 }
 
 export class While {
-  public static process(condition: Block | Element, body: Block | Element): [ValueElement, boolean] | void {
-    while (Interpreter.process(condition).value) {
-      const res = Interpreter.process(body);
+  public static async process(condition: Block | Element, body: Block | Element): Promise<[ValueElement, boolean] | void> {
+    while ((await Interpreter.process(condition)).value) {
+      const res = await Interpreter.process(body);
       if (res) return [res, true];
     }
   }
@@ -217,9 +217,9 @@ export class Arithmetic {
     return Types.Integer;
   }
 
-  public static process(operation: string, left: Block | Element, right: Block | Element): StringType | IntegerType | NoneType {
-    const lhs: Exclude<ValueElement, FunctionType | BooleanType> = Interpreter.process(left);
-    const rhs: Exclude<ValueElement, FunctionType | BooleanType> = Interpreter.process(right);
+  public static async process(operation: string, left: Block | Element, right: Block | Element): Promise<StringType | IntegerType | NoneType> {
+    const lhs: Exclude<ValueElement, FunctionType | BooleanType> = await Interpreter.process(left);
+    const rhs: Exclude<ValueElement, FunctionType | BooleanType> = await Interpreter.process(right);
     const type: Types = this.determineType(lhs, rhs, operation);
 
     switch (operation) {
@@ -229,25 +229,33 @@ export class Arithmetic {
       case '/': return { type, value: <any>lhs.value / <any>rhs.value } as IntegerType;
     }
 
-    return { type: Types.None, value: undefined }
+    return { type: Types.None, value: undefined };
   }
 }
 
 export class Condition {
-  public static check(condition: Element | Block, then: Element | Block, or: Element | Block): any {
-    if (Interpreter.process(condition).value) return Interpreter.process(then);
-    return Interpreter.process(or);
+  public static async check(condition: Element | Block, then: Element | Block, or: Element | Block): Promise<any> {
+    if ((await Interpreter.process(condition)).value) return await Interpreter.process(then);
+    return await Interpreter.process(or);
+  }
+}
+
+export class Import {
+  public static async import(url: Element) {
+
   }
 }
 
 export class List {
-  public static create(args: (Element | Block)[]): ListType {
-    return { type: Types.List, value: args.map(Interpreter.process) };
+  public static async create(args: (Element | Block)[]): Promise<ListType> {
+    const value = []
+    for (const arg of args) value.push(await Interpreter.process(arg));
+    return { type: Types.List, value, };
   }
 
-  public static index(variable: Element, index: Element): any {
-    const element = Interpreter.process(variable);
-    index = Interpreter.process(index);
+  public static async index(variable: Element, index: Element): Promise<any> {
+    const element = await Interpreter.process(variable);
+    index = await Interpreter.process(index);
     if (element.type === Types.Function) return { type: Types.None, value: undefined };
     if ('value' in element && element.value !== undefined) { // @ts-ignore
       const foundIndex = element.value[index.value];
@@ -259,11 +267,11 @@ export class List {
 }
 
 export class Interpreter {
-  public static process(block: Block | Element) {
+  public static async process(block: Block | Element, cwd?: string extends number ? never : string): Promise<any> {
     if (isValue(block)) return Value.process(block as Element);
     if (isContainer(block)) {
       Frame.pushStackFrame();
-      const res = Node.process(block as Block);
+      const res = await Node.process(block as Block);
       Frame.popStackFrame();
       return res;
     }
@@ -271,25 +279,27 @@ export class Interpreter {
     const [ expr, ...args ] = block as (Block | Element)[];
     const expression: Element = expr as Element;
 
-    if (expression.value === 'let') return Variable.declare(args[0] as Element, args[1]);
-    if (expression.value === 'set') return Variable.update(args[0] as Element, args[1]);
-    if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
-    if (expression.value === 'if') return Condition.check(args[0], args[1], args[2]);
-    if (expression.value === 'return') return Function.return(args[0]);
-    if (expression.value === 'while') return While.process(args[0], args[1]);
-    if (expression.value === 'list') return List.create(args);
-    if (expression.value === 'index') return List.index(args[0] as Element, args[1] as Element)
-    if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return Equalities.process(expression.value as string, args[0], args[1]);
-    if (['+', '-', '*', '/'].includes(expression.value as string)) return Arithmetic.process(expression.value as string, args[0], args[1]);
+    if (expression.value === 'let') return await Variable.declare(args[0] as Element, args[1]);
+    if (expression.value === 'set') return await Variable.update(args[0] as Element, args[1]);
+    if (expression.value === 'fn') return await Function.declare(args[0] as Element[], args[1] as Block);
+    if (expression.value === 'if') return await Condition.check(args[0], args[1], args[2]);
+    if (expression.value === 'return') return await Function.return(args[0]);
+    if (expression.value === 'while') return await While.process(args[0], args[1]);
+    if (expression.value === 'list') return await List.create(args);
+    if (expression.value === 'import') return await Import.import(args[0] as Element);
+    if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element)
+    if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
+    if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
 
     if (expression.value === 'print') {
-      const values: (ValueElement | void)[] = args.map(Interpreter.process);
+      const values = [];
+      for (const arg of args) values.push(await Interpreter.process(arg));
       return console.log(...values.map((x: any) => x.value));
     }
 
     if (Frame.exists(expression.value as string)) {
       const item: ValueElement = Frame.variables.get(expression.value as string) as ValueElement;
-      if (item.type === Types.Function) return Function.call(expression.value as string, args);
+      if (item.type === Types.Function) return await Function.call(expression.value as string, args);
       return item;
     }
     if ([Types.String, Types.Integer, Types.Boolean].includes(expression.type as Types)) return expression;
