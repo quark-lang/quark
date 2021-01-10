@@ -235,7 +235,7 @@ export class List {
   }
 
   public static index(variable: Element, index: IntegerType): any {
-    const element = Value.process(variable);
+    const element = Interpreter.process(variable);
     if (element.type === Types.Function) return { type: Types.None, value: undefined };
     if ('value' in element && element.value !== undefined) { // @ts-ignore
       return element.value[index.value] || { variable: variable.value, index: index.value };
