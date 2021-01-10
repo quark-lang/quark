@@ -95,7 +95,7 @@ export function parentDir(src: string, it: number = 1): string {
   return src;
 }
 
-enum Types {
+export enum Types {
   String = 'String',
   Integer = 'Integer',
   Function = 'Function',
@@ -127,7 +127,8 @@ interface IntegerType {
 interface FunctionType {
   type: Types.Function,
   args: Element[],
-  body: Block,
+  body: Block | (() => {}),
+  js: boolean,
 }
 
 interface BooleanType {
@@ -135,7 +136,7 @@ interface BooleanType {
   value: boolean,
 }
 
-type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType;
+export type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType;
 interface Stack {
   variables: {
     name: string,
@@ -179,19 +180,25 @@ export class Frame {
 }
 
 export class Function {
-  public static declare(args: (Element extends Block ? never : Element)[], body: Block): FunctionType {
+  public static declare(args: (Element extends Block ? never : Element)[], body: Block, js: boolean = false): FunctionType {
     return {
       type: Types.Function,
       args,
+      js,
       body,
     }
   }
 
   public static async call(functionName: string, args: (Block | Element)[]) {
     const fn: FunctionType = Frame.variables.get(functionName) as FunctionType;
+    if (fn.js === true) {
+      const values = [];
+      for (const arg of args) values.push(await Interpreter.process(arg));
+      return (<(...args: any[]) => {}><unknown>fn.body)(...values);
+    }
     Frame.pushStackFrame();
     for (let binding in fn.args) await Variable.declare(fn.args[binding], args[Number(binding)]);
-    let res: any = await Interpreter.process(fn.body);
+    let res: any = await Interpreter.process(<Block>fn.body);
     Frame.popStackFrame();
     return res || { type: Types.None, value: undefined };
   }
@@ -271,8 +278,12 @@ export class Import {
     // Getting file extension for choosing which parsing to use
     const ext: string = path.extname(finalPath);
 
-    const content: string = await File.read(finalPath);
-    await Interpreter.process(Parser.parse(content, true), parentDir(finalPath), true);
+    if (ext.endsWith('.qrk')) {
+      const content: string = await File.read(finalPath);
+      await Interpreter.process(Parser.parse(content, true), parentDir(finalPath), true);
+    } else if (ext.endsWith('.ts')) {
+      await import(finalPath);
+    }
   }
 }
 
@@ -298,6 +309,7 @@ export class List {
 }
 
 export class Interpreter {
+  public static cwd: string = rootCWD;
   public static async process(block: Block | Element, cwd: string = rootCWD, global?: boolean): Promise<any> {
     if (isValue(block)) return Value.process(block as Element);
     if (isContainer(block)) {
