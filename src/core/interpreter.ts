@@ -1,10 +1,13 @@
 import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
+import { existsSync } from 'https://deno.land/std/fs/mod.ts';
+import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
+import { File } from '../utils/file.ts';
 
 export class Node {
-  public static async process(block: Block): Promise<void | ValueElement> {
+  public static async process(block: Block, cwd: string, global: boolean = false): Promise<void | ValueElement> {
     for (const child of block) {
-      let res: undefined | [ValueElement, boolean] = await Interpreter.process(child);
+      let res: undefined | [ValueElement, boolean] = await Interpreter.process(child, cwd, global);
       if (res && res[1] && res[1] === true) {
         return res[0];
       }
@@ -13,8 +16,13 @@ export class Node {
 }
 
 export class Variable {
-  public static async declare(variable: Element, value: Block | Element) {
-    Frame.frame.variables.push({
+  public static async declare(variable: Element, value: Block | Element, global: boolean = false) {
+    if (global && global === true) {
+      Frame.global.variables.push({
+        name: await Identifier.process(variable) as string,
+        value: await Interpreter.process(value) as ValueElement,
+      });
+    } else Frame.frame.variables.push({
       name: await Identifier.process(variable) as string,
       value: await Interpreter.process(value) as ValueElement,
     });
@@ -82,6 +90,11 @@ function isObject(element: any): boolean {
   return !Array.isArray(element) && typeof element === 'object';
 }
 
+export function parentDir(src: string, it: number = 1): string {
+  for (let i = 0; i < it; i++) src = path.dirname(src);
+  return src;
+}
+
 enum Types {
   String = 'String',
   Integer = 'Integer',
@@ -131,11 +144,15 @@ interface Stack {
 }
 
 export class Frame {
-  private static stack: Stack[] = [{ variables: [] }];
+  public static stack: Stack[] = [{ variables: [] }];
   public static pushStackFrame(): void {
     this.stack.push({
       variables: [],
     });
+  }
+
+  public static get global(): Stack extends null | undefined ? never : Stack {
+    return this.stack[0];
   }
 
   public static get frame(): Stack extends null | undefined ? never : Stack {
@@ -241,11 +258,25 @@ export class Condition {
 }
 
 export class Import {
-  public static async import(url: Element) {
+  public static async import(url: Element, cwd: string) {
+    let src: string | URL = (url.value as string).replace(/:/g, '/');
+    // Coming 3 folders back due to Interpreter path
+    const stdPath: string = path.join(parentDir(path.fromFileUrl(import.meta.url), 3), 'std');
+    // Checking if file exists and setting correct path
+    let finalPath: string | undefined = undefined;
+    if (existsSync(path.join(stdPath, src))) finalPath = path.join(stdPath, src);
+    else if (existsSync(path.join(rootCWD, src))) finalPath = path.join(rootCWD, src);
+    if (!finalPath) throw 'Request module file ' + src + ' not found!';
 
+    // Getting file extension for choosing which parsing to use
+    const ext: string = path.extname(finalPath);
+
+    const content: string = await File.read(finalPath);
+    await Interpreter.process(Parser.parse(content, true), parentDir(finalPath), true);
   }
 }
 
+let rootCWD: string;
 export class List {
   public static async create(args: (Element | Block)[]): Promise<ListType> {
     const value = []
@@ -267,11 +298,11 @@ export class List {
 }
 
 export class Interpreter {
-  public static async process(block: Block | Element, cwd?: string extends number ? never : string): Promise<any> {
+  public static async process(block: Block | Element, cwd: string = rootCWD, global?: boolean): Promise<any> {
     if (isValue(block)) return Value.process(block as Element);
     if (isContainer(block)) {
       Frame.pushStackFrame();
-      const res = await Node.process(block as Block);
+      const res = await Node.process(block as Block, cwd, global);
       Frame.popStackFrame();
       return res;
     }
@@ -279,14 +310,14 @@ export class Interpreter {
     const [ expr, ...args ] = block as (Block | Element)[];
     const expression: Element = expr as Element;
 
-    if (expression.value === 'let') return await Variable.declare(args[0] as Element, args[1]);
+    if (expression.value === 'let') return await Variable.declare(args[0] as Element, args[1], global);
     if (expression.value === 'set') return await Variable.update(args[0] as Element, args[1]);
-    if (expression.value === 'fn') return await Function.declare(args[0] as Element[], args[1] as Block);
+    if (expression.value === 'fn') return Function.declare(args[0] as Element[], args[1] as Block);
     if (expression.value === 'if') return await Condition.check(args[0], args[1], args[2]);
     if (expression.value === 'return') return await Function.return(args[0]);
     if (expression.value === 'while') return await While.process(args[0], args[1]);
     if (expression.value === 'list') return await List.create(args);
-    if (expression.value === 'import') return await Import.import(args[0] as Element);
+    if (expression.value === 'import') return await Import.import(args[0] as Element, cwd as string);
     if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element)
     if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
@@ -307,8 +338,9 @@ export class Interpreter {
     throw `Can't recognize this expression: ${expression.value}`;
   }
 
-  public static run(source: string) {
+  public static run(source: string, src: string) {
     const ast = Parser.parse(source);
+    rootCWD = path.dirname(src);
     return this.process(ast);
   }
 }
