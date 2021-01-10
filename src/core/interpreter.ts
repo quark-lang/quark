@@ -48,6 +48,18 @@ export class Variable {
   }
 }
 
+async function processVariadicSpread(args: (List | Argument)[]) {
+  const processed = [];
+  for (const arg of args) {
+    if (arg.variadic) {
+      processed.push(...arg.value)
+      break;
+    }
+    processed.push(arg);
+  }
+  return processed;
+}
+
 export class Identifier {
   public static async process(element: Element): Promise<string | { variable: any, index: any, }> {
     if (Array.isArray(element) && element[0].type === 'Word' && element[0].value === 'index') {
@@ -188,13 +200,13 @@ export class Function {
     args = args.map((arg) => {
       if (Array.isArray(arg) && arg[0].value === 'list') {
         return {
-          ...arg[1],
           variadic: true,
+          ...arg[1],
         }
       }
       return {
-        ...arg,
         variadic: false,
+        ...arg,
       };
     });
     return {
@@ -216,13 +228,15 @@ export class Function {
     for (let binding in fn.args) {
       const fnArgument = fn.args[binding];
       if (fnArgument.variadic === true) {
+        const variadicProcessed = [];
+        for (const arg of args.slice(binding)) variadicProcessed.push(await Interpreter.process(arg));
         await Variable.declare(fnArgument, {
           type: Types.List,
-          value: args.slice(binding),
+          value: await processVariadicSpread(variadicProcessed),
         });
         break;
       }
-      await Variable.declare(fnArgument, args[Number(binding)])
+      await Variable.declare(fnArgument, Interpreter.process(args[Number(binding)]))
     }
     let res: any = await Interpreter.process(<Block>fn.body);
     Frame.popStackFrame();
@@ -332,6 +346,13 @@ export class List {
     }
     return { type: Types.None, value: undefined };
   }
+
+  public static async spread(block: Block): Promise<Argument> {
+    return {
+      ...(await Interpreter.process(block)),
+      variadic: true,
+    }
+  }
 }
 
 export class Interpreter {
@@ -356,7 +377,8 @@ export class Interpreter {
     if (expression.value === 'while') return await While.process(args[0], args[1]);
     if (expression.value === 'list') return await List.create(args);
     if (expression.value === 'import') return await Import.import(args[0] as Element, cwd as string);
-    if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element)
+    if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element);
+    if (expression.value === 'spread') return await List.spread(args[0]);
     if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
 
