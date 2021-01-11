@@ -22,10 +22,12 @@ export class Variable {
         name: await Identifier.process(variable) as string,
         value: await Interpreter.process(value) as ValueElement,
       });
-    } else Frame.frame.variables.push({
-      name: await Identifier.process(variable) as string,
-      value: await Interpreter.process(value) as ValueElement,
-    });
+    } else {
+      Frame.frame.variables.push({
+        name: await Identifier.process(variable) as string,
+        value: await Interpreter.process(value) as ValueElement,
+      });
+    }
   }
 
   public static async update(variable: Element, value: Element | Block): Promise<void> {
@@ -48,18 +50,6 @@ export class Variable {
   }
 }
 
-async function processVariadicSpread(args: (List | Argument)[]) {
-  const processed = [];
-  for (const arg of args) {
-    if (arg.variadic) {
-      processed.push(...arg.value)
-      break;
-    }
-    processed.push(arg);
-  }
-  return processed;
-}
-
 export class Identifier {
   public static async process(element: Element): Promise<string | { variable: any, index: any, }> {
     if (Array.isArray(element) && element[0].type === 'Word' && element[0].value === 'index') {
@@ -77,9 +67,12 @@ export class Identifier {
 export class Value {
   public static process(value: Element): ValueElement extends FunctionType ? never : ValueElement {
     if (value.value === 'none') return { type: Types.None, value: undefined };
-    if (value.type === 'Word' && Frame.exists(value.value as string)) {
+    if (['Word', 'Function'].includes(value.type) && Frame.exists(value.value as string)) {
       const variable: ValueElement = Frame.variables.get(value.value as string) as ValueElement;
       return variable.type === Types.Function ? { type: Types.None, value: undefined } : variable;
+    }
+    if ((value.type as string) === 'Function') {
+      return value as ValueElement;
     }
     return value.value !== undefined ? value as ValueElement : { type: Types.None, value: undefined };
   }
@@ -95,7 +88,7 @@ function isContainer(element: Block | Element): boolean {
 }
 
 function isValue(element: Block | Element): boolean {
-  return element && 'value' in element && 'type' in element;
+  return element && ('value' in element || 'body' in element) && 'type' in element;
 }
 
 function isObject(element: any): boolean {
@@ -195,6 +188,18 @@ export class Frame {
   }
 }
 
+async function processVariadicSpread(args: (List | Argument)[]) {
+  const processed = [];
+  for (const arg of args) {
+    if (arg.variadic) {
+      processed.push(...arg.value)
+      break;
+    }
+    processed.push(arg);
+  }
+  return processed;
+}
+
 export class Function {
   public static declare(args: (Element extends Block ? never : Element)[], body: Block, js: boolean = false): FunctionType {
     args = args.map((arg) => {
@@ -227,16 +232,7 @@ export class Function {
     Frame.pushStackFrame();
     for (let binding in fn.args) {
       const fnArgument = fn.args[binding];
-      if (fnArgument.variadic === true) {
-        const variadicProcessed = [];
-        for (const arg of args.slice(binding)) variadicProcessed.push(await Interpreter.process(arg));
-        await Variable.declare(fnArgument, {
-          type: Types.List,
-          value: await processVariadicSpread(variadicProcessed),
-        });
-        break;
-      }
-      await Variable.declare(fnArgument, Interpreter.process(args[Number(binding)]))
+      await Variable.declare(fnArgument, await Interpreter.process(args[Number(binding)]))
     }
     let res: any = await Interpreter.process(<Block>fn.body);
     Frame.popStackFrame();
