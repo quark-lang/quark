@@ -109,39 +109,39 @@ export enum Types {
   List = 'List',
 }
 
-interface ListType {
+export interface ListType {
   type: Types.List,
   value: ValueElement[],
 }
 
-interface StringType {
+export interface StringType {
   type: Types.String,
   value: string,
 }
 
-interface NoneType {
+export interface NoneType {
   type: Types.None,
   value: undefined,
 }
 
-interface IntegerType {
+export interface IntegerType {
   type: Types.Integer,
   value: number,
 }
 
-interface FunctionType {
+export interface FunctionType {
   type: Types.Function,
   args: Argument[],
   body: Block | (() => {}),
   js: boolean,
 }
 
-interface BooleanType {
+export interface BooleanType {
   type: Types.Boolean,
   value: boolean,
 }
 
-interface Argument extends Element {
+export interface Argument extends Element {
   variadic: boolean,
 }
 
@@ -382,7 +382,8 @@ export class Interpreter {
     if (expression.value === 'print') {
       const values = [];
       for (const arg of args) values.push(await Interpreter.process(arg));
-      return console.log(...values.map((x: any) => x.value));
+      console.log(...values.map((x: any) => x ? x.value : 'none'));
+      return { type: Types.None, value: undefined };
     }
 
     if (Frame.exists(expression.value as string)) {
