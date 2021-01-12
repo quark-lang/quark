@@ -145,7 +145,7 @@ export interface Argument extends Element {
   variadic: boolean,
 }
 
-export type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType;
+export type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType | ListType;
 interface Stack {
   variables: {
     name: string,
