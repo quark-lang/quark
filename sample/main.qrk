@@ -1,16 +1,4 @@
 {
   (import "factorial.qrk")
-  (let push (fn (array value) {
-    (let (index array (length array)) value)
-  }))
-  (let map (fn ((list values)) {
-    (print "{")
-    (foreach values (fn (array) {
-        (print " " (stringify (index array 0)) "=>" (stringify (index array 1)))
-    }))
-    (print "}")
-  }))
-  (let array (list (list "user" "Thomas") (list "test" "coucou")))
-  (let hashmap (map (spread array)))
-  (print hashmap)
+  (print (factorial 5))
 }
