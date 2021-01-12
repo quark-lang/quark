@@ -77,6 +77,7 @@ export class Identifier {
 export class Value {
   public static process(value: Element): ValueElement extends FunctionType ? never : ValueElement {
     if (value.value === 'none') return { type: Types.None, value: undefined };
+    if (['true', 'false'].includes(value.value as string)) return { type: Types.Boolean, value: Boolean(value.value) };
     if (['Word', 'Function'].includes(value.type) && Frame.exists(value.value as string)) {
       const variable: ValueElement = Frame.variables.get(value.value as string) as ValueElement;
       return variable.type === Types.Function ? { type: Types.None, value: undefined } : variable;
@@ -326,6 +327,7 @@ export class Import {
     const ext: string = path.extname(finalPath);
 
     if (ext.endsWith('.qrk')) {
+      count = 0;
       const content: string = await File.read(finalPath);
       await Interpreter.process(Parser.parse(content, true), parentDir(finalPath), true);
     } else if (ext.endsWith('.ts')) {
