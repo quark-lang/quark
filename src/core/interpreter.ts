@@ -7,7 +7,7 @@ import { File } from '../utils/file.ts';
 let count = 0;
 
 export class Node {
-  public static async process(block: Block, cwd: string, global: boolean = false): Promise<void | ValueElement> {
+  public static async process(block: Block, cwd: string, global: boolean = false): Promise<[ValueElement, boolean] | void> {
     for (const child of block) {
       if (isContainer(child) && global === true ) {
         if (count > 0) global = false;
@@ -15,7 +15,7 @@ export class Node {
       }
       let res: undefined | [ValueElement, boolean] = await Interpreter.process(child, cwd, global);
       if (res && res[1] && res[1] === true) {
-        return res[0];
+        return res;
       }
     }
   }
@@ -391,13 +391,6 @@ export class Interpreter {
     if (expression.value === 'spread') return await List.spread(args[0] as Block);
     if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
-
-    if (expression.value === 'print') {
-      const values = [];
-      for (const arg of args) values.push(await Interpreter.process(arg));
-      console.log(...values.map((x: any) => x ? x.value : 'none'));
-      return { type: Types.None, value: undefined };
-    }
 
     if (Frame.exists(expression.value as string)) {
       const item: ValueElement = Frame.variables.get(expression.value as string) as ValueElement;
