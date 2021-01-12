@@ -1,10 +1,32 @@
 {
   (import "assert.qrk")
   (import "factorial.qrk")
+  (import "list.qrk")
 
   # Factorial tests
   (assert (factorial 5) 120)
   (assert (factorial 4) 24)
   (assert (factorial 0) 1)
   (assert (factorial 1) 1)
+
+  # Length tests
+  (assert (length "test") 4)
+  (assert (length) 0)
+  (assert (length (list "test" "test" "test")) 3)
+
+  # Push tests
+  (let array (list))
+  (let string "")
+
+  (assert (push array "test") (list "test"))
+  (assert (push string "t") "t")
+
+  # Foreach tests
+  (let users (list "Thomas" "Ness" "ImRobot"))
+  (let reproductionUsers (list))
+  (foreach users (fn (user) {
+    (push reproductionUsers user)
+  }))
+
+  (assert users reproductionUsers)
 }
