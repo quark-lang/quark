@@ -191,7 +191,8 @@ export class Frame {
 async function processVariadicSpread(args: (List | Argument)[]) {
   const processed = [];
   for (const arg of args) {
-    if (arg.variadic) {
+    if (!(arg instanceof List) && arg.variadic) {
+      // @ts-ignore
       processed.push(...arg.value)
       break;
     }
@@ -216,7 +217,7 @@ export class Function {
     });
     return {
       type: Types.Function,
-      args,
+      args: args as Argument[],
       js,
       body,
     }
@@ -301,7 +302,7 @@ export class Condition {
 }
 
 export class Import {
-  public static async import(url: Element, cwd: string) {
+  public static async import(url: Element) {
     let src: string | URL = (url.value as string).replace(/:/g, '/');
     // Coming 3 folders back due to Interpreter path
     const stdPath: string = path.join(parentDir(path.fromFileUrl(import.meta.url), 3), 'std');
@@ -372,9 +373,9 @@ export class Interpreter {
     if (expression.value === 'return') return await Function.return(args[0]);
     if (expression.value === 'while') return await While.process(args[0], args[1]);
     if (expression.value === 'list') return await List.create(args);
-    if (expression.value === 'import') return await Import.import(args[0] as Element, cwd as string);
+    if (expression.value === 'import') return await Import.import(args[0] as Element);
     if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element);
-    if (expression.value === 'spread') return await List.spread(args[0]);
+    if (expression.value === 'spread') return await List.spread(args[0] as Block);
     if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
 
