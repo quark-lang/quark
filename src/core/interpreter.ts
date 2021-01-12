@@ -4,9 +4,15 @@ import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { File } from '../utils/file.ts';
 
+let count = 0;
+
 export class Node {
   public static async process(block: Block, cwd: string, global: boolean = false): Promise<void | ValueElement> {
     for (const child of block) {
+      if (isContainer(child) && global === true ) {
+        if (count > 0) global = false;
+        count++;
+      }
       let res: undefined | [ValueElement, boolean] = await Interpreter.process(child, cwd, global);
       if (res && res[1] && res[1] === true) {
         return res[0];
@@ -323,6 +329,7 @@ export class Import {
       const content: string = await File.read(finalPath);
       await Interpreter.process(Parser.parse(content, true), parentDir(finalPath), true);
     } else if (ext.endsWith('.ts')) {
+      count = 0;
       await import(finalPath);
     }
   }
@@ -401,6 +408,7 @@ export class Interpreter {
   }
 
   public static run(source: string, src: string) {
+    count = 0;
     const ast = Parser.parse(source);
     rootCWD = path.dirname(src);
     return this.process(ast);
