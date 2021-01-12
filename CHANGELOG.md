@@ -1,6 +1,16 @@
 # Changelog
 Any changes related to Quark will be contained primarily in this file. Find all Quark updates below.
 
+## [1.0.1]() - 2021-01-12
+
+### Fixed
+- List specific index modification fixed
+- CLI location fixed
+- Callback weren't working
+
+### Removed
+- Spreading and variadic support due to some bugs during function call
+
 ## [1.0.0]() - 2021-01-10
 First stable Quark release. Some bugs could again occurs.
 
