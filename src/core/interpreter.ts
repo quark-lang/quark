@@ -45,7 +45,7 @@ export class Variable {
     }
     if ('index' in identifier) {
       const variable = Frame.variables.get(identifier.variable) as ValueElement;
-      if ('value' in variable && variable.value) {
+      if ('value' in variable && variable.value !== undefined) {
         const updateValue = await Interpreter.process(value);
         if (variable.type === Types.List) {
           variable.value[identifier.index] = updateValue;
@@ -83,9 +83,9 @@ export class Value {
       return variable.type === Types.Function ? { type: Types.None, value: undefined } : variable;
     }
     if ((value.type as string) === 'Function') {
-      return value as ValueElement;
+      return { ...value } as ValueElement;
     }
-    return value.value !== undefined ? value as ValueElement : { type: Types.None, value: undefined };
+    return value.value !== undefined ? { ...value } as ValueElement : { type: Types.None, value: undefined };
   }
 
   public static update(current: any, next: any): void {
@@ -258,8 +258,8 @@ export class Function {
 
 export class Equalities {
   public static async process(operation: string, left: Block | Element, right: Block | Element): Promise<BooleanType> {
-    const lhs = (await Interpreter.process(left)).value;
-    const rhs = (await Interpreter.process(right)).value;
+    const lhs = JSON.stringify((await Interpreter.process(left)).value);
+    const rhs = JSON.stringify((await Interpreter.process(right)).value);
     switch (operation) {
       case '<': return { type: Types.Boolean, value: lhs < rhs };
       case '>': return { type: Types.Boolean, value: lhs > rhs };
