@@ -247,7 +247,7 @@ export class Function {
     }
     let res: any = await Interpreter.process(<Block>fn.body);
     Frame.popStackFrame();
-    return res || { type: Types.None, value: undefined };
+    return Array.isArray(res) ? res[0] : res || { type: Types.None, value: undefined };
   }
 
   public static async return(value: Block | Element): Promise<[ValueElement, boolean]> {
