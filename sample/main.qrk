@@ -1,4 +1,10 @@
 {
   (import "assert.qrk")
-  (print (assert "test" "test") i a)
+  (import "factorial.qrk")
+
+  # Factorial tests
+  (assert (factorial 5) 120)
+  (assert (factorial 4) 24)
+  (assert (factorial 0) 1)
+  (assert (factorial 1) 1)
 }
