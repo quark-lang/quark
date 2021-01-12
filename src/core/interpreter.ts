@@ -40,10 +40,14 @@ export class Variable {
     if ('index' in identifier) {
       const variable = Frame.variables.get(identifier.variable) as ValueElement;
       if ('value' in variable && variable.value) {
-        const split = (<string>variable.value).split('');
         const updateValue = await Interpreter.process(value);
-        split.splice(identifier.index, updateValue.value.length, updateValue.value)
-        variable.value = split.join('');
+        if (variable.type === Types.List) {
+          variable.value[identifier.index] = updateValue;
+        } else {
+          const split = (<string>variable.value).split('');
+          split.splice(identifier.index, updateValue.value.length, updateValue.value)
+          variable.value = split.join('');
+        }
       }
     }
     return Value.update(identifier, Interpreter.process(value));
