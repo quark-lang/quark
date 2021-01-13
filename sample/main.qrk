@@ -5,17 +5,15 @@
 
   # Factorial tests
   (describe "Factorial tests" (fn () {
-    (assert "should return 5! = 120" (factorial 5) 120)
-    (assert "should return 4! = 24" (factorial 4) 24)
-    (assert "should return 1! = 1" (factorial 0) 1)
-    (assert "should return 1! = 1" (factorial 1) 0)
+    (assert "should return multiplication of int between 1 and 5" (factorial 5) 120)
+    (assert "should return 0 due to factorial rule" (factorial 1) 0)
   }))
 
   # Length tests
   (describe "Length tests" (fn () {
-    (assert "should return 4" (length "test") 4)
-    (assert "should return 0" (length) 0)
-    (assert "should return list length, 3" (length (list "test" "test" "test")) 3)
+    (assert "should return correct length of text" (length "test") 4)
+    (assert "should return 0 if no arguments precised" (length) 0)
+    (assert "should return correct list length" (length (list "test" "test" "test")) 3)
   }))
 
   # Push tests
@@ -24,8 +22,8 @@
     (let array (list))
     (let string "")
 
-    (assert "should be equal lists" (push array "test") (list "test"))
-    (assert "should be equal strings" (push string "t") "t")
+    (assert "should return equal lists" (push array "test") (list "test"))
+    (assert "should return equal strings" (push string "t") "t")
   }))
 
   # Foreach tests
