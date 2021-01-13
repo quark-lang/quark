@@ -258,8 +258,12 @@ export class Function {
 
 export class Equalities {
   public static async process(operation: string, left: Block | Element, right: Block | Element): Promise<BooleanType> {
-    const lhs = JSON.stringify((await Interpreter.process(left)).value);
-    const rhs = JSON.stringify((await Interpreter.process(right)).value);
+    const processedLHS = await Interpreter.process(left);
+    const processedRHS = await Interpreter.process(right);
+
+    const lhs = processedLHS.type === Types.List ? JSON.stringify(processedLHS.value) : processedLHS.value;
+    const rhs = processedRHS.type === Types.List ? JSON.stringify(processedRHS.value) : processedRHS.value;
+
     switch (operation) {
       case '<': return { type: Types.Boolean, value: lhs < rhs };
       case '>': return { type: Types.Boolean, value: lhs > rhs };
