@@ -325,14 +325,13 @@ export class Import {
 
     // Getting file extension for choosing which parsing to use
     const ext: string = path.extname(finalPath);
-
     if (ext.endsWith('.qrk')) {
       count = 0;
       const content: string = await File.read(finalPath);
       await Interpreter.process(Parser.parse(content, true), parentDir(finalPath), true);
     } else if (ext.endsWith('.ts')) {
       count = 0;
-      await import(finalPath);
+      await import(path.toFileUrl(finalPath).href);
     }
   }
 }
