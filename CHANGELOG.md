@@ -1,6 +1,20 @@
 # Changelog
 Any changes related to Quark will be contained primarily in this file. Find all Quark updates below.
 
+## [1.0.2]() - 2021-01-13
+
+### Fixed
+- Reference issue causing AST modification.
+- Block scoping in modules
+- Single expression return
+- Boolean processing
+- Function return
+- Import on Windows
+- Comparison operands
+
+### Added
+- Simple tests
+
 ## [1.0.1]() - 2021-01-12
 
 ### Fixed
