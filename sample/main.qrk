@@ -3,13 +3,29 @@
   (import "factorial.qrk")
   (import "list.qrk")
 
+  (let ackermann (fn (m n) {
+    (while (> m 0) {
+      (set n
+        (if (= n 0) 1 (ackermann m (- n 1)))
+      )
+      (set m (- m 1))
+    })
+    (return (+ n 1))
+  }))
+
   # Factorial tests
   (describe "Factorial tests" (fn () {
-    (it "should return multiplication of int between 1 and 5" (fn () {
-      (return (assert:equal (factorial 2500) Infinity))
+    (it "should return multiplication of int between 1 and 10" (fn () {
+      (return (assert:equal (factorial 10) 3628800))
     }))
     (it "should return 0 due to factorial rule" (fn () {
-      (return (assert:equal (factorial 0) 0))
+      (return (assert:equal (factorial 0) 1))
+    }))
+  }))
+
+  (describe "Ackermann tests" (fn () {
+    (it "should return correct ackermann result" (fn () {
+      (return (assert:equal (ackermann 2 6) 15))
     }))
   }))
 
