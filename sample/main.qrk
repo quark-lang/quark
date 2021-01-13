@@ -5,15 +5,25 @@
 
   # Factorial tests
   (describe "Factorial tests" (fn () {
-    (assert "should return multiplication of int between 1 and 5" (factorial 5) 120)
-    (assert "should return 0 due to factorial rule" (factorial 1) 0)
+    (it "should return multiplication of int between 1 and 5" (fn () {
+      (return (assert:equal (factorial 2500) Infinity))
+    }))
+    (it "should return 0 due to factorial rule" (fn () {
+      (return (assert:equal (factorial 0) 0))
+    }))
   }))
 
   # Length tests
   (describe "Length tests" (fn () {
-    (assert "should return correct length of text" (length "test") 4)
-    (assert "should return 0 if no arguments precised" (length) 0)
-    (assert "should return correct list length" (length (list "test" "test" "test")) 3)
+    (it "should return correct length of text" (fn () {
+      (return (assert:equal (length "test") 4))
+    }))
+    (it "should return 0 if no arguments precised" (fn () {
+      (return (assert:equal (length) 0))
+    }))
+    (it "should return correct list length" (fn () {
+      (return (assert:equal (length (list "test" "test" "test")) 3))
+    }))
   }))
 
   # Push tests
@@ -21,9 +31,12 @@
   (describe "Push tests" (fn () {
     (let array (list))
     (let string "")
-
-    (assert "should return equal lists" (push array "test") (list "test"))
-    (assert "should return equal strings" (push string "t") "t")
+    (it "should return equal lists" (fn () {
+      (return (assert:equal (push array "test") (list "test")))
+    }))
+    (it "should return equal strings" (fn () {
+      (return (assert:equal (push string "t") "t"))
+    }))
   }))
 
   # Foreach tests
@@ -33,8 +46,9 @@
     (foreach users (fn (user) {
       (push reproductionUsers user)
     }))
-
-    (assert "should return same array as looped" users reproductionUsers)
+    (it "should return same array as looped" (fn () {
+      (return (assert:equal users reproductionUsers))
+    }))
   }))
 
   (finish)
