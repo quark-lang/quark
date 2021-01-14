@@ -25,7 +25,7 @@ jobs:
         run: deno --version
       
       - name: Compile deno app into executable
-        run: deno compile --unstable --no-check src/main.ts -o quark-${{ matrix.platform }}
+        run: deno compile --unstable --no-check src/main.ts -o quark
       
       #- name: Compress binaries
       #  uses: svenstaro/upx-action@v2
@@ -45,13 +45,13 @@ jobs:
         
       - name: ZIP Quark on Unix
         if: matrix.platform != 'windows-latest'
-        run: zip -r 'quark-${{ matrix.platform }}.zip' quark-${{ matrix.platform }} cli std sample README.md
+        run: zip -r 'quark-${{ matrix.platform }}.zip' quark cli std sample README.md
         
       - name: ZIP Quark on Windows
         if: matrix.platform == 'windows-latest'
         run: |
           ls
-          Compress-Archive -CompressionLevel Optimal -Force -Path quark-${{ matrix.platform }}.exe, cli, std, sample, README.md -DestinationPath 'quark-${{ matrix.platform }}.zip' 
+          Compress-Archive -CompressionLevel Optimal -Force -Path quark.exe, cli, std, sample, README.md -DestinationPath 'quark-${{ matrix.platform }}.zip' 
         
       - uses: AButler/upload-release-assets@v2.0
         with:
