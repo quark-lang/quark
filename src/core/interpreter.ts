@@ -333,9 +333,10 @@ export class Import {
       count = 0;
       const content: string = await File.read(finalPath);
       await Interpreter.process(Parser.parse(content, true), parentDir(finalPath), true);
-    } else if (ext.endsWith('.ts')) {
-      count = 0;
-      await import(path.toFileUrl(finalPath).href);
+    }
+
+    if (['.js', '.ts'].includes(ext)) {
+      throw `Can't resolve Typescript modules outside interpreter!`;
     }
   }
 }
