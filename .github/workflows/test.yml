@@ -21,7 +21,7 @@ jobs:
         run: deno --version
       
       - name: Compile deno app into executable
-        run: deno compile --unstable --no-check quark.js -o quark-linux
+        run: deno compile --unstable --no-check src/main.ts -o quark-linux
       
       - name: Print
         run: ls
