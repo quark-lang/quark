@@ -4,8 +4,7 @@ jobs:
     strategy:
       matrix:
         deno: [1.6.3]
-        platform: ubuntu-latest
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-latest
     
     name: Compile quark on Linux
     steps:
