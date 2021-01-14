@@ -320,7 +320,7 @@ export class Import {
   public static async import(url: Element) {
     let src: string | URL = (url.value as string).replace(/:/g, '/');
     // Coming 3 folders back due to Interpreter path
-    const stdPath: string = path.join(parentDir(path.fromFileUrl(import.meta.url), 3), 'std');
+    const stdPath: string = path.join('std');
     // Checking if file exists and setting correct path
     let finalPath: string | undefined = undefined;
     if (existsSync(path.join(stdPath, src))) finalPath = path.join(stdPath, src);

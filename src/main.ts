@@ -5,7 +5,7 @@ import '../std/mod.ts'; // Importing Typescript STD by default.
 
 async function main(): Promise<void> {
   // Getting sample code content and interpreting it
-  const src = path.join(path.dirname(path.fromFileUrl(import.meta.url)), '..', 'cli', 'main.qrk');
+  const src = path.join('cli', 'main.qrk');
   const script: string = await File.read(src);
   await Interpreter.run(script, src);
 
