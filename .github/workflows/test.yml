@@ -1,0 +1,26 @@
+on: push
+jobs:
+  build:
+    strategy:
+      matrix:
+        deno: [1.6.3]
+        platform: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
+    
+    name: Compile quark on Linux
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Setup Deno module
+        uses: denolib/setup-deno@master
+        with:
+          deno-version: ${{matrix.deno}}
+
+      - name: Print deno version
+        run: deno --version
+      
+      - name: Compile deno app into executable
+        run: deno compile --unstable --no-check ./src/main.ts -o quark-${{ matrix.platform }}
+      
+      - name: Print
+        run: ls
