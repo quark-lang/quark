@@ -27,21 +27,21 @@ jobs:
       - name: Compile deno app into executable
         run: deno compile --unstable --no-check src/main.ts -o quark-${{ matrix.platform }}
       
-      - name: Compress binaries
-        uses: svenstaro/upx-action@v2
-        with:
-          file: './quark-${{ matrix.platform }}'
-          args: --best --lzma
-          strip: false
-        if: matrix.platform != 'windows-latest'
+      #- name: Compress binaries
+      #  uses: svenstaro/upx-action@v2
+      #  with:
+      #    file: './quark-${{ matrix.platform }}'
+      #    args: --best --lzma
+      #    strip: false
+      #  if: matrix.platform != 'windows-latest'
                      
-      - name: Compress binaries on Windows
-        uses: svenstaro/upx-action@v2
-        with:
-          file: './quark-${{ matrix.platform }}.exe'
-          args: --best --lzma
-          strip: false
-        if: matrix.platform == 'windows-latest' 
+      #- name: Compress binaries on Windows
+      #  uses: svenstaro/upx-action@v2
+      #  with:
+      #    file: './quark-${{ matrix.platform }}.exe'
+      #    args: --best --lzma
+      #    strip: false
+      #  if: matrix.platform == 'windows-latest' 
         
       - name: ZIP Quark on Unix
         if: matrix.platform != 'windows-latest'
