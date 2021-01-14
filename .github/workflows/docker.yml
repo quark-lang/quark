@@ -2,8 +2,7 @@ name: Build and push Docker images
 
 on:
   release:
-    branches: [master]
-    tags: ["*"]
+    types: [published]
 
 jobs:
   build:
