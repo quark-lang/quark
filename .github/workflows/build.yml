@@ -1,0 +1,53 @@
+on:
+  release:
+    types: [published]
+jobs:
+  build:
+    strategy:
+      matrix:
+        deno: [1.6.3]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    
+    name: Compile quark on Linux
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Setup Deno module
+        uses: denolib/setup-deno@master
+        with:
+          deno-version: ${{matrix.deno}}
+
+      - name: Print deno version
+        run: deno --version
+      
+      - name: Compile deno app into executable
+        run: deno compile --unstable --no-check src/main.ts -o quark-${{ matrix.platform }}
+      
+      - name: Compress binaries
+        uses: svenstaro/upx-action@v2
+        with:
+          file: './quark-${{ matrix.platform }}'
+          args: --best --lzma
+          strip: false
+        if: matrix.platform != 'windows-latest'
+
+      - uses: AButler/upload-release-assets@v2.0
+        with:
+          files: './quark-${{ matrix.platform }}'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+        if: matrix.platform != 'windows-latest'
+               
+      - name: Compress binaries on Windows
+        uses: svenstaro/upx-action@v2
+        with:
+          file: './quark-${{ matrix.platform }}.exe'
+          args: --best --lzma
+          strip: false
+        if: matrix.platform == 'windows-latest' 
+
+      - uses: AButler/upload-release-assets@v2.0
+        with:
+          files: './quark-${{ matrix.platform }}.exe'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+        if: matrix.platform == 'windows-latest'
