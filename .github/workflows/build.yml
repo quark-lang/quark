@@ -12,7 +12,10 @@ jobs:
     name: Compile quark on Linux
     steps:
       - uses: actions/checkout@master
-
+      - name: Checkout submodules
+        run: |
+          git clone https://github.com/quark-lang/std
+          git clone https://github.com/quark-lang/cli
       - name: Setup Deno module
         uses: denolib/setup-deno@master
         with:
