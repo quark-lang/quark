@@ -14,14 +14,17 @@ jobs:
         uses: denolib/setup-deno@master
         with:
           deno-version: ${{matrix.deno}}
-
+      
       - name: Print
         run: ls
       - name: Print deno version
         run: deno --version
       
+      - name: Bundle application into one javascript file
+        run: deno bundle --unstable src/main.ts quark.js
+      
       - name: Compile deno app into executable
-        run: deno compile --unstable --no-check ../src/main.ts -o quark-linux
+        run: deno compile --unstable --no-check quark.js -o quark-linux
       
       - name: Print
         run: ls
