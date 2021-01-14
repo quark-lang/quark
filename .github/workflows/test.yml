@@ -16,7 +16,9 @@ jobs:
           deno-version: ${{matrix.deno}}
       
       - name: Print
-        run: ls
+        run: |
+          cd std
+          ls
       - name: Print deno version
         run: deno --version
       
