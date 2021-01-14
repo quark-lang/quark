@@ -31,13 +31,7 @@ jobs:
           args: --best --lzma
           strip: false
         if: matrix.platform != 'windows-latest'
-
-      - uses: AButler/upload-release-assets@v2.0
-        with:
-          files: './quark-${{ matrix.platform }}'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-        if: matrix.platform != 'windows-latest'
-               
+                     
       - name: Compress binaries on Windows
         uses: svenstaro/upx-action@v2
         with:
@@ -45,9 +39,18 @@ jobs:
           args: --best --lzma
           strip: false
         if: matrix.platform == 'windows-latest' 
-
+        
+      - name: ZIP Quark on Unix
+        if: matrix.platform != 'windows-latest'
+        run: zip -r 'quark-${{ matrix.platform }}.zip' quark-${{ matrix.platform }} cli std
+        
+      - name: ZIP Quark on Windows
+        if: matrix.platform == 'windows-latest'
+        run: |
+          ls
+          Compress-Archive -CompressionLevel Optimal -Force -Path quark-${{ matrix.platform }}.exe, cli, std -DestinationPath 'quark-${{ matrix.platform }}.zip' 
+        
       - uses: AButler/upload-release-assets@v2.0
         with:
-          files: './quark-${{ matrix.platform }}.exe'
+          files: './quark-${{ matrix.platform }}.zip'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-        if: matrix.platform == 'windows-latest'
