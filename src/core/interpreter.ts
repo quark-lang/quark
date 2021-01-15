@@ -234,8 +234,8 @@ export class Function {
     }
   }
 
-  public static async call(functionName: string, args: (Block | Element)[]) {
-    const fn: FunctionType = Frame.variables.get(functionName) as FunctionType;
+  public static async call(functionName: string | FunctionType, args: (Block | Element)[]) {
+    const fn: FunctionType = isObject(functionName) ? functionName as FunctionType : Frame.variables.get(functionName as string) as FunctionType;
     if (fn.js === true) {
       const values = [];
       for (const arg of args) values.push(await Interpreter.process(arg));
