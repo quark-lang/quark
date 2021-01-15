@@ -1,71 +1,7 @@
 {
-  (import "assert.qrk")
-  (import "factorial.qrk")
-  (import "list.qrk")
-
-  (let ackermann (fn (m n) {
-    (while (> m 0) {
-      (set n
-        (if (= n 0) 1 (ackermann m (- n 1)))
-      )
-      (set m (- m 1))
-    })
-    (return (+ n 1))
+  (let welcome (fn (username) {
+    (print "Hello" (+ username "!"))
   }))
-
-  # Factorial tests
-  (describe "Factorial tests" (fn () {
-    (it "should return multiplication of int between 1 and 10" (fn () {
-      (return (assert:equal (factorial 10) 3628800))
-    }))
-    (it "should return 0 due to factorial rule" (fn () {
-      (return (assert:equal (factorial 0) 1))
-    }))
-  }))
-
-  (describe "Ackermann tests" (fn () {
-    (it "should return correct ackermann result" (fn () {
-      (return (assert:equal (ackermann 2 6) 15))
-    }))
-  }))
-
-  # Length tests
-  (describe "Length tests" (fn () {
-    (it "should return correct length of text" (fn () {
-      (return (assert:equal (length "test") 4))
-    }))
-    (it "should return 0 if no arguments precised" (fn () {
-      (return (assert:equal (length) 0))
-    }))
-    (it "should return correct list length" (fn () {
-      (return (assert:equal (length (list "test" "test" "test")) 3))
-    }))
-  }))
-
-  # Push tests
-
-  (describe "Push tests" (fn () {
-    (let array (list))
-    (let string "")
-    (it "should return equal lists" (fn () {
-      (return (assert:equal (push array "test") (list "test")))
-    }))
-    (it "should return equal strings" (fn () {
-      (return (assert:equal (push string "t") "t"))
-    }))
-  }))
-
-  # Foreach tests
-  (describe "Foreach tests" (fn () {
-    (let users (list "Thomas" "Ness" "ImRobot"))
-    (let reproductionUsers (list))
-    (foreach users (fn (user) {
-      (push reproductionUsers user)
-    }))
-    (it "should return same array as looped" (fn () {
-      (return (assert:equal users reproductionUsers))
-    }))
-  }))
-
-  (finish)
+  (let username "Thomas")
+  (welcome username)
 }
