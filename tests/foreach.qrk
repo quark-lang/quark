@@ -1,0 +1,18 @@
+{
+  (import "assert.qrk")
+  (import "list.qrk")
+
+  # Foreach tests
+  (describe "Foreach tests" (fn () {
+    (let users (list "Thomas" "Ness" "ImRobot"))
+    (let reproductionUsers (list))
+    (foreach users (fn (user) {
+      (push reproductionUsers user)
+    }))
+    (it "should return same array as looped" (fn () {
+      (return (assert:equal users reproductionUsers))
+    }))
+  }))
+
+  (finish)
+}

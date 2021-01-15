@@ -1,0 +1,25 @@
+{
+  (import "../sample/factorial.qrk")
+  (import "assert.qrk")
+
+  # Factorial tests
+  (describe "Factorial tests" (fn () {
+    (it "should return correct factorial result" (fn () {
+      (return (assert:equal (factorial 5) 120))
+    }))
+    (it "should return one if argument is 0" (fn () {
+      (return (assert:equal (factorial 0) 1))
+    }))
+  }))
+
+  (import "../sample/ackermann.qrk")
+
+  # Ackermann tests
+  (describe "Ackermann tests" (fn () {
+    (it "should return correct ackermann result" (fn () {
+      (return (assert:equal (ackermann 3 3) 61))
+    }))
+  }))
+
+  (finish)
+}
