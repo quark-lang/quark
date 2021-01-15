@@ -20,6 +20,4 @@
       (return (assert:equal (ackermann 3 3) 61))
     }))
   }))
-
-  (finish)
 }

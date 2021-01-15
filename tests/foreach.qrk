@@ -13,6 +13,4 @@
       (return (assert:equal users reproductionUsers))
     }))
   }))
-
-  (finish)
 }
