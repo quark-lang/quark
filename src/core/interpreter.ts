@@ -94,7 +94,7 @@ export class Value {
   }
 }
 
-function isContainer(element: Block | Element): boolean {
+export function isContainer(element: Block | Element): boolean {
   return Array.isArray(element) && element.every((child) => Array.isArray(child));
 }
 
@@ -406,10 +406,10 @@ export class Interpreter {
     throw `Can't recognize this expression: ${expression.value}`;
   }
 
-  public static run(source: string, src: string) {
+  public static async run(source: string, src: string) {
     count = 0;
     const ast = Parser.parse(source);
     rootCWD = path.dirname(src);
-    return this.process(ast);
+    return await this.process(ast);
   }
 }
