@@ -271,6 +271,7 @@ export class Equalities {
       case '>=': return { type: Types.Boolean, value: lhs >= rhs };
       case '=': return { type: Types.Boolean, value: lhs == rhs };
       case '!=': return { type: Types.Boolean, value: lhs != rhs };
+      case 'and': return { type: Types.Boolean, value: lhs && rhs };
     }
     return { type: Types.Boolean, value: false, }
   }
@@ -393,7 +394,7 @@ export class Interpreter {
     if (expression.value === 'import') return await Import.import(args[0] as Element);
     if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element);
     if (expression.value === 'spread') return await List.spread(args[0] as Block);
-    if (['<', '=', '!=', '>', '<=', '>='].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
+    if (['<', '=', '!=', '>', '<=', '>=', 'and'].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
 
     if (Frame.exists(expression.value as string)) {
