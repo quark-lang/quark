@@ -1,6 +1,25 @@
 # Changelog
 Any changes related to Quark will be contained primarily in this file. Find all Quark updates below.
 
+## [1.1.0]() - 2021-01-16
+
+### Added
+- Code analysis and autobuild actions
+- STD loading by default
+- Quark STD
+- Assert library
+- `and` operator
+- Function object caller
+
+### Changed
+- REPL moved to cli folder
+
+### Fixed
+- Processing function call made asynchronous
+- Build action
+- Submodule fetching
+- Absolute static import path
+
 ## [1.0.2]() - 2021-01-13
 
 ### Fixed
