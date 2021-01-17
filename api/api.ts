@@ -67,24 +67,28 @@ export class QuarkType {
   }
 }
 
-export function setValue(data: any[]) {
+export function setValue(data: any): ValueElement | ValueElement[] {
   let result: ValueElement[] = [];
+  if (!Array.isArray(data)) return setValueByType(data);
   for (const el of data) {
     if (Array.isArray(el)) {
-      result.push(QuarkType.list(setValue(el)));
+      result.push(QuarkType.list(setValue(el) as ValueElement[]));
     } else {
-      if (typeof el === 'string') {
-        result.push(QuarkType.string(el));
-      } else if (typeof el === 'number') {
-        result.push(QuarkType.number(el));
-      } else if (typeof el === 'boolean') {
-        result.push(QuarkType.boolean(el));
-      } else result.push(QuarkType.none());
+      result.push(setValueByType(el));
     }
   }
   return result;
 }
 
+function setValueByType(value: any): ValueElement {
+  if (typeof value === 'string') {
+    return QuarkType.string(value);
+  } else if (typeof value === 'number') {
+    return QuarkType.number(value);
+  } else if (typeof value === 'boolean') {
+    return QuarkType.boolean(value);
+  } else return QuarkType.none();
+}
 
 export function getValue(values: ValueElement[]): any {
   let result: any = [];
