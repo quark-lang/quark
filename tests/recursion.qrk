@@ -1,5 +1,6 @@
 {
   (import "../sample/factorial.qrk")
+  (import "../sample/fibonacci.qrk")
   (import "assert.qrk")
 
   # Factorial tests
@@ -18,6 +19,12 @@
   (describe "Ackermann tests" (fn () {
     (it "should return correct ackermann result" (fn () {
       (return (assert:equal (ackermann 3 3) 61))
+    }))
+  }))
+
+  (describe "Fibonacci tests" (fn () {
+    (it "should return correct fibonacci result" (fn () {
+      (return (assert:equal (fibonacci 10) 55))
     }))
   }))
 }
