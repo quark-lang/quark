@@ -10,7 +10,7 @@ export async function getQuarkFolder(): Promise<string> {
   const condition = path.basename(dir) === 'quark' || (existsSync(path.join(dir, 'cli')) && existsSync(path.join(dir, 'std')));
   return !condition
     ? (<string>Deno.env.get('Path'))
-      .split(';')
+      .split(/;|:/g)
       .find((x) => x.includes('quark')) || ''
     : '';
 }
