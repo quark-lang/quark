@@ -8,9 +8,13 @@ import '../std/quark.ts';
 export async function getQuarkFolder(): Promise<string> {
   const dir = await Deno.realPath('.');
   const condition = path.basename(dir) === 'quark' || (existsSync(path.join(dir, 'cli')) && existsSync(path.join(dir, 'std')));
+
+  const envPath: string = <string>Deno.env.get(Deno.build.os === 'windows' ? 'Path' : 'PATH');
+  const delimiter: string = Deno.build.os === 'windows' ? ';' : ':';
+
   return !condition
-    ? (<string>Deno.env.get('Path'))
-      .split(Deno.build.os === 'windows' ? ';' : ':')
+    ? envPath
+      .split(delimiter)
       .find((x) => x.includes('quark')) || ''
     : '';
 }
