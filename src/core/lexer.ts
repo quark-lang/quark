@@ -10,6 +10,7 @@ export class Lexer {
 
   private static lexing(): Token[] {
     let state: string = '';
+    let escaped: boolean = false;
     // Container variable contains processed tokens
     const container: Token[] = [];
     // Tmp variable contains temporary code chars that has been collected by tokenizer and which will be pushed to container
@@ -25,7 +26,7 @@ export class Lexer {
           tmp.splice(0, tmp.length);
         }
         container.push({ token: Tokens.Node, value: char as Node, });
-      } else if (char === '"' && state !== 'COMMENT') {
+      } else if (char === '"' && state !== 'COMMENT' && !escaped) {
         tmp.push(char);
         if (state === Tokens.String) {
           state = '';
@@ -61,7 +62,36 @@ export class Lexer {
             continue;
           }
         }
-        if (this.commentState === 0) tmp.push(char);
+        if (this.commentState === 0) {
+          if (char === '\\') {
+            switch (this.code[Number(index) + 1]) {
+              case 'n':
+                tmp.push('\n');
+                break;
+              case 'r':
+                tmp.push('\r');
+                break;
+              case 't':
+                tmp.push('\t');
+                break;
+              case 'b':
+                tmp.push('\b');
+                break;
+              case 'f':
+                tmp.push('\f');
+                break;
+              case 'v':
+                tmp.push('\v');
+                break;
+              default:
+                tmp.push(this.code[Number(index) + 1]);
+            }
+            escaped = true;
+          }
+          else if (!escaped) {
+            tmp.push(char);
+          } else escaped = false;
+        }
       }
     }
     // Removing empty tokens from container
