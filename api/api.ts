@@ -1,4 +1,13 @@
-import { Interpreter, Frame, Function, Types, Variable, ValueElement } from '../src/core/interpreter.ts';
+import {
+  Interpreter,
+  Frame,
+  Function,
+  Types,
+  Variable,
+  ValueElement,
+  StringType,
+  IntegerType, ListType, BooleanType, NoneType
+} from '../src/core/interpreter.ts';
 import { QuarkTypes } from './typings/types.ts';
 import { QuarkCallback } from './typings/callback.ts';
 import { Block } from '../src/typings/block.ts';
@@ -20,6 +29,62 @@ export interface QuarkVariable extends QuarkDefinition {
 export function quarkify(fn: (...data: any[]) => any, ...args: ValueElement[]): any {
   return fn.call(fn, ...getValue(args));
 }
+
+export class QuarkType {
+  public static string(value: string): StringType {
+    return {
+      type: Types.String,
+      value,
+    };
+  }
+
+  public static number(value: string | number): IntegerType {
+    return {
+      type: Types.Integer,
+      value: Number(value),
+    };
+  }
+
+  public static list(value: ValueElement[]): ListType {
+    return {
+      type: Types.List,
+      value,
+    }
+  }
+
+  public static boolean(value: any): BooleanType {
+    return {
+      type: Types.Boolean,
+      value: Boolean(value),
+    }
+  }
+
+  public static none(): NoneType {
+    return {
+      type: Types.None,
+      value: undefined,
+    }
+  }
+}
+
+export function setValue(data: any[]) {
+  let result: ValueElement[] = [];
+  for (const el of data) {
+    if (Array.isArray(el)) {
+      result.push(QuarkType.list(setValue(el)));
+    } else {
+      if (typeof el === 'string') {
+        result.push(QuarkType.string(el));
+      } else if (typeof el === 'number') {
+        result.push(QuarkType.number(el));
+      } else if (typeof el === 'boolean') {
+        result.push(QuarkType.boolean(el));
+      } else result.push(QuarkType.none());
+    }
+  }
+  return result;
+}
+
 
 export function getValue(values: ValueElement[]): any {
   let result: any = [];
