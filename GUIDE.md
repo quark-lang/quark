@@ -93,7 +93,7 @@ E.g.:
   (let i 0)
   (while (< i 10) {
     (print i)
-    (let i (+ i 1)) # increments i
+    (set i (+ i 1)) # increments i
   })
 }
 ```
