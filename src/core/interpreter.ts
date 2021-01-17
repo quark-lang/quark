@@ -3,6 +3,7 @@ import { Parser } from './parser.ts';
 import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { File } from '../utils/file.ts';
+import { getQuarkFolder } from '../main.ts';
 
 let count = 0;
 
@@ -321,7 +322,7 @@ export class Import {
   public static async import(url: Element) {
     let src: string | URL = (url.value as string).replace(/:/g, '/');
     // Coming 3 folders back due to Interpreter path
-    const stdPath: string = path.join('std');
+    const stdPath: string = path.join(await getQuarkFolder(), 'std');
     // Checking if file exists and setting correct path
     let finalPath: string | undefined = undefined;
     if (existsSync(path.join(stdPath, src))) finalPath = path.join(stdPath, src);
