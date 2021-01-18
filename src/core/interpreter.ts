@@ -78,6 +78,7 @@ export class Identifier {
 export class Value {
   public static process(value: Element): ValueElement extends FunctionType ? never : ValueElement {
     if (value.value === 'none') return { type: Types.None, value: undefined };
+    if (value.type === 'String') return { ...value } as ValueElement;
     if (['true', 'false'].includes(value.value as string)) return { type: Types.Boolean, value: Boolean(value.value) };
     if (['Word', 'Function'].includes(value.type) && Frame.exists(value.value as string)) {
       const variable: ValueElement = Frame.variables.get(value.value as string) as ValueElement;
