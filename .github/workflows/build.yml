@@ -45,13 +45,13 @@ jobs:
         
       - name: ZIP Quark on Unix
         if: matrix.platform != 'windows-latest'
-        run: zip -r 'quark-${{ matrix.platform }}.zip' quark cli std README.md
+        run: zip -r 'quark-${{ matrix.platform }}.zip' quark cli std README.md .quarkrc
         
       - name: ZIP Quark on Windows
         if: matrix.platform == 'windows-latest'
         run: |
           ls
-          Compress-Archive -CompressionLevel Optimal -Force -Path quark.exe, cli, std, README.md -DestinationPath 'quark-${{ matrix.platform }}.zip' 
+          Compress-Archive -CompressionLevel Optimal -Force -Path quark.exe, cli, std, .quarkrc, README.md -DestinationPath 'quark-${{ matrix.platform }}.zip' 
         
       - uses: AButler/upload-release-assets@v2.0
         with:
