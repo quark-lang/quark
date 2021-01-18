@@ -1,6 +1,22 @@
 # Changelog
 Any changes related to Quark will be contained primarily in this file. Find all Quark updates below.
 
+## [1.2.0]() - 2021-01-18
+
+### Added
+- `getValue`, `setValue` and `QuarkType`
+- `quarkify` function
+- `or` operator
+- Escape sequences (`\n`, `\r`, `\t`, ...)
+- Quark configuration file `.quarkrc`
+- Fibonacci tests
+
+### Fixed
+- Quark pathfinder
+- Environment path variable looker
+- Imports using root
+- Quark Windows executable ignored
+
 ## [1.1.0]() - 2021-01-16
 
 ### Added
