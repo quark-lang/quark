@@ -1,6 +1,13 @@
 # Changelog
 Any changes related to Quark will be contained primarily in this file. Find all Quark updates below.
 
+## [1.2.1]() - 2021-01-18
+
+### Fixed
+- Value interpretation :
+  - `"true"` and `"false"` were parsed as boolean
+  - Value were compared as stringified JSON output
+
 ## [1.2.0]() - 2021-01-18
 
 ### Added
