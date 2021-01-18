@@ -1,3 +1,4 @@
 name=quark-lang
-description=Quark is an interpreted programming language written in Typescript. Its syntax is based on Lisp.
+description="Quark is an interpreted programming language written in Typescript. Its syntax is based on Lisp."
 author=thomasvergne
+core=true
