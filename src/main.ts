@@ -26,13 +26,9 @@ export async function getQuarkFolder(): Promise<string> {
   const configuration = await parseConfiguration('.quarkrc');
   const condition = configuration['name'] === 'quark-lang'
     && Boolean(configuration['core']) === true;
-  const envPath: string = <string>Deno.env.get(Deno.build.os === 'windows' ? 'Path' : 'PATH');
-  const delimiter: string = Deno.build.os === 'windows' ? ';' : ':';
 
   return !condition
-    ? envPath
-      .split(delimiter)
-      .find((x) => x.includes('quark')) || ''
+    ? <string>Deno.env.get('QUARK')
     : '';
 }
 
