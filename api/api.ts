@@ -27,7 +27,7 @@ export interface QuarkVariable extends QuarkDefinition {
 }
 
 export function quarkify(fn: (...data: any[]) => any, ...args: ValueElement[]): any {
-  return fn.call(fn, ...getValue(args));
+  return setValueByType(fn.call(fn, ...getValue(args)));
 }
 
 export class QuarkType {
