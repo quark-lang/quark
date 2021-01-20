@@ -26,7 +26,7 @@ export interface QuarkVariable extends QuarkDefinition {
   value: ValueElement,
 }
 
-export function quarkify(fn: (...data: any[]) => any, ...args: ValueElement[]): any {
+export function quarkify(fn: (...data: any[]) => any, ...args: any[]): any {
   return setValueByType(fn.call(fn, ...getValue(args)));
 }
 
@@ -104,7 +104,8 @@ function setValueByType(value: any): ValueElement | ValueElement[] {
 export function getValue(values: ValueElement[]): any {
   let result: any = [];
   for (const value of values) {
-    if (value.type === Types.List) {
+    if (typeof value !== 'object') result.push(value);
+    else if (value.type === Types.List) {
       result.push(getValue(value.value));
     } else if ('value' in value) result.push(value.value === undefined ? 'none' : value.value);
     else result.push('none');
