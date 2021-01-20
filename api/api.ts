@@ -3,14 +3,11 @@ import {
   Frame,
   Function,
   Types,
-  Variable,
   ValueElement,
   StringType,
   IntegerType, ListType, BooleanType, NoneType
 } from '../src/core/interpreter.ts';
 import { QuarkTypes } from './typings/types.ts';
-import { QuarkCallback } from './typings/callback.ts';
-import { Block } from '../src/typings/block.ts';
 
 export interface QuarkDefinition {
   name: string,
