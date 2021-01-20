@@ -10,12 +10,10 @@ export function arrayToObject(array: string[][]): Record<string, string> {
   return result;
 }
 
-export async function parseConfiguration(file: string): Promise<Record<string, string>> {
+export function parseConfiguration(content: string): Record<string, string> {
   try {
-    const content: string = await File.read(file);
     const lines = content.split(/\r?\n/g);
     const parsed = lines.map((acc) => acc.split('=').map((x) => x.trim()));
-
     return arrayToObject(parsed);
   } catch (exception) {
     return {};
@@ -23,7 +21,7 @@ export async function parseConfiguration(file: string): Promise<Record<string, s
 }
 
 export async function getQuarkFolder(): Promise<string> {
-  const configuration = await parseConfiguration('.quarkrc');
+  const configuration = parseConfiguration(await File.read('.quarkrc'));
   const condition = configuration['name'] === 'quark-lang'
     && Boolean(configuration['core']) === true;
 
