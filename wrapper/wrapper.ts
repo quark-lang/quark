@@ -1,0 +1,4 @@
+/*
+  C Wrapper for Quark
+  Written by Thomas
+*/
