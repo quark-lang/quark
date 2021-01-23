@@ -4,6 +4,7 @@ import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { File } from '../utils/file.ts';
 import { getQuarkFolder } from '../main.ts';
+import { isContainer } from '../utils/runner.ts';
 
 let count = 0;
 
@@ -96,69 +97,6 @@ export class Value {
   }
 }
 
-export function isContainer(element: Block | Element): boolean {
-  return Array.isArray(element) && element.every((child) => Array.isArray(child));
-}
-
-function isValue(element: Block | Element): boolean {
-  return element && ('value' in element || 'body' in element) && 'type' in element;
-}
-
-function isObject(element: any): boolean {
-  return !Array.isArray(element) && typeof element === 'object';
-}
-
-export function parentDir(src: string, it: number = 1): string {
-  for (let i = 0; i < it; i++) src = path.dirname(src);
-  return src;
-}
-
-export enum Types {
-  String = 'String',
-  Integer = 'Integer',
-  Function = 'Function',
-  Boolean = 'Boolean',
-  None = 'None',
-  List = 'List',
-}
-
-export interface ListType {
-  type: Types.List,
-  value: ValueElement[],
-}
-
-export interface StringType {
-  type: Types.String,
-  value: string,
-}
-
-export interface NoneType {
-  type: Types.None,
-  value: undefined,
-}
-
-export interface IntegerType {
-  type: Types.Integer,
-  value: number,
-}
-
-export interface FunctionType {
-  type: Types.Function,
-  args: Argument[],
-  body: Block | (() => {}),
-  js: boolean,
-}
-
-export interface BooleanType {
-  type: Types.Boolean,
-  value: boolean,
-}
-
-export interface Argument extends Element {
-  variadic: boolean,
-}
-
-export type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType | ListType;
 interface Stack {
   variables: {
     name: string,
