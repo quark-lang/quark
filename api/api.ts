@@ -2,11 +2,16 @@ import {
   Interpreter,
   Frame,
   Function,
+} from '../src/core/interpreter.ts';
+import {
   Types,
   ValueElement,
+  ListType,
+  IntegerType,
   StringType,
-  IntegerType, ListType, BooleanType, NoneType
-} from '../src/core/interpreter.ts';
+  NoneType,
+  BooleanType,
+} from '../src/typings/types.ts';
 import { QuarkTypes } from './typings/types.ts';
 
 export interface QuarkDefinition {

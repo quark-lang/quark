@@ -4,7 +4,23 @@ import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { File } from '../utils/file.ts';
 import { getQuarkFolder } from '../main.ts';
-import { isContainer } from '../utils/runner.ts';
+import { 
+  isContainer,
+  isValue,
+  isObject,
+  parentDir
+} from '../utils/runner.ts';
+import {
+  Types,
+  ValueElement,
+  ListType,
+  IntegerType,
+  StringType,
+  NoneType,
+  BooleanType,
+  FunctionType,
+  Argument
+} from '../typings/types.ts';
 
 let count = 0;
 
