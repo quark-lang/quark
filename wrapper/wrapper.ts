@@ -86,6 +86,9 @@ export namespace Wrapper {
       const parsedArguments = args.map((arg) => arg.value);
       output.push(`${name}(${parsedArguments.join(', ')})${scoped ? '' : ';'}`);
     }
+    export function ret(value: Wrapper.Value.Value) {
+      output.push(`return ${Wrapper.Value.get(value)};`);
+    }
   }
 
   export function print() {
