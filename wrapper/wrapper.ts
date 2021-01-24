@@ -17,8 +17,9 @@ export namespace Wrapper {
     value: any,
   }
 
-  export function get<T>(value: Value<T>) {
+  export function get<T>(value: Value<T>): any {
     const type = <string><unknown>value.type;
+    if (Array.isArray(value)) return List.process(value);
     switch (type) {
       case 'String':
         return `"${value.value}"`;
@@ -26,6 +27,18 @@ export namespace Wrapper {
         return Number(value.value);
       case 'Word':
         return value.value;
+      case 'List':
+        return '[' + value.value.map(get) + ']';
+    }
+  }
+
+  export namespace List {
+    export function process(block: Value<any>): any {
+      if (!Array.isArray(block)) return block;
+      return {
+        type: 'List',
+        value: block.map((b) => Array.isArray(b) ? get(<any>b) : b),
+      };
     }
   }
 
