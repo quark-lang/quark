@@ -2,6 +2,7 @@ import { Wrapper } from '../../wrapper/wrapper.ts';
 import { Parser } from './parser.ts';
 import { Block, Element } from '../typings/block.ts';
 import { isContainer, isValue } from '../utils/runner.ts';
+import { Types } from '../typings/types.ts';
 
 type AST = (Block | Element)[];
 type Instruction = [Element, ...AST];
@@ -9,7 +10,7 @@ type Instruction = [Element, ...AST];
 export class Compiler {
   private static ast: AST;
 
-  private static process(block: AST): Element | string[] | AST {
+  private static process(block: AST): any {
     if (isValue(block)) return <Element><unknown>block;
     if (isContainer(block)) {
       for (const instr of block as []) {
@@ -31,7 +32,10 @@ export class Compiler {
           );
           break;
         case 'print':
-          Wrapper.Function.call('console.log', <Wrapper.Value<any>[]>this.process(args))
+          Wrapper.Function.call('console.log', <Wrapper.Value<any>[]>this.process(args));
+          break;
+        case 'list':
+          return Wrapper.List.process(<any>this.process(args));
       }
     }
     return Wrapper.output;
@@ -47,4 +51,4 @@ export class Compiler {
   }
 }
 
-Compiler.compile('(let username "Thomas")(print "Hello" username)');
+Compiler.compile('(let usernames (list "Thomas" "Ness" "ImRobot" (list "test" "bruh")))(print "Hello" usernames)');
