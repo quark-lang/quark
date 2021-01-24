@@ -10,7 +10,7 @@ export namespace Wrapper {
   }
   type Types = Primitives | Miscellaneous;
 
-  const output: string[] = [];
+  export const output: string[] = [];
 
   export interface Value<T> {
     type: T,
@@ -24,6 +24,8 @@ export namespace Wrapper {
         return `"${value.value}"`;
       case 'Integer':
         return Number(value.value);
+      case 'Word':
+        return value.value;
     }
   }
 
@@ -33,7 +35,14 @@ export namespace Wrapper {
     }
   }
 
-  export function print(join = '') {
+  export namespace Function {
+    export function call(name: string, args: Value<Types>[], scoped: boolean = false) {
+      output.push(`${name}(${args.map((arg) => get<any>(arg)).join(', ')})${scoped ? '' : ';'}`)
+    }
+  }
+
+  export function print(join = '\n'): string {
     console.log(output.join(join));
+    return output.join(join);
   }
 }
