@@ -2,68 +2,49 @@ import { Wrapper } from '../../wrapper/wrapper.ts';
 import { Parser } from './parser.ts';
 import { Block, Element } from '../typings/block.ts';
 import { isContainer, isValue } from '../utils/runner.ts';
-import { Types } from '../typings/types.ts';
 
-type AST = Block | Element;
-type Instruction = [Element, ...Block];
+type AST = (Block | Element)[];
+type Instruction = [Element, ...AST];
 
 export class Compiler {
   private static ast: AST;
 
-  private static value(val: Element) {
-    switch (val.type) {
-      case 'String':
-        return '"' + val.value + '"';
-      case 'Number':
-        return Number(val.value);
-    }
-  }
-
-  private static process(block: AST) {
-    if (isValue(block)) return Compiler.value(<Element>block);
+  private static process(block: AST): Element | string[] | AST {
+    if (isValue(block)) return <Element><unknown>block;
     if (isContainer(block)) {
       for (const instr of block as []) {
         this.process(instr);
       }
     } else {
       const [expr, ...args]: Instruction = <any>block;
+      if (expr.type !== 'Word') {
+        return <AST>block.map(
+          (acc) => Compiler.process(<AST>acc)
+        );
+      }
       switch (expr.value) {
-        case 'print':
-          const format = (arg: Element) => {
-            switch (arg.type) {
-              case 'String':
-                return '%s';
-              case 'Number':
-                return '%d';
-            }
-          }
-          const parsedArguments = args.map(this.process);
-          const parsedFormat = (<Element[]>args).map(format);
-          Wrapper.Function.call('printf', [
-            { type: 'char*', value: this.value({
-                type: 'String',
-                value: parsedFormat.join(' ') + '\\n',
-              }) },
-            ...parsedArguments.map((arg) => ({
-              type: 'void*',
-              value: arg,
-            })),
-          ])
+        case 'let':
+          const processedValue = this.process(<AST>args[1]);
+          Wrapper.Variable.define<any>(
+            <string>(<Element>args[0]).value,
+            <Element>processedValue
+          );
           break;
+        case 'print':
+          Wrapper.Function.call('console.log', <Wrapper.Value<any>[]>this.process(args))
       }
     }
+    return Wrapper.output;
   }
 
   public static compile(code: string): string {
     this.ast = Parser.parse(code);
-    Wrapper.include('stdio.h');
-    Wrapper.Function.define('main', 'int', [], () => {
-      this.process(this.ast);
-      Wrapper.Function.ret({ type: 'int', value: 0 })
-    });
-    Wrapper.print();
+    this.process(this.ast);
+    const res = Wrapper.print();
+    console.log();
+    eval(res);
     return '';
   }
 }
 
-Compiler.compile('(print "Hello world" 56)');
+Compiler.compile('(let username "Thomas")(print "Hello" username)');
