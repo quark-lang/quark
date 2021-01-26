@@ -97,7 +97,7 @@ export class Value {
     if (value.value === 'none')
       return { type: Types.None, value: undefined };
 
-    if (['String', 'List', 'Number'].includes(value.type))
+    if (['String', 'List', 'Number', 'Integer'].includes(value.type))
       return { ...value } as ValueElement;
 
     const frame = (<any>Frame.variables.get(<string>value.value));
@@ -233,7 +233,9 @@ export class Function {
     }
     let res: any = await Interpreter.process(<Block>fn.body);
     Frame.popStackFrame();
-    return Array.isArray(res) ? res[0] : res || { type: Types.None, value: undefined };
+    return Array.isArray(res)
+      ? res[0]
+      : res || { type: Types.None, value: undefined };
   }
 
   public static async return(value: Block | Element): Promise<[ValueElement, boolean]> {
@@ -284,6 +286,13 @@ export class Arithmetic {
     const lhs: Exclude<ValueElement, FunctionType | BooleanType> = await Interpreter.process(left);
     const rhs: Exclude<ValueElement, FunctionType | BooleanType> = await Interpreter.process(right);
     const type: Types = this.determineType(lhs, rhs, operation);
+
+    if (!right) {
+      switch (operation) {
+        case '+': return { type, value: <any>+<any>lhs.value };
+        case '-': return { type, value: <any>-<any>lhs.value } as IntegerType;
+      }
+    }
 
     switch (operation) {
       case '+': return { type, value: <any>lhs.value + rhs.value };
@@ -347,13 +356,6 @@ export class List {
     }
     return { type: Types.None, value: undefined };
   }
-
-  public static async spread(block: Block): Promise<Argument> {
-    return {
-      ...(await Interpreter.process(block)),
-      variadic: true,
-    }
-  }
 }
 
 export class Interpreter {
@@ -379,7 +381,6 @@ export class Interpreter {
     if (expression.value === 'list') return await List.create(args);
     if (expression.value === 'import') return await Import.import(args[0] as Element);
     if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element);
-    if (expression.value === 'spread') return await List.spread(args[0] as Block);
     if (['<', '=', '!=', '>', '<=', '>=', 'and', 'or'].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
 
