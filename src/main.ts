@@ -1,6 +1,7 @@
 import {File} from './utils/file.ts';
 import { Interpreter } from './core/interpreter.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
+import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import '../std/mod.ts'; // Importing Typescript STD by default.
 import '../std/quark.ts';
 
@@ -21,7 +22,7 @@ export function parseConfiguration(content: string): Record<string, string> {
 }
 
 export async function getQuarkFolder(): Promise<string> {
-  const configuration = parseConfiguration(await File.read('.quarkrc'));
+  const configuration = !existsSync('.quarkrc') ? {} : parseConfiguration(await File.read('.quarkrc'));
   const condition = configuration['name'] === 'quark-lang'
     && Boolean(configuration['core']) === true;
 
