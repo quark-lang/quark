@@ -42,7 +42,9 @@ export interface BooleanType {
 }
 
 export interface Argument extends Element {
-  variadic: boolean,
+  variadic?: boolean,
+  reference?: boolean,
+  block?: boolean
 }
 
 export type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType | ListType;
