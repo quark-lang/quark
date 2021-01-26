@@ -94,17 +94,39 @@ export class Identifier {
 
 export class Value {
   public static process(value: Element): ValueElement extends FunctionType ? never : ValueElement {
-    if (value.value === 'none') return { type: Types.None, value: undefined };
-    if (value.type === 'String') return { ...value } as ValueElement;
-    if (['true', 'false'].includes(value.value as string)) return { type: Types.Boolean, value: Boolean(value.value) };
-    if (['Word', 'Function'].includes(value.type) && Frame.exists(value.value as string)) {
+    if (value.value === 'none')
+      return { type: Types.None, value: undefined };
+
+    if (value.type === 'String')
+      return { ...value } as ValueElement;
+
+    if (value.type === 'Number')
+      return { ...value } as ValueElement;
+
+    const frame = (<any>Frame.variables.get(<string>value.value));
+
+    if (frame && frame.type === 'Function')
+      return {
+        ...Frame.variables.get(<string>value.value),
+      } as ValueElement;
+
+    if (['true', 'false'].includes(value.value as string))
+      return { type: Types.Boolean, value: Boolean(value.value) };
+
+    if (['Word'].includes(value.type) && Frame.exists(value.value as string)) {
       const variable: ValueElement = Frame.variables.get(value.value as string) as ValueElement;
       return variable.type === Types.Function ? { type: Types.None, value: undefined } : variable;
     }
-    if ((value.type as string) === 'Function') {
+
+    if ((value.type as string) === 'Function')
       return { ...value } as ValueElement;
-    }
-    return value.value !== undefined ? { ...value } as ValueElement : { type: Types.None, value: undefined };
+
+    if (!Frame.exists(<string>value.value))
+      return { type: Types.None, value: undefined };
+
+    return value.value !== undefined
+      ? { ...value } as ValueElement
+      : { type: Types.None, value: undefined };
   }
 
   public static update(current: any, next: any): void {
@@ -170,17 +192,12 @@ async function processVariadicSpread(args: (List | Argument)[]) {
 
 export class Function {
   public static declare(args: (Element extends Block ? never : Element)[], body: Block, js: boolean = false): FunctionType {
-    args = args.map((arg) => {
-      if (Array.isArray(arg) && arg[0].value === 'list') {
-        return {
-          variadic: true,
-          ...arg[1],
-        }
+    args = args.map((arg: any) => {
+      if (Array.isArray(arg) && arg[0].value === 'block') {
+        arg[1].block = true;
+        return arg[1];
       }
-      return {
-        variadic: false,
-        ...arg,
-      };
+      return arg;
     });
     return {
       type: Types.Function,
@@ -199,8 +216,18 @@ export class Function {
     }
     Frame.pushStackFrame();
     for (let binding in fn.args) {
-      const fnArgument = fn.args[binding];
-      await Variable.declare(fnArgument, await Interpreter.process(args[Number(binding)]))
+      const fnArgument: any = fn.args[binding];
+      if ('block' in fnArgument && fnArgument.block) {
+        Frame.frame.variables.push({
+          name: await Identifier.process(fnArgument) as string,
+          value: {
+            type: 'Block',
+            value: args[Number(binding)],
+          } as any,
+        })
+        continue;
+      }
+      await Variable.declare(fnArgument, await Interpreter.process(args[Number(binding)]));
     }
     let res: any = await Interpreter.process(<Block>fn.body);
     Frame.popStackFrame();
