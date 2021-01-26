@@ -1,6 +1,19 @@
 # Changelog
 Any changes related to Quark will be contained primarily in this file. Find all Quark updates below.
 
+## [1.3.0]() - 2021-01-26
+
+### Fixed
+- Value processing cleaned and improved
+- Quarkify return and raw value
+- QuarkRC useless fields removed
+
+### Added
+- List processing highly improved (50-100% faster)
+- No processing argument keyword
+- Object support
+- New Quark environment variable
+
 ## [1.2.1]() - 2021-01-18
 
 ### Fixed
