@@ -97,10 +97,7 @@ export class Value {
     if (value.value === 'none')
       return { type: Types.None, value: undefined };
 
-    if (value.type === 'String')
-      return { ...value } as ValueElement;
-
-    if (value.type === 'Number')
+    if (['String', 'List', 'Number'].includes(value.type))
       return { ...value } as ValueElement;
 
     const frame = (<any>Frame.variables.get(<string>value.value));
