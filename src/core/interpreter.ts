@@ -197,7 +197,15 @@ export class Function {
     const fn: FunctionType = isObject(functionName) ? functionName as FunctionType : Frame.variables.get(functionName as string) as FunctionType;
     if (fn.js === true) {
       const values = [];
-      for (const arg of args) values.push(await Interpreter.process(arg));
+      for (const index in args) {
+        const arg = args[index];
+        const fnArgument = fn.args[Number(index)];
+        if (fnArgument && fnArgument.block) {
+          values.push(arg);
+          continue;
+        }
+        values.push(await Interpreter.process(arg))
+      }
       return (<(...args: any[]) => {}><unknown>fn.body)(...values);
     }
     Frame.pushStackFrame();
