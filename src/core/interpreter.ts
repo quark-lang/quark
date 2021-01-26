@@ -86,8 +86,9 @@ export class Identifier {
         return index;
       return { variable: element[1].value, index: element[2].value };
     }
-    if ('value' in element) return element.value as string;
-    return Interpreter.process(element);
+    if ('value' in element)
+      return element.value as string;
+    return (await Interpreter.process(element)).value;
   }
 }
 
