@@ -173,19 +173,6 @@ export class Frame {
   }
 }
 
-async function processVariadicSpread(args: (List | Argument)[]) {
-  const processed = [];
-  for (const arg of args) {
-    if (!(arg instanceof List) && arg.variadic) {
-      // @ts-ignore
-      processed.push(...arg.value)
-      break;
-    }
-    processed.push(arg);
-  }
-  return processed;
-}
-
 export class Function {
   public static declare(args: (Element extends Block ? never : Element)[], body: Block, js: boolean = false): FunctionType {
     args = args.map((arg: any) => {
