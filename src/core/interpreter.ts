@@ -210,15 +210,15 @@ export class Function {
     }
     Frame.pushStackFrame();
     for (let binding in fn.args) {
-      const fnArgument: any = fn.args[binding];
-      if ('reference' in fnArgument && fnArgument.reference) {
+      const fnArgument: Argument = fn.args[binding];
+      if (fnArgument.reference) {
         Frame.frame.variables.push({
           name: await Identifier.process(fnArgument) as string,
           value: <any>Frame.variables.get((<any>args[Number(binding)]).value),
         });
         continue;
       }
-      if ('block' in fnArgument && fnArgument.block) {
+      if (fnArgument.block) {
         Frame.frame.variables.push({
           name: await Identifier.process(fnArgument) as string,
           value: {
