@@ -82,13 +82,12 @@ export class Identifier {
   public static async process(element: Element): Promise<string | { variable: any, index: any, }> {
     if (Array.isArray(element) && element[0].type === 'Word' && element[0].value === 'index') {
       const index = await List.index(element[1], element[2]);
-      if (isObject(index)) {
+      if (isObject(index))
         return index;
-      }
       return { variable: element[1].value, index: element[2].value };
     }
     if ('value' in element) return element.value as string;
-    throw 'Variable name is not correct!';
+    return Interpreter.process(element);
   }
 }
 
@@ -193,6 +192,9 @@ export class Function {
       if (Array.isArray(arg) && arg[0].value === 'block') {
         arg[1].block = true;
         return arg[1];
+      } else if (Array.isArray(arg) && arg[0].value === 'ref') {
+        arg[1].reference = true;
+        return arg[1];
       }
       return arg;
     });
@@ -214,6 +216,13 @@ export class Function {
     Frame.pushStackFrame();
     for (let binding in fn.args) {
       const fnArgument: any = fn.args[binding];
+      if ('reference' in fnArgument && fnArgument.reference) {
+        Frame.frame.variables.push({
+          name: await Identifier.process(fnArgument) as string,
+          value: <any>Frame.variables.get((<any>args[Number(binding)]).value),
+        });
+        continue;
+      }
       if ('block' in fnArgument && fnArgument.block) {
         Frame.frame.variables.push({
           name: await Identifier.process(fnArgument) as string,
