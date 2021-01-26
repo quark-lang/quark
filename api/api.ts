@@ -10,7 +10,7 @@ import {
   IntegerType,
   StringType,
   NoneType,
-  BooleanType,
+  BooleanType, Argument,
 } from '../src/typings/types.ts';
 import { QuarkTypes } from './typings/types.ts';
 
@@ -21,6 +21,7 @@ export interface QuarkDefinition {
 export interface QuarkFunction extends QuarkDefinition {
   name: string,
   body: Function,
+  args?: Argument[],
 }
 
 export interface QuarkVariable extends QuarkDefinition {
@@ -126,7 +127,7 @@ export class QuarkModule {
         name: ns,
         value: {
           type: Types.Function,
-          args: [],
+          args: definition.args || [],
           js: true,
           body: definition.body as (() => {}),
         },
