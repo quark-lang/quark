@@ -183,6 +183,9 @@ export class Function {
       } else if (Array.isArray(arg) && arg[0].value === 'ref') {
         arg[1].reference = true;
         return arg[1];
+      } else if (Array.isArray(arg) && arg[0].value === 'list') {
+        arg[1].variadic = true;
+        return arg[1];
       }
       return arg;
     });
@@ -205,7 +208,12 @@ export class Function {
           values.push(arg);
           continue;
         }
-        values.push(await Interpreter.process(arg))
+        const processed = await Interpreter.process(arg);
+        if (processed.variadic === true) {
+          values.push(...processed.value);
+          continue;
+        }
+        values.push(processed);
       }
       return (<(...args: any[]) => {}><unknown>fn.body)(...values);
     }
@@ -229,6 +237,13 @@ export class Function {
         })
         continue;
       }
+      if (fnArgument.variadic) {
+        const values = [];
+        for (const arg of args.slice(Number(binding))) values.push(await Interpreter.process(arg));
+        await Variable.declare(fnArgument, <any>(await List.create(values)));
+        continue;
+      }
+
       await Variable.declare(fnArgument, await Interpreter.process(args[Number(binding)]));
     }
     let res: any = await Interpreter.process(<Block>fn.body);
@@ -381,6 +396,11 @@ export class Interpreter {
     if (expression.value === 'list') return await List.create(args);
     if (expression.value === 'import') return await Import.import(args[0] as Element);
     if (expression.value === 'index') return await List.index(args[0] as Element, args[1] as Element);
+    if (expression.value === 'spread') {
+      const variable = (await Interpreter.process(args[0]));
+      variable.variadic = true;
+      return variable;
+    }
     if (['<', '=', '!=', '>', '<=', '>=', 'and', 'or'].includes(expression.value as string)) return await Equalities.process(expression.value as string, args[0], args[1]);
     if (['+', '-', '*', '/'].includes(expression.value as string)) return await Arithmetic.process(expression.value as string, args[0], args[1]);
 
