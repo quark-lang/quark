@@ -1,4 +1,4 @@
-FROM hayd/alpine-deno:1.6.2 as builder
+FROM hayd/alpine-deno:1.6.3 as builder
 WORKDIR /app
 
 # Prefer not to run as root.
@@ -11,4 +11,4 @@ USER deno
 ADD . /app
 # Compile the main app so that it doesn't need to be compiled each startup/entry.
 RUN deno cache --unstable src/main.ts
-CMD ["run", "--unstable", "--allow-all", "-c", "tsconfig.json", "src/main.ts"]
+CMD ["run", "--unstable", "-A", "--no-check", "-c", "tsconfig.json", "src/main.ts"]
