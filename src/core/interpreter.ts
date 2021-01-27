@@ -219,9 +219,15 @@ export class Function {
     }
     Frame.pushStackFrame();
     const processed = [];
-    for (const arg of args) {
-      const parsedTempArg = await Interpreter.process(arg);
-      if (parsedTempArg.variadic) {
+    for (const index in args) {
+      const arg = args[index];
+      const fnArgument: Argument = fn.args[Number(index)];
+      const parsedTempArg = isContainer(arg)
+        ? arg
+        : fnArgument && (fnArgument.block || fnArgument.reference)
+          ? arg
+          : await Interpreter.process(arg);
+      if (parsedTempArg && parsedTempArg.variadic) {
         processed.push(...parsedTempArg.value);
         continue;
       }
