@@ -366,7 +366,14 @@ let rootCWD: string;
 export class List {
   public static async create(args: (Element | Block)[]): Promise<ListType> {
     const value = []
-    for (const arg of args) value.push(await Interpreter.process(arg));
+    for (const arg of args) {
+      const processed = await Interpreter.process(arg);
+      if (processed.variadic) {
+        value.push(...processed.value);
+        continue;
+      }
+      value.push(processed);
+    }
     return { type: Types.List, value, };
   }
 
