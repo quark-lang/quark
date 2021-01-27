@@ -218,6 +218,16 @@ export class Function {
       return (<(...args: any[]) => {}><unknown>fn.body)(...values);
     }
     Frame.pushStackFrame();
+    const processed = [];
+    for (const arg of args) {
+      const parsedTempArg = await Interpreter.process(arg);
+      if (parsedTempArg.variadic) {
+        processed.push(...parsedTempArg.value);
+        continue;
+      }
+      processed.push(parsedTempArg);
+    }
+    args = processed;
     for (let binding in fn.args) {
       const fnArgument: Argument = fn.args[binding];
       if (fnArgument.reference) {
