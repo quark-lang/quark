@@ -350,8 +350,12 @@ export class Import {
     const stdPath: string = path.join(await getQuarkFolder(), 'std');
     // Checking if file exists and setting correct path
     let finalPath: string | undefined = undefined;
-    if (existsSync(path.join(stdPath, src))) finalPath = path.join(stdPath, src);
-    else if (existsSync(path.join(rootCWD, src))) finalPath = path.join(rootCWD, src);
+    if (existsSync(path.join(stdPath, src)))
+      finalPath = path.join(stdPath, src);
+    else if (existsSync(path.join(rootCWD, 'modules', src)))
+      finalPath = path.join(rootCWD, 'modules', src);
+    else if (existsSync(path.join(rootCWD, src)))
+      finalPath = path.join(rootCWD, src);
     if (!finalPath) throw 'Request module file ' + src + ' not found!';
 
     // Getting file extension for choosing which parsing to use
@@ -439,8 +443,9 @@ export class Interpreter {
 
   public static async run(source: string, src: string) {
     count = 0;
+    Frame.stack.splice(1, Frame.stack.length);
     const ast = Parser.parse(source);
     rootCWD = path.dirname(src);
-    return await this.process(ast);
+    await this.process(ast);
   }
 }
