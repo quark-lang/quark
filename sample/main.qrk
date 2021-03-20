@@ -11,6 +11,8 @@
   (welcome "Thomas" (fn (usr) {
     (print usr)
     (let i 11)
+    (set usr "test")
     (print i)
+    (print usr)
   }))
 }
