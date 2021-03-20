@@ -26,6 +26,8 @@ export type Stack = [FunctionFrame];
 export type FunctionFrame = [LocalFrame];
 export type LocalFrame = { name: string, value: ValueElement }[];
 
+const paths: string[] = [];
+
 export class Frame {
   public static stack: Stack = [[[]]];
 
@@ -40,7 +42,7 @@ export class Frame {
     this.stack.slice(-1)[0].push([]);
   }
   public static popLocalFrame() {
-    this.local.pop();
+    this.stack.slice(-1)[0].pop();
   }
 
   public static get global(): FunctionFrame {
@@ -70,9 +72,9 @@ export class Frame {
 }
 
 export class Node {
-  public static async process(node: Block) {
+  public static async process(node: Block, global: boolean) {
     for (const child of node) {
-      const res: undefined | [ValueElement, boolean] = await Interpreter.process(child);
+      const res: undefined | [ValueElement, boolean] = await Interpreter.process(child, global);
       if (res && res[1] && res[1] === true) {
         return res;
       }
@@ -92,10 +94,9 @@ export class Function {
   public static async call(functionName: string | FunctionType, args: (Block | Element)[]) {
     const func = Frame.variables.get(functionName);
     Frame.pushFunctionFrame();
-    console.log(args, func.args)
     for (const index in args) {
       const correspondent = func.args[index];
-      await Variable.declare(correspondent, await Interpreter.process(args[index]));
+      await Variable.declare(correspondent, await Interpreter.process(args[index]), false);
     }
     const res = await Interpreter.process(func.body);
     Frame.popFunctionFrame();
@@ -111,12 +112,21 @@ export class Function {
 export type Atom = Element | Block;
 
 export class Variable {
-  public static async declare(identifier: Atom, value: Atom) {
+  public static async declare(identifier: Atom, value: Atom, global: boolean) {
     const _id = (<Element>identifier).value;
-    Frame.local.push({
-      name: <string>_id,
-      value: await Interpreter.process(value),
-    });
+    if (Frame.exists(<string>_id) === false) {
+      if (global === true) {
+        Frame.global[0].push({
+          name: <string>_id,
+          value: await Interpreter.process(value),
+        });
+        return;
+      }
+      Frame.local.push({
+        name: <string>_id,
+        value: await Interpreter.process(value),
+      });
+    }
   }
 
   public static async update(identifier: Atom, value: Atom) {
@@ -147,12 +157,12 @@ export class Value {
 }
 
 export class Interpreter {
-  public static async process(node: Atom): Promise<any> {
+  public static async process(node: Atom, global: boolean = false): Promise<any> {
     if (isValue(node)) {
       return await Value.get(<Element>node);
     } else if (isContainer(node)) {
       Frame.pushLocalFrame();
-      const res = await Node.process(<Block>node);
+      const res = await Node.process(<Block>node, global);
       Frame.popLocalFrame();
       return res;
     } else {
@@ -165,9 +175,10 @@ export class Interpreter {
           for (const arg of args) _args.push((await Interpreter.process(arg)).value);
           return console.log(..._args);
 
-        case 'let': return await Variable.declare(args[0], args[1]);
+        case 'let': return await Variable.declare(args[0], args[1], global);
         case 'set': return await Variable.update(args[0], args[1]);
         case 'fn': return Function.declare(<Element[]>args[0], <Block>args[1]);
+        case 'import': return await Import.process(args[0]);
         case 'return': return await Function.return(args[0]);
       }
 
@@ -182,6 +193,8 @@ export class Interpreter {
 
   public static async run(code: string, path: string) {
     const ast = Parser.parse(code);
-    return await this.process(ast);
+    paths.push(path);
+    await this.process(ast);
+    paths.pop();
   }
 }
