@@ -156,6 +156,21 @@ export class Value {
   }
 }
 
+export class Import {
+  public static async process(mod: Atom) {
+    const src = parentDir(paths.slice(-1)[0]);
+    const file = await Interpreter.process(mod);
+
+    const finalPath = path.join(src, file.value);
+    const content: string = await File.read(finalPath);
+
+    paths.push(finalPath);
+    const ast = (<any>Parser.parse(content));
+    await Interpreter.process(ast, true);
+    paths.pop();
+  }
+}
+
 export class Interpreter {
   public static async process(node: Atom, global: boolean = false): Promise<any> {
     if (isValue(node)) {
