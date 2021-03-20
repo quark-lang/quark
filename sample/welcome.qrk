@@ -1,0 +1,9 @@
+{
+  (let welcome (fn (username) {
+    (print "Hello" username)
+  }))
+
+  (let test (fn (t) {
+    (print t)
+  }))
+}
