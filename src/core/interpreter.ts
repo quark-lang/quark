@@ -118,6 +118,13 @@ export class Variable {
       value: await Interpreter.process(value),
     });
   }
+
+  public static async update(identifier: Atom, value: Atom) {
+    const _id = (<Element>identifier).value;
+    if (Frame.exists(<string>_id)) {
+      Value.update(Frame.variables.get(_id), await Interpreter.process(value));
+    }
+  }
 }
 
 export class Value {
@@ -131,6 +138,11 @@ export class Value {
       }
     }
     return { ...element };
+  }
+
+  public static update(current: any, next: any): void {
+    for (const item of Object.entries(next))
+      current[item[0]] = item[1];
   }
 }
 
@@ -154,6 +166,7 @@ export class Interpreter {
           return console.log(..._args);
 
         case 'let': return await Variable.declare(args[0], args[1]);
+        case 'set': return await Variable.update(args[0], args[1]);
         case 'fn': return Function.declare(<Element[]>args[0], <Block>args[1]);
         case 'return': return await Function.return(args[0]);
       }
