@@ -34,8 +34,6 @@ export interface FunctionType {
   type: Types.Function,
   args: Argument[],
   body: Block | (() => {}),
-  stack: Stack,
-  js: boolean,
 }
 
 export interface BooleanType {
