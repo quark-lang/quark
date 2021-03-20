@@ -1,3 +1,16 @@
 {
-  (print "test" "bruh")
+  (let welcome (fn (username callback) {
+    (let i 0)
+    (callback username)
+    (print i)
+  }))
+  (let username "Thomas")
+  {
+    (let i 0)
+  }
+  (welcome "Thomas" (fn (usr) {
+    (print usr)
+    (let i 11)
+    (print i)
+  }))
 }
