@@ -40,7 +40,7 @@ export class Frame {
     this.stack.slice(-1)[0].push([]);
   }
   public static popLocalFrame() {
-    this.stack.slice(-1)[0].pop();
+    this.local.pop();
   }
 
   public static get global(): FunctionFrame {
@@ -50,6 +50,9 @@ export class Frame {
     return this.stack.slice(-1)[0][0];
   }
 
+  public static exists(identifier: string) {
+    return this.variables.get(identifier) || false;
+  }
   public static get variables() {
     let map = new Map();
     for (const frame of this.global) {
@@ -78,34 +81,89 @@ export class Node {
 }
 
 export class Function {
-  public static declare(args: (Element extends Block ? never : Element)[], body: Block, js: boolean = false): FunctionType | null {
-    return null;
+  public static declare(args: (Element extends Block ? never : Element)[], body: Block): FunctionType {
+    return {
+      type: Types.Function,
+      args: args as Argument[],
+      body,
+    };
   }
 
   public static async call(functionName: string | FunctionType, args: (Block | Element)[]) {
+    const func = Frame.variables.get(functionName);
+    Frame.pushFunctionFrame();
+    console.log(args, func.args)
+    for (const index in args) {
+      const correspondent = func.args[index];
+      await Variable.declare(correspondent, await Interpreter.process(args[index]));
+    }
+    const res = await Interpreter.process(func.body);
+    Frame.popFunctionFrame();
+    if (res && res[1] && res[1] === true) return res[0];
+    return res || { type: 'None', value: undefined };
+  }
 
+  public static async return(value: Atom): Promise<[ValueElement, boolean]> {
+    return [await Interpreter.process(value), true];
+  }
+}
+
+export type Atom = Element | Block;
+
+export class Variable {
+  public static async declare(identifier: Atom, value: Atom) {
+    const _id = (<Element>identifier).value;
+    Frame.local.push({
+      name: <string>_id,
+      value: await Interpreter.process(value),
+    });
+  }
+}
+
+export class Value {
+  public static async get(element: Element) {
+    if (element.type === 'Word') {
+      if (Frame.exists(<string>element.value) === false) {
+        if (<string>element.value === 'print') return element;
+        return { type: 'None', value: undefined };
+      } else {
+        return Frame.variables.get(element.value);
+      }
+    }
+    return { ...element };
   }
 }
 
 export class Interpreter {
-  public static async process(node: Block | Element): Promise<any> {
+  public static async process(node: Atom): Promise<any> {
     if (isValue(node)) {
-      return node;
+      return await Value.get(<Element>node);
     } else if (isContainer(node)) {
       Frame.pushLocalFrame();
-      await Node.process(<Block>node);
+      const res = await Node.process(<Block>node);
       Frame.popLocalFrame();
+      return res;
     } else {
       const [expr, ...args] = <Block>node;
-      const expression: string = <string>(<Element>(await Interpreter.process(expr))).value;
+      const expression: string = <string>(<Element>expr).value;
 
       switch (expression) {
         case 'print':
           const _args = [];
           for (const arg of args) _args.push((await Interpreter.process(arg)).value);
-          console.log(..._args);
-          break;
+          return console.log(..._args);
+
+        case 'let': return await Variable.declare(args[0], args[1]);
+        case 'fn': return Function.declare(<Element[]>args[0], <Block>args[1]);
+        case 'return': return await Function.return(args[0]);
       }
+
+     if (Frame.exists(expression)) {
+       const variable = <ValueElement>Frame.variables.get(expression);
+       if (variable.type === 'Function') {
+         return await Function.call(expression, args);
+       }
+     }
     }
   }
 
