@@ -129,6 +129,7 @@ export class QuarkModule {
           type: Types.Function,
           args: definition.args || [],
           js: true,
+          stack: { variables: Frame.stack.map((acc) => acc.variables).flat() },
           body: definition.body as (() => {}),
         },
       });
