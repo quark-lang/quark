@@ -26,7 +26,7 @@ export type Stack = [FunctionFrame];
 export type FunctionFrame = [LocalFrame];
 export type LocalFrame = { name: string, value: ValueElement }[];
 
-const paths: string[] = [];
+export const paths: string[] = [];
 
 export class Frame {
   public static stack: Stack = [[[]]];
@@ -85,12 +85,36 @@ export class Node {
   }
 }
 
+export class List {
+  public static async create(args: Atom[]): Promise<ListType> {
+    const value = []
+    for (const arg of args) {
+      const processed = await Interpreter.process(arg);
+      value.push(processed);
+    }
+    return { type: Types.List, value, };
+  }
+
+  public static async index(variable: Element, index: Element): Promise<any> {
+    const element = await Interpreter.process(variable);
+    index = await Interpreter.process(index);
+    if (element.type === Types.Function) return { type: Types.None, value: undefined };
+    if ('value' in element && element.value !== undefined) { // @ts-ignore
+      const foundIndex = element.value[index.value];
+      if (typeof foundIndex === 'string') return { type: element.type, value: foundIndex };
+      return foundIndex || { variable: variable.value, index: index.value };
+    }
+    return { type: Types.None, value: undefined };
+  }
+}
+
 export class Function {
   public static declare(args: (Element extends Block ? never : Element)[], body: Block): FunctionType {
     return {
       type: Types.Function,
       args: args as Argument[],
       closure: Frame.frame,
+      js: false,
       body,
     };
   }
@@ -135,13 +159,48 @@ export class Variable {
   }
 
   public static async update(identifier: Atom, value: Atom) {
-    const _id = (<Element>identifier).value;
-    if (Frame.exists(<string>_id)) {
+    const _id = await Identifier.process(<Element>identifier);
+
+    /*if (Frame.exists(<string>_id)) {
       Value.update(Frame.variables.get(_id), await Interpreter.process(value));
+    }*/
+
+    if (typeof _id === 'string') {
+      const frameItem = Frame.variables.get(_id) as ValueElement;
+      if (!Frame.exists(_id)) throw 'Variable ' + _id + ' does not exists!';
+      return Value.update(frameItem, await Interpreter.process(value));
     }
+    if ('index' in _id && 'variable' in _id) {
+      const variable = Frame.variables.get((<any>_id).variable) as ValueElement;
+      if ('value' in variable && variable.value !== undefined) {
+        const updateValue = await Interpreter.process(value);
+        if (variable.type === Types.List) {
+          variable.value[(<any>_id).index] = updateValue;
+        } else {
+          const split = (<string>variable.value).split('');
+          split.splice((<any>_id).index, updateValue.value.length, updateValue.value)
+          variable.value = split.join('');
+        }
+      }
+    }
+    return Value.update(_id, await Interpreter.process(value));
+
   }
 }
 
+export class Identifier {
+  public static async process(element: Element): Promise<string | { variable: any, index: any, }> {
+    if (Array.isArray(element) && element[0].type === 'Word' && element[0].value === 'index') {
+      const index = await List.index(element[1], element[2]);
+      if (isObject(index))
+        return index;
+      return { variable: element[1].value, index: element[2].value };
+    }
+    if ('value' in element)
+      return element.value as string;
+    return (await Interpreter.process(element)).value;
+  }
+}
 export class Value {
   public static async get(element: Element) {
     if (element.type === 'Word') {
@@ -176,6 +235,7 @@ export class Import {
   }
 }
 
+
 export class Interpreter {
   public static async process(node: Atom, global: boolean = false): Promise<any> {
     if (isValue(node)) {
@@ -192,14 +252,17 @@ export class Interpreter {
       switch (expression) {
         case 'print':
           const _args = [];
-          for (const arg of args) _args.push((await Interpreter.process(arg)).value);
-          return console.log(..._args);
+          for (const arg of args) _args.push(await Interpreter.process(arg));
+          console.log(...getValue(_args));
+          return
 
         case 'let': return await Variable.declare(args[0], args[1], global);
         case 'set': return await Variable.update(args[0], args[1]);
         case 'fn': return Function.declare(<Element[]>args[0], <Block>args[1]);
         case 'import': return await Import.process(args[0]);
         case 'return': return await Function.return(args[0]);
+        case 'list': return await List.create(args);
+        case 'index': return await List.index(<Element>args[0], <Element>args[1]);
       }
 
      if (Frame.exists(expression)) {
@@ -212,6 +275,7 @@ export class Interpreter {
   }
 
   public static async run(code: string, path: string) {
+    paths.splice(0, paths.length);
     const ast = Parser.parse(code);
     paths.push(path);
     await this.process(ast);
