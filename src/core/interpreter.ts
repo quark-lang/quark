@@ -56,16 +56,16 @@ export class Frame {
   }
 
   public static exists(identifier: string) {
-    return this.variables.get(identifier) || false;
+    return this.variables().get(identifier) || false;
   }
-  public static get variables() {
+  public static variables(stack?: FunctionFrame) {
     let map = new Map();
     for (const frame of this.global) {
       for (const variable of frame) {
         map.set(variable.name, variable.value);
       }
     }
-    for (const frame of this.frame) {
+    for (const frame of stack || this.frame) {
       for (const variable of frame) {
         map.set(variable.name, variable.value);
       }
@@ -120,7 +120,14 @@ export class Function {
   }
 
   public static async call(functionName: string | FunctionType, args: (Block | Element)[]) {
-    const func = Frame.variables.get(functionName);
+    const func = Frame.variables().get(functionName);
+    if (func.js === true) {
+      const _args = [];
+      for (const arg of args) {
+        _args.push(await Interpreter.process(arg));
+      }
+      return func.body(..._args);
+    }
     Frame.pushFunctionFrame();
     Frame.pushLocalFrame(func.closure.flat());
     for (const index in args) {
@@ -161,17 +168,13 @@ export class Variable {
   public static async update(identifier: Atom, value: Atom) {
     const _id = await Identifier.process(<Element>identifier);
 
-    /*if (Frame.exists(<string>_id)) {
-      Value.update(Frame.variables.get(_id), await Interpreter.process(value));
-    }*/
-
     if (typeof _id === 'string') {
-      const frameItem = Frame.variables.get(_id) as ValueElement;
+      const frameItem = Frame.variables().get(_id) as ValueElement;
       if (!Frame.exists(_id)) throw 'Variable ' + _id + ' does not exists!';
       return Value.update(frameItem, await Interpreter.process(value));
     }
     if ('index' in _id && 'variable' in _id) {
-      const variable = Frame.variables.get((<any>_id).variable) as ValueElement;
+      const variable = Frame.variables().get((<any>_id).variable) as ValueElement;
       if ('value' in variable && variable.value !== undefined) {
         const updateValue = await Interpreter.process(value);
         if (variable.type === Types.List) {
@@ -201,6 +204,7 @@ export class Identifier {
     return (await Interpreter.process(element)).value;
   }
 }
+
 export class Value {
   public static async get(element: Element) {
     if (element.type === 'Word') {
@@ -208,7 +212,7 @@ export class Value {
         if (<string>element.value === 'print') return element;
         return { type: 'None', value: undefined };
       } else {
-        return Frame.variables.get(element.value);
+        return Frame.variables().get(element.value);
       }
     }
     return { ...element };
@@ -261,11 +265,11 @@ export class Interpreter {
       const expression: string = <string>(<Element>expr).value;
 
       switch (expression) {
-        case 'print':
+        /*case 'print':
           const _args = [];
           for (const arg of args) _args.push(await Interpreter.process(arg));
           console.log(...getValue(_args));
-          return
+          return;*/
 
         case 'let': return await Variable.declare(args[0], args[1], global);
         case 'set': return await Variable.update(args[0], args[1]);
@@ -277,7 +281,7 @@ export class Interpreter {
       }
 
      if (Frame.exists(expression)) {
-       const variable = <ValueElement>Frame.variables.get(expression);
+       const variable = <ValueElement>Frame.variables().get(expression);
        if (variable.type === 'Function') {
          return await Function.call(expression, args);
        }
