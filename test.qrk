@@ -1,11 +1,16 @@
 {
-  {
-    (import "sample/welcome.qrk")
-    (let username "test")
-    (welcome username)
-  (said "test")
-  }
-  (said "test")
-  (welcome "testtt")
 
+  (let - (fn (val1 val2) {
+    (return (negate val1 val2))
+  }))
+  (let + (fn (val1 val2) {
+    (return (- val1 (- 0 val2)))
+  }))
+
+  (let printt (fn (test) {
+    (print test)
+  }))
+
+  (print (+ 3 (+ 5 1)))
+  (printt "test")
 }
