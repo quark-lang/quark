@@ -49,4 +49,10 @@ export interface Argument extends Element {
   block?: boolean
 }
 
-export type ValueElement = StringType | IntegerType | FunctionType | BooleanType | NoneType | ListType;
+export type ValueElement =
+  | StringType
+  | IntegerType
+  | FunctionType
+  | BooleanType
+  | NoneType
+  | ListType;
