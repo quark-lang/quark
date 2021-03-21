@@ -32,7 +32,7 @@ export interface IntegerType {
 
 export interface FunctionType {
   type: Types.Function,
-  args: Argument[],
+  args: any[],
   closure: FunctionFrame,
   js: boolean,
   body: Block | (() => {}),
