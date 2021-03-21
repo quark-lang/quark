@@ -126,7 +126,7 @@ export class Function {
       for (const arg of args) {
         _args.push(await Interpreter.process(arg));
       }
-      return func.body(..._args);
+      return await func.body(..._args);
     }
     Frame.pushFunctionFrame();
     Frame.pushLocalFrame(func.closure.flat());
