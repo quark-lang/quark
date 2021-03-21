@@ -1,7 +1,7 @@
 import {
   Interpreter,
   Frame,
-  Function,
+  Function, paths, getValue,
 } from '../src/core/interpreter.ts';
 import {
   Types,
@@ -104,38 +104,26 @@ function setValueByType(value: any): ValueElement | ValueElement[] {
   } else return QuarkType.none();
 }
 
-export function getValue(values: ValueElement[]): any {
-  let result: any = [];
-  for (const value of values) {
-    if (typeof value !== 'object') result.push(value);
-    else if (value.type === Types.List) {
-      result.push(getValue(value.value));
-    } else if ('value' in value) result.push(value.value === undefined ? 'none' : value.value);
-    else result.push('none');
-  }
-  return result;
-}
-
 export class QuarkModule {
   public static stack = Frame.stack;
-  public static cwd = Interpreter.cwd;
+  public static cwd = paths.slice(-1)[0];
   public static declare(namespace: string | null, type: QuarkTypes, definition: QuarkVariable | QuarkFunction): QuarkDefinition {
     const ns: string = namespace ? `${namespace}:${definition.name}` : definition.name;
     if (type === QuarkTypes.QuarkFunction) {
       definition = <QuarkFunction>definition;
-      Frame.frame.variables.push({
+      Frame.local.push({
         name: ns,
         value: {
           type: Types.Function,
           args: definition.args || [],
           js: true,
-          stack: { variables: Frame.stack.map((acc) => acc.variables).flat() },
+          closure: Frame.frame,
           body: definition.body as (() => {}),
         },
       });
     } else if (type === QuarkTypes.QuarkVariable) {
       definition = <QuarkVariable>definition;
-      Frame.frame.variables.push({
+      Frame.local.push({
         name: ns,
         value: definition.value,
       })
