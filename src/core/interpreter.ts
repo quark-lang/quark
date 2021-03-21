@@ -26,6 +26,8 @@ export type Stack = [FunctionFrame];
 export type FunctionFrame = [LocalFrame];
 export type LocalFrame = { name: string, value: ValueElement }[];
 
+let count = [0];
+
 export const paths: string[] = [];
 
 export class Frame {
@@ -77,6 +79,9 @@ export class Frame {
 export class Node {
   public static async process(node: Block, global: boolean) {
     for (const child of node) {
+      if (global === true) {
+        count.slice(-1)[0]++;
+      };
       const res: undefined | [ValueElement, boolean] = await Interpreter.process(child, global);
       if (res && res[1] && res[1] === true) {
         return res;
@@ -152,7 +157,7 @@ export class Variable {
     const _id = (<Element>identifier).value;
     if (Frame.local.find((acc) => acc.name === _id) === undefined) {
       if (global === true) {
-        Frame.global[0].push({
+        Frame.frame.slice(-2)[0].push({
           name: <string>_id,
           value: await Interpreter.process(value),
         });
@@ -162,6 +167,8 @@ export class Variable {
         name: <string>_id,
         value: await Interpreter.process(value),
       });
+    } else {
+      await Variable.update(identifier, value);
     }
   }
 
@@ -232,10 +239,14 @@ export class Import {
     const finalPath = path.join(src, file.value);
     const content: string = await File.read(finalPath);
 
+    if (paths.includes(finalPath)) return;
+
     paths.push(finalPath);
     const ast = (<any>Parser.parse(content));
+    count.push(0);
     await Interpreter.process(ast, true);
     paths.pop();
+    count.pop();
   }
 }
 
@@ -265,12 +276,6 @@ export class Interpreter {
       const expression: string = <string>(<Element>expr).value;
 
       switch (expression) {
-        /*case 'print':
-          const _args = [];
-          for (const arg of args) _args.push(await Interpreter.process(arg));
-          console.log(...getValue(_args));
-          return;*/
-
         case 'let': return await Variable.declare(args[0], args[1], global);
         case 'set': return await Variable.update(args[0], args[1]);
         case 'fn': return Function.declare(<Element[]>args[0], <Block>args[1]);
@@ -289,10 +294,10 @@ export class Interpreter {
     }
   }
 
-  public static async run(code: string, path: string) {
+  public static async run(code: string, src: string) {
     paths.splice(0, paths.length);
     const ast = Parser.parse(code);
-    paths.push(path);
+    paths.push(src);
     await this.process(ast);
     paths.pop();
   }
