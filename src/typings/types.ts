@@ -1,5 +1,5 @@
 import { Block, Element } from './block.ts';
-import { Stack } from '../core/interpreter.ts';
+import { FunctionFrame, Stack } from '../core/interpreter.ts';
 
 export enum Types {
   String = 'String',
@@ -33,6 +33,7 @@ export interface IntegerType {
 export interface FunctionType {
   type: Types.Function,
   args: Argument[],
+  closure: FunctionFrame,
   body: Block | (() => {}),
 }
 
