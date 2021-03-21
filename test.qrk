@@ -1,0 +1,11 @@
+{
+  {
+    (import "sample/welcome.qrk")
+    (let username "test")
+    (welcome username)
+  (said "test")
+  }
+  (said "test")
+  (welcome "testtt")
+
+}
