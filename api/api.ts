@@ -21,7 +21,7 @@ export interface QuarkDefinition {
 export interface QuarkFunction extends QuarkDefinition {
   name: string,
   body: Function,
-  args?: Argument[],
+  args?: any[],
 }
 
 export interface QuarkVariable extends QuarkDefinition {
@@ -115,7 +115,7 @@ export class QuarkModule {
         name: ns,
         value: {
           type: Types.Function,
-          args: definition.args || [],
+          args: definition.args as unknown as Argument[] || [],
           js: true,
           closure: Frame.frame,
           body: definition.body as (() => {}),
