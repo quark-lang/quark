@@ -34,6 +34,7 @@ export interface FunctionType {
   type: Types.Function,
   args: Argument[],
   closure: FunctionFrame,
+  js: boolean,
   body: Block | (() => {}),
 }
 
