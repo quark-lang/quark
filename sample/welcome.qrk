@@ -1,9 +1,7 @@
-{
-  (let welcome (fn (username) {
-    (print "Hello" username)
-  }))
+(let welcome (fn (username) {
+  (print "Hello" username)
+}))
 
-  (let test (fn (t) {
-    (print t)
-  }))
-}
+(let said (fn (something) {
+  (print something)
+}))
