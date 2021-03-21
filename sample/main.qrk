@@ -19,4 +19,14 @@
   }))
 
  (print (closure))
+ (let username (list "Thomas" "Ness" "ImRobot"))
+ (print username)
+ (set (index username 1) "Bruh")
+ (print username)
+
+ (let multiDepth (list "test" "bruh" (list "eheh" "yolo") (list "ey")))
+ (print multiDepth)
+ (set (index (index multiDepth 2) 1) "test")
+ ()
+
 }
