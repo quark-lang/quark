@@ -38,8 +38,8 @@ export class Frame {
     this.stack.pop();
   }
 
-  public static pushLocalFrame() {
-    this.stack.slice(-1)[0].push([]);
+  public static pushLocalFrame(variables?: LocalFrame) {
+    this.stack.slice(-1)[0].push(variables || []);
   }
   public static popLocalFrame() {
     this.stack.slice(-1)[0].pop();
@@ -49,7 +49,10 @@ export class Frame {
     return this.stack[0];
   }
   public static get local(): LocalFrame {
-    return this.stack.slice(-1)[0][0];
+    return this.stack.slice(-1)[0].slice(-1)[0];
+  }
+  public static get frame(): FunctionFrame {
+    return this.stack.slice(-1)[0];
   }
 
   public static exists(identifier: string) {
@@ -62,7 +65,7 @@ export class Frame {
         map.set(variable.name, variable.value);
       }
     }
-    for (const frame of this.stack.slice(-1)[0]) {
+    for (const frame of this.frame) {
       for (const variable of frame) {
         map.set(variable.name, variable.value);
       }
@@ -87,6 +90,7 @@ export class Function {
     return {
       type: Types.Function,
       args: args as Argument[],
+      closure: Frame.frame,
       body,
     };
   }
@@ -94,6 +98,7 @@ export class Function {
   public static async call(functionName: string | FunctionType, args: (Block | Element)[]) {
     const func = Frame.variables.get(functionName);
     Frame.pushFunctionFrame();
+    Frame.pushLocalFrame(func.closure.flat());
     for (const index in args) {
       const correspondent = func.args[index];
       await Variable.declare(correspondent, await Interpreter.process(args[index]), false);
@@ -114,7 +119,7 @@ export type Atom = Element | Block;
 export class Variable {
   public static async declare(identifier: Atom, value: Atom, global: boolean) {
     const _id = (<Element>identifier).value;
-    if (Frame.exists(<string>_id) === false) {
+    if (Frame.local.find((acc) => acc.name === _id) === undefined) {
       if (global === true) {
         Frame.global[0].push({
           name: <string>_id,
