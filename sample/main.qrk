@@ -27,6 +27,9 @@
  (let multiDepth (list "test" "bruh" (list "eheh" "yolo") (list "ey")))
  (print multiDepth)
  (set (index (index multiDepth 2) 1) "test")
- ()
+ (print (time:now))
+  (print std:args)
 
+  (let file (fs:read "sample/welcome.qrk"))
+  (print file)
 }
