@@ -1,35 +1,17 @@
 {
-  (import "welcome.qrk")
-  (welcome "Thomas")
-
-  (let closure (fn () {
-    (let i 0)
+  (import "../test.qrk")
+  {
     {
-      (let i 5)
-      (print i)
+      (import "welcome.qrk")
+      (welcome "Thomas")
+      {
+        (welcome "eheh")
+  (said "nriuh")
+      }
     }
-    (let bruh (fn () {
-      (print i)
-      (let i 10)
-      (print "test")
-      (return i)
-    }))
-    (print i)
-    (return (bruh))
-  }))
-
- (print (closure))
- (let username (list "Thomas" "Ness" "ImRobot"))
- (print username)
- (set (index username 1) "Bruh")
- (print username)
-
- (let multiDepth (list "test" "bruh" (list "eheh" "yolo") (list "ey")))
- (print multiDepth)
- (set (index (index multiDepth 2) 1) "test")
- (print (time:now))
-  (print std:args)
-
-  (let file (fs:read "sample/welcome.qrk"))
-  (print file)
+  (said "test")
+        (welcome "eheh")
+    (welcome "test")
+  }
+  (welcome "Noé")
 }
