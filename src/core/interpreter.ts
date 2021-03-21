@@ -1,26 +1,9 @@
 import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
-import { existsSync } from 'https://deno.land/std/fs/mod.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { File } from '../utils/file.ts';
-import { getQuarkFolder } from '../main.ts';
-import { 
-  isContainer,
-  isValue,
-  isObject,
-  parentDir
-} from '../utils/runner.ts';
-import {
-  Types,
-  ValueElement,
-  ListType,
-  IntegerType,
-  StringType,
-  NoneType,
-  BooleanType,
-  FunctionType,
-  Argument
-} from '../typings/types.ts';
+import { isContainer, isObject, isValue, parentDir } from '../utils/runner.ts';
+import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types.ts';
 
 export type Stack = [FunctionFrame];
 export type FunctionFrame = [LocalFrame];
@@ -81,7 +64,7 @@ export class Node {
     for (const child of node) {
       if (global === true) {
         count.slice(-1)[0]++;
-      };
+      }
       const res: undefined | [ValueElement, boolean] = await Interpreter.process(child, global);
       if (res && res[1] && res[1] === true) {
         return res;
@@ -126,19 +109,36 @@ export class Function {
 
   public static async call(functionName: string | FunctionType, args: (Block | Element)[]) {
     const func = Frame.variables().get(functionName);
+
+    // Simply processing function as a js function
     if (func.js === true) {
       const _args = [];
-      for (const arg of args) {
-        _args.push(await Interpreter.process(arg));
+      for (const index in args) {
+        const arg = args[index];
+        const processed = await Interpreter.process(arg);
+        _args.push(processed);
       }
       return await func.body(..._args);
     }
-    Frame.pushFunctionFrame();
-    Frame.pushLocalFrame(func.closure.flat());
+
+    // Processing argument values in order to stock them after
+    const _args = [];
     for (const index in args) {
       const correspondent = func.args[index];
-      await Variable.declare(correspondent, await Interpreter.process(args[index]), false);
+      const processed = await Interpreter.process(args[index]);
+      _args.push([correspondent, processed]);
     }
+
+    // Pushing new private frame corresponding to function scope with function env
+    Frame.pushFunctionFrame();
+    Frame.pushLocalFrame(func.closure.flat());
+
+    // Declaring call arguments with before parsed arguments
+    for (const arg of _args) {
+      const [variable, value] = arg;
+      await Variable.declare(variable, value, false);
+    }
+
     const res = await Interpreter.process(func.body);
     Frame.popFunctionFrame();
     if (res && res[1] && res[1] === true) return res[0];
@@ -154,6 +154,7 @@ export type Atom = Element | Block;
 
 export class Variable {
   public static async declare(identifier: Atom, value: Atom, global: boolean) {
+    if (!identifier) return;
     const _id = (<Element>identifier).value;
     if (Frame.local.find((acc) => acc.name === _id) === undefined) {
       if (global === true) {
