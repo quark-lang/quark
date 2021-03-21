@@ -1,4 +1,22 @@
 {
   (import "welcome.qrk")
   (welcome "Thomas")
+
+  (let closure (fn () {
+    (let i 0)
+    {
+      (let i 5)
+      (print i)
+    }
+    (let bruh (fn () {
+      (print i)
+      (let i 10)
+      (print "test")
+      (return i)
+    }))
+    (print i)
+    (return (bruh))
+  }))
+
+ (print (closure))
 }
