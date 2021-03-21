@@ -235,6 +235,17 @@ export class Import {
   }
 }
 
+export function getValue(values: ValueElement[]): any {
+  let result: any = [];
+  for (const value of values) {
+    if (typeof value !== 'object') result.push(value);
+    else if (value.type === Types.List) {
+      result.push(getValue(value.value));
+    } else if ('value' in value) result.push(value.value === undefined ? 'none' : value.value);
+    else result.push('none');
+  }
+  return result;
+}
 
 export class Interpreter {
   public static async process(node: Atom, global: boolean = false): Promise<any> {
