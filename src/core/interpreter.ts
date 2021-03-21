@@ -157,7 +157,7 @@ export class Variable {
     const _id = (<Element>identifier).value;
     if (Frame.local.find((acc) => acc.name === _id) === undefined) {
       if (global === true) {
-        Frame.frame.slice(-2)[0].push({
+        Frame.frame.slice(-2 - count.slice(-1)[0])[0].push({
           name: <string>_id,
           value: await Interpreter.process(value),
         });
