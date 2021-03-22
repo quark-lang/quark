@@ -1,17 +1,7 @@
 {
-  (import "../test.qrk")
-  {
-    {
-      (import "welcome.qrk")
-      (welcome "Thomas")
-      {
-        (welcome "eheh")
-  (said "nriuh")
-      }
-    }
-  (said "test")
-        (welcome "eheh")
-    (welcome "test")
-  }
-  (welcome "Noé")
+  (print "test")
+  (import "split.qrk")
+  (print "testt")
+  (print (split "test bruh" " "))
+  (print "testt")
 }
