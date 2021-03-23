@@ -1,21 +1,23 @@
 import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
+import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { File } from '../utils/file.ts';
 import { isContainer, isObject, isValue, parentDir } from '../utils/runner.ts';
 import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types.ts';
+import { getQuarkFolder } from '../main.ts';
 
 export type Stack = [FunctionFrame];
 export type FunctionFrame = [LocalFrame];
 export type LocalFrame = { name: string, value: ValueElement }[];
 
-let count = [0];
-
 export const paths: string[] = [];
 
 export class Frame {
   public static stack: Stack = [[[]]];
-
+  public static init() {
+    this.stack = this.stack.slice(0, 1) as Stack;
+  }
   public static pushFunctionFrame() {
     this.stack.push([[]]);
   }
@@ -60,12 +62,9 @@ export class Frame {
 }
 
 export class Node {
-  public static async process(node: Block, global: boolean) {
+  public static async process(node: Block) {
     for (const child of node) {
-      if (global === true) {
-        count.slice(-1)[0]++;
-      }
-      const res: undefined | [ValueElement, boolean] = await Interpreter.process(child, global);
+      const res: undefined | [ValueElement, boolean] = await Interpreter.process(child);
       if (res && res[1] && res[1] === true) {
         return res;
       }
@@ -101,7 +100,7 @@ export class Function {
     return {
       type: Types.Function,
       args: args as Argument[],
-      closure: Frame.frame,
+      closure: <FunctionFrame>Frame.frame.concat(Frame.global),
       js: false,
       body,
     };
@@ -136,7 +135,7 @@ export class Function {
     // Declaring call arguments with before parsed arguments
     for (const arg of _args) {
       const [variable, value] = arg;
-      await Variable.declare(variable, value, false);
+      await Variable.declare(variable, value);
     }
 
     const res = await Interpreter.process(func.body);
@@ -153,17 +152,10 @@ export class Function {
 export type Atom = Element | Block;
 
 export class Variable {
-  public static async declare(identifier: Atom, value: Atom, global: boolean) {
+  public static async declare(identifier: Atom, value: Atom) {
     if (!identifier) return;
     const _id = (<Element>identifier).value;
     if (Frame.local.find((acc) => acc.name === _id) === undefined) {
-      if (global === true) {
-        Frame.frame.slice(-2 - count.slice(-1)[0])[0].push({
-          name: <string>_id,
-          value: await Interpreter.process(value),
-        });
-        return;
-      }
       Frame.local.push({
         name: <string>_id,
         value: await Interpreter.process(value),
@@ -222,6 +214,11 @@ export class Value {
       } else {
         return Frame.variables().get(element.value);
       }
+    } else if (element.value === 'none') {
+      return {
+        type: 'None',
+        value: undefined,
+      }
     }
     return { ...element };
   }
@@ -237,17 +234,27 @@ export class Import {
     const src = parentDir(paths.slice(-1)[0]);
     const file = await Interpreter.process(mod);
 
-    const finalPath = path.join(src, file.value);
+    // Deducing STD module path
+    const root: string = await getQuarkFolder();
+    const std: string = path.join(root, 'std');
+
+    // Setting all possible module paths
+    const stdMod: string = path.join(std, file.value);
+    const modulePath: string = path.join(src, file.value);
+
+    // Setting final path to existing module
+    const finalPath = existsSync(modulePath)
+      ? modulePath
+      : existsSync(stdMod)
+        ? stdMod
+        : undefined
+
+    if (finalPath === undefined) throw `Module "${file.value}" does not exists!`;
     const content: string = await File.read(finalPath);
 
-    if (paths.includes(finalPath)) return;
-
-    paths.push(finalPath);
-    const ast = (<any>Parser.parse(content));
-    count.push(0);
-    await Interpreter.process(ast, true);
-    paths.pop();
-    count.pop();
+    // Interpreting module and merging module global frame to current local frame
+    const res = await Interpreter.run(content, finalPath, true);
+    Frame.frame.concat(<FunctionFrame><unknown>res);
   }
 }
 
@@ -263,27 +270,51 @@ export function getValue(values: ValueElement[]): any {
   return result;
 }
 
+export class Condition {
+  public static async process(condition: Atom, then: Atom, otherwise: Atom) {
+    const _condition = await Interpreter.process(condition);
+    if (_condition === true || (_condition && _condition.value === true)) {
+      return await Interpreter.process(then);
+    } else if (otherwise) {
+      return await Interpreter.process(otherwise);
+    }
+  }
+}
+
+export class While {
+  public static async process(condition: Atom, body: Atom) {
+    while ((await Interpreter.process(condition))?.value) {
+      const res = await Interpreter.process(body);
+      if (res) return [res, true];
+    }
+  }
+}
 export class Interpreter {
-  public static async process(node: Atom, global: boolean = false): Promise<any> {
-    if (isValue(node)) {
+  public static async process(node: Atom): Promise<any> {
+    if (node === undefined) return { type: 'None', value: undefined };
+    if ('index' in node) {
+      return node;
+    } else if (isValue(node)) {
       return await Value.get(<Element>node);
     } else if (isContainer(node)) {
       Frame.pushLocalFrame();
-      const res = await Node.process(<Block>node, global);
+      const res = await Node.process(<Block>node);
       Frame.popLocalFrame();
       return res;
-    } else {
+    } else if (Array.isArray(node)) {
       const [expr, ...args] = <Block>node;
       const expression: string = <string>(<Element>expr).value;
 
       switch (expression) {
-        case 'let': return await Variable.declare(args[0], args[1], global);
+        case 'let': return await Variable.declare(args[0], args[1]);
         case 'set': return await Variable.update(args[0], args[1]);
         case 'fn': return Function.declare(<Element[]>args[0], <Block>args[1]);
         case 'import': return await Import.process(args[0]);
         case 'return': return await Function.return(args[0]);
         case 'list': return await List.create(args);
         case 'index': return await List.index(<Element>args[0], <Element>args[1]);
+        case 'if': return await Condition.process(args[0], args[1], args[2]);
+        case 'while': return await While.process(args[0], args[1]);
       }
 
      if (Frame.exists(expression)) {
@@ -291,15 +322,26 @@ export class Interpreter {
        if (variable.type === 'Function') {
          return await Function.call(expression, args);
        }
+       return variable;
+     } else {
+       throw `Function "${expression}" does not exists!`;
      }
     }
   }
 
-  public static async run(code: string, src: string) {
-    paths.splice(0, paths.length);
-    const ast = Parser.parse(code);
+  public static async run(code: string, src: string, module?: boolean) {
+    let _ast = Parser.parse(code);
     paths.push(src);
-    await this.process(ast);
+    Frame.init();
+    if (module === true) {
+      if (Array.isArray(_ast) && _ast.length === 1 && Array.isArray(_ast[0])) {
+        _ast = _ast[0];
+      }
+    }
+    for (const branch of _ast) {
+      await this.process(branch);
+    }
     paths.pop();
+    return Frame.stack;
   }
 }
