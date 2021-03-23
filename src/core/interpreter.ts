@@ -18,6 +18,7 @@ export class Frame {
   public static init() {
     this.stack = this.stack.slice(0, 1) as Stack;
   }
+
   public static pushFunctionFrame() {
     this.stack.push([[]]);
   }
@@ -231,8 +232,10 @@ export class Value {
 
 export class Import {
   public static async process(mod: Atom) {
-    const src = parentDir(paths.slice(-1)[0]);
     const file = await Interpreter.process(mod);
+    const src = path.isAbsolute(file.value)
+      ? ''
+      : parentDir(paths.slice(-1)[0]);
 
     // Deducing STD module path
     const root: string = await getQuarkFolder();
@@ -289,6 +292,7 @@ export class While {
     }
   }
 }
+
 export class Interpreter {
   public static async process(node: Atom): Promise<any> {
     if (node === undefined) return { type: 'None', value: undefined };
