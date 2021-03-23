@@ -41,7 +41,7 @@ export async function getQuarkFolder(): Promise<string> {
 async function main(): Promise<void> {
   // Getting sample code content and interpreting it
   const root: string = await getQuarkFolder();
-  const src = path.join(<string>root, 'sample', 'main.qrk');
+  const src = path.join(<string>root, 'cli', 'main.qrk');
   const script: string = await File.read(src);
   await Interpreter.run(script, src);
 }
