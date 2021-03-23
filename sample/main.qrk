@@ -1,7 +1,4 @@
 {
-  (print "test")
   (import "split.qrk")
-  (print "testt")
-  (print (split "test bruh" " "))
-  (print "testt")
+  (print (split "tdest tyes" " "))
 }
