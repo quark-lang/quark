@@ -1,4 +1,9 @@
 {
-  (import "split.qrk")
+  (import "list/split.qrk")
   (print (split "tdest tyes" " "))
+  (print (list "test" "bruh" (list "eheh" "coucou")))
+  {
+    (print (split "test" "t"))
+  }
+  (print (range 0 10))
 }
