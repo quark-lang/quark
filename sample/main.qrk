@@ -1,4 +1,7 @@
 {
-  (import "test.js")
-  (welcome "Thomas")
+  (import "https://deno.land/std@0.83.0/fmt/colors.ts")
+  (import "https://deno.land/std@0.83.0/path/mod.ts")
+  (print (red "test"))
+  (print (join "test" "bruh"))
+  (print (underline "tdest"))
 }
