@@ -230,6 +230,21 @@ export class Value {
   }
 }
 
+export async function recursiveReaddir(src: string) {
+  const files: string[] = [];
+  const getFiles = async (src: string) => {
+    for await (const dirEntry of Deno.readDir(src)) {
+      if (dirEntry.isDirectory) {
+        await getFiles(path.join(src, dirEntry.name));
+      } else if (dirEntry.isFile) {
+        files.push(path.join(src, dirEntry.name));
+      }
+    }
+  };
+  await getFiles(src);
+  return files;
+}
+
 export class Import {
   public static async process(mod: Atom) {
     const file = await Interpreter.process(mod);
@@ -248,16 +263,29 @@ export class Import {
     // Setting final path to existing module
     const finalPath = existsSync(modulePath)
       ? modulePath
-      : existsSync(stdMod)
-        ? stdMod
-        : undefined
-
+      : existsSync(modulePath + '.qrk')
+        ? modulePath + '.qrk'
+        : existsSync(stdMod)
+          ? stdMod
+          : existsSync(stdMod + '.qrk')
+            ? stdMod + '.qrk'
+            : undefined;
     if (finalPath === undefined) throw `Module "${file.value}" does not exists!`;
-    const content: string = await File.read(finalPath);
+    if (Deno.statSync(finalPath).isDirectory) {
+      const files = await recursiveReaddir(finalPath);
+      for (const file of files) {
+        const content: string = await File.read(file);
 
-    // Interpreting module and merging module global frame to current local frame
-    const res = await Interpreter.run(content, finalPath, true);
-    Frame.frame.concat(<FunctionFrame><unknown>res);
+        const res = await Interpreter.run(content, file, true);
+        Frame.frame.concat(<FunctionFrame><unknown>res);
+      }
+    } else {
+      const content: string = await File.read(finalPath);
+
+      // Interpreting module and merging module global frame to current local frame
+      const res = await Interpreter.run(content, finalPath, true);
+      Frame.frame.concat(<FunctionFrame><unknown>res);
+    }
   }
 }
 
