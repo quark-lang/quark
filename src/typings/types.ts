@@ -35,6 +35,7 @@ export interface FunctionType {
   args: any[],
   closure: FunctionFrame,
   js: boolean,
+  module?: boolean,
   body: Block | (() => {}),
 }
 
