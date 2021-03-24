@@ -286,26 +286,38 @@ export class Import {
     const modulePath: string = path.join(src, file.value);
 
     // Setting final path to existing module
-    const finalPath = existsSync(modulePath)
-      ? modulePath
-      : existsSync(modulePath + '.qrk')
-        ? modulePath + '.qrk'
-        : existsSync(stdMod)
-          ? stdMod
-          : existsSync(stdMod + '.qrk')
-            ? stdMod + '.qrk'
-            : undefined;
+    const finalPath = file.value.startsWith('http')
+      ? file.value
+      : existsSync(modulePath)
+        ? modulePath
+        : existsSync(modulePath + '.qrk')
+          ? modulePath + '.qrk'
+          : existsSync(stdMod)
+            ? stdMod
+            : existsSync(stdMod + '.qrk')
+              ? stdMod + '.qrk'
+              : undefined;
     if (finalPath === undefined) throw `Module "${file.value}" does not exists!`;
     const files = [];
-    if (Deno.statSync(finalPath).isDirectory) {
-      files.push(...await recursiveReaddir(finalPath));
-    } else {
+
+    if (finalPath.startsWith('http')) {
       files.push(finalPath);
+    } else {
+      if (Deno.statSync(finalPath).isDirectory) {
+        files.push(...await recursiveReaddir(finalPath));
+      } else {
+        files.push(finalPath);
+      }
     }
 
     for (const file of files) {
-      if (path.extname(file) === '.js') {
-        const mod = await import(path.isAbsolute(file) ? file : path.join('..', '..', file));
+      if (['.js', '.ts'].includes(path.extname(file))) {
+        const _path = path.isAbsolute(file)
+          ? file
+          : file.startsWith('http')
+            ? file
+            : path.join('..', '..', file);
+        const mod = await import(_path);
         for (const func in mod) {
           if (typeof mod[func] === 'function') {
             Frame.local.push({
