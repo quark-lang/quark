@@ -6,6 +6,7 @@ import { File } from '../utils/file.ts';
 import { isContainer, isObject, isValue, parentDir } from '../utils/runner.ts';
 import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types.ts';
 import { getQuarkFolder } from '../main.ts';
+import { quarkify, setValue } from '../../api/quarkifier.ts';
 
 export type Stack = [FunctionFrame];
 export type FunctionFrame = [LocalFrame];
@@ -118,7 +119,11 @@ export class Function {
         const processed = await Interpreter.process(arg);
         _args.push(processed);
       }
-      return await func.body(..._args);
+      if (func.module === true) {
+        return await quarkify(await func.body, ..._args);
+      } else {
+        return await func.body(..._args);
+      }
     }
 
     // Processing argument values in order to stock them after
@@ -245,6 +250,26 @@ export async function recursiveReaddir(src: string) {
   return files;
 }
 
+export function stringify(node: Atom) {
+  let result: string = '';
+  if (Array.isArray(node)) {
+    result += '(';
+    for (const index in node) {
+      const item = node[index];
+      if (Number(index) !== 0) result += ' ';
+      result += stringify(item);
+    }
+    result += ')';
+  } else {
+    if (node.type === 'String') {
+      result += `"${node.value}"`;
+    } else {
+      result += node.value;
+    }
+  }
+  return result;
+}
+
 export class Import {
   public static async process(mod: Atom) {
     const file = await Interpreter.process(mod);
@@ -271,19 +296,41 @@ export class Import {
             ? stdMod + '.qrk'
             : undefined;
     if (finalPath === undefined) throw `Module "${file.value}" does not exists!`;
+    const files = [];
     if (Deno.statSync(finalPath).isDirectory) {
-      const files = await recursiveReaddir(finalPath);
-      for (const file of files) {
-        const content: string = await File.read(file);
-
-        const res = await Interpreter.run(content, file, true);
-        Frame.frame.concat(<FunctionFrame><unknown>res);
-      }
+      files.push(...await recursiveReaddir(finalPath));
     } else {
-      const content: string = await File.read(finalPath);
+      files.push(finalPath);
+    }
 
-      // Interpreting module and merging module global frame to current local frame
-      const res = await Interpreter.run(content, finalPath, true);
+    for (const file of files) {
+      if (path.extname(file) === '.js') {
+        const mod = await import(path.isAbsolute(file) ? file : path.join('..', '..', file));
+        for (const func in mod) {
+          if (typeof mod[func] === 'function') {
+            Frame.local.push({
+              name: func,
+              value: {
+                type: Types.Function,
+                args: [],
+                js: true,
+                module: true,
+                closure: Frame.frame,
+                body: mod[func],
+              },
+            });
+          } else {
+            Frame.local.push({
+              name: func,
+              value: <ValueElement>setValue(mod[func]),
+            })
+          }
+        }
+        continue;
+      }
+      const content: string = await File.read(file);
+
+      const res = await Interpreter.run(content, file, true);
       Frame.frame.concat(<FunctionFrame><unknown>res);
     }
   }
