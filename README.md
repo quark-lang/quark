@@ -32,6 +32,7 @@
 -   [TODO](./TODO.md)
 -   [Contributing](./CONTRIBUTING.md)
 -   [Authors](#authors)
+-   [Thanks](#thanks)
 
 ## 🧐 About <a name = "about"></a>
 
@@ -118,6 +119,13 @@ To build the project, do:
 <a href="https://github.com/quark-lang/quark/graphs/contributors">
   <img src="https://contributors-img.web.app/image?repo=quark-lang/quark" />
 </a>
+
+## ❤️ Special thanks to️ <a name = "thanks"></a>
+- [@Wafelack](https://github.com/Wafelack) - Contribution to STD
+- [@SuperFola](https://github.com/SuperFola) - Helping about ASTs and compilers...
+- [@Mesabloo](https://github.com/Mesabloo) - Helping about variable scoping, module importing...
+- [@Uriopass](https://github.com/Uriopass) - Helping about function and variable scoping...
+- [@kwak]() - Helping about module importing...
 
 See also the list of
 [contributors](https://github.com/quark-lang/quark/contributors) who
