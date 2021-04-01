@@ -2,7 +2,7 @@ import { File } from './utils/file.ts';
 import { Interpreter } from './core/interpreter.ts';
 import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
 import { existsSync } from 'https://deno.land/std/fs/mod.ts';
-import '../std/mod.ts';
+import '../std/std.ts';
 
 export function arrayToObject(array: string[][]): Record<string, string> {
   const result: Record<string, string> = {};
