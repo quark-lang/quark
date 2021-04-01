@@ -1,7 +1,15 @@
 {
   (import "https://deno.land/std@0.83.0/fmt/colors.ts")
   (import "https://deno.land/std@0.83.0/path/mod.ts")
+  (import "operators")
+  (import "test.ts")
   (print (red "test"))
   (print (join "test" "bruh"))
   (print (underline "tdest"))
+
+  (let Complex (fn (num1 num2) {
+    (return (++ (string num1) (++ " + " (++ (string num2) "i"))))
+  }))
+
+  (print (Complex 5 6))
 }
