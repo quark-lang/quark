@@ -117,6 +117,9 @@ export class Function {
       for (const index in args) {
         const arg = args[index];
         const processed = await Interpreter.process(arg);
+        if (Array.isArray(processed))
+          _args.push(processed[0])
+        else
         _args.push(processed);
       }
       if (func.module === true) {
