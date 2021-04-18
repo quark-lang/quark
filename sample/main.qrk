@@ -8,8 +8,15 @@
   (print (underline "tdest"))
 
   (let Complex (fn (num1 num2) {
-    (return (++ (string num1) (++ " + " (++ (string num2) "i"))))
+    (return {
+      (return (++ (string num1) (++ " + " (++ (string num2) "i"))))
+    })
   }))
 
+
   (print (Complex 5 6))
+  (print [["test"] 7]) 
+
+  (print Complex (type ["test"]))
+  (print none)
 }
