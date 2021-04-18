@@ -18,7 +18,7 @@ export class Lexer {
     this.commentState = 0;
     for (const index in this.code.split('')) {
       const char = this.code[index];
-      if (['(', ')', '{', '}'].includes(char) && state !== Tokens.String) {
+      if (['(', ')', '{', '}', '[', ']'].includes(char) && state !== Tokens.String) {
         // Rechecking if tmp variable isn't empty before processing Node char
         if (tmp.length > 0) {
           state = '';

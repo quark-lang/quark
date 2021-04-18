@@ -25,6 +25,11 @@ export class Parser {
       if (['(', '{'].includes(token.value)) {
         ast.push([]);
         return this.process(index + 1, ast.slice(-1)[0] as Block);
+      } else if (token.value === '[') {
+        ast.push([{ 
+          type: 'Word',
+          value: 'list', }]);
+        return this.process(index + 1, ast.slice(-1)[0] as Block);
       }
       return this.process(index + 1, this.findParent(ast, this.ast) as Block);
     }
