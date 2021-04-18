@@ -33,6 +33,7 @@ export interface IntegerType {
 export interface FunctionType {
   type: Types.Function,
   args: any[],
+  name: string,
   closure: FunctionFrame,
   js: boolean,
   module?: boolean,
