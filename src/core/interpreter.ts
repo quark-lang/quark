@@ -1,7 +1,7 @@
 import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
-import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
+import * as path from 'https://deno.land/std@0.91.0/path/mod.ts';
 import { File } from '../utils/file.ts';
 import { isContainer, isObject, isValue, parentDir } from '../utils/runner.ts';
 import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types.ts';
@@ -316,7 +316,7 @@ export class Import {
           ? file
           : file.startsWith('http')
             ? file
-            : path.join('..', '..', file);
+            : path.join('..', '..', file).replace(/\\/g, '/');
         const mod = await import(_path);
         for (const func in mod) {
           if (typeof mod[func] === 'function') {
