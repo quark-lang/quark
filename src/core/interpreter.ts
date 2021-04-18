@@ -319,23 +319,25 @@ export class Import {
             : path.join('..', '..', file).replace(/\\/g, '/');
         const mod = await import(_path);
         for (const func in mod) {
-          if (typeof mod[func] === 'function') {
-            Frame.local.push({
-              name: func,
-              value: {
-                type: Types.Function,
-                args: [],
-                js: true,
-                module: true,
-                closure: Frame.frame,
-                body: mod[func],
-              },
-            });
-          } else {
-            Frame.local.push({
-              name: func,
-              value: <ValueElement>setValue(mod[func]),
-            })
+          if (mod.hasOwnProperty(func)) {
+            if (typeof mod[func] === 'function') {
+              Frame.local.push({
+                name: func,
+                value: {
+                  type: Types.Function,
+                  args: [],
+                  js: true,
+                  module: true,
+                  closure: Frame.frame,
+                  body: mod[func],
+                },
+              });
+            } else {
+              Frame.local.push({
+                name: func,
+                value: <ValueElement>setValue(mod[func]),
+              })
+            }
           }
         }
         continue;
