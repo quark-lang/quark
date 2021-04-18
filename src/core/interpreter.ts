@@ -2,6 +2,7 @@ import type { Block, Element } from '../typings/block.ts';
 import { Parser } from './parser.ts';
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from 'https://deno.land/std@0.91.0/path/mod.ts';
+import * as color from 'https://deno.land/std@0.83.0/fmt/colors.ts';
 import { File } from '../utils/file.ts';
 import { isContainer, isObject, isValue, parentDir } from '../utils/runner.ts';
 import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types.ts';
@@ -48,7 +49,7 @@ export class Frame {
     return this.variables().get(identifier) || false;
   }
   public static variables(stack?: FunctionFrame) {
-    let map = new Map();
+    const map = new Map();
     for (const frame of this.global) {
       for (const variable of frame) {
         map.set(variable.name, variable.value);
@@ -88,7 +89,7 @@ export class List {
     const element = await Interpreter.process(variable);
     index = await Interpreter.process(index);
     if (element.type === Types.Function) return { type: Types.None, value: undefined };
-    if ('value' in element && element.value !== undefined) { // @ts-ignore
+    if ('value' in element && element.value !== undefined) {
       const foundIndex = element.value[index.value];
       if (typeof foundIndex === 'string') return { type: element.type, value: foundIndex };
       return foundIndex || { variable: variable.value, index: index.value };
@@ -105,6 +106,7 @@ export class Function {
       closure: <FunctionFrame>Frame.frame.concat(Frame.global),
       js: false,
       body,
+      name: '',
     };
   }
 
@@ -165,9 +167,11 @@ export class Variable {
     if (!identifier) return;
     const _id = (<Element>identifier).value;
     if (Frame.local.find((acc) => acc.name === _id) === undefined) {
+      const val = await Interpreter.process(value);
+      val.name = _id;
       Frame.local.push({
         name: <string>_id,
-        value: await Interpreter.process(value),
+        value: val,
       });
     } else {
       await Variable.update(identifier, value);
@@ -215,7 +219,7 @@ export class Identifier {
 }
 
 export class Value {
-  public static async get(element: Element) {
+  public static get(element: Element) {
     if (element.type === 'Word') {
       if (Frame.exists(<string>element.value) === false) {
         if (<string>element.value === 'print') return element;
@@ -232,7 +236,7 @@ export class Value {
     return { ...element };
   }
 
-  public static update(current: any, next: any): void {
+  public static update(current: any, next: Record<string, unknown>): void {
     for (const item of Object.entries(next))
       current[item[0]] = item[1];
   }
@@ -253,23 +257,46 @@ export async function recursiveReaddir(src: string) {
   return files;
 }
 
-export function stringify(node: Atom) {
-  let result: string = '';
-  if (Array.isArray(node)) {
-    result += '(';
-    for (const index in node) {
-      const item = node[index];
-      if (Number(index) !== 0) result += ' ';
-      result += stringify(item);
+export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, container = false) {
+  let result = '';
+  if (node === undefined) return result;
+  if (isContainer(<Block>node)) {
+    result += '{\n';
+    result += stringify((<Block>node)[0], list, tabs + 1, true);
+    result += '}';
+  }
+  else if (Array.isArray(node)) {
+    result += (container ? new Array(tabs).fill(' ').join(' ') : '') + '(' + color.blue(`${(<Element>node[0]).value} `);
+    for (const index in node.slice(1)) {
+      const item = node.slice(1)[index];
+      result += stringify(item, true, tabs);
+      if (Number(index) + 1 !== node.slice(1).length) result += ' '
     }
     result += ')';
-  } else {
-    if (node.type === 'String') {
-      result += `"${node.value}"`;
-    } else {
-      result += node.value;
-    }
+    if (container) result += '\n' + new Array(tabs - 1).fill(' ').join(' ')
   }
+  else if (node.type === 'List') {
+    result += '(' + color.blue('list ');
+    for (const index in node.value) {
+      const item = node.value[index];
+      result += stringify(item, true);
+      if (Number(index) === node.value.length) result += ' ';
+    }
+    result += ') ';
+  }
+  else if (node.type === 'Word') {
+    result += color.bold(<string>node.value);
+  }
+  else if (node.type === 'None') result += color.gray('none');
+  else if (node.type === 'String' && list === true) result += color.green(`"${node.value}"`);
+  else if (node.type === 'Number' || node.type === 'Integer') result += color.yellow(node.value.toString());
+  else if (node.type === 'Function') {
+    if (node.js === true) {
+      result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} (${color.bold('...args')}) ${color.gray('# Javascript code')} ))`;
+    }
+    else result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} (${node.args.map(x => color.bold(x.value)).join(' ')}) ${stringify(<Block>node.body)}))`;
+  }
+  else result += (<Element>node).value;
   return result;
 }
 
@@ -332,6 +359,7 @@ export class Import {
                 module: true,
                 closure: Frame.frame,
                 body: mod[func],
+                name: func,
               },
             });
           } else {
@@ -352,7 +380,7 @@ export class Import {
 }
 
 export function getValue(values: ValueElement[]): any {
-  let result: any = [];
+  const result = [];
   for (const value of values) {
     if (typeof value !== 'object') result.push(value);
     else if (value.type === Types.List) {
