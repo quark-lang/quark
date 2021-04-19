@@ -293,7 +293,7 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
     if (node.js === true) {
       const match = node.body.toString().match(/\(.*\)/)[0];
       const split = match.slice(1, match.length - 1).split(',')
-      result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} (${split.map(x => color.bold(x))}) ${color.gray('# Javascript code')} ))`;
+      result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} (${split.map((x: string) => color.bold(x))}) ${color.gray('# Javascript code')} ))`;
     }
     else result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} (${node.args.map(x => color.bold(x.value)).join(' ')}) ${stringify(<Block>node.body)}))`;
   }
