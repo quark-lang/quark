@@ -491,7 +491,7 @@ export class Interpreter {
   }
 
   public static async run(code: string, src: string, module?: boolean) {
-    let _ast = Parser.parse(code);
+    let _ast = Parser.parse(code, src);
     paths.push(src);
     Frame.init();
     if (module === true) {

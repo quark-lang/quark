@@ -57,8 +57,8 @@ export class Parser {
     return this.process(index + 1, ast);
   }
 
-  public static parse(source: string) {
-    this.tokens = Lexer.tokenize(source);
+  public static parse(source: string, file: string) {
+    this.tokens = Lexer.tokenize(source, file);
     this.ast = [];
     return this.process(0, this.ast);
   }

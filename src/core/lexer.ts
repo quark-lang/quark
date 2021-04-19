@@ -6,7 +6,8 @@ import type { Node } from '../typings/token.ts';
 import { Formatter } from './formatter.ts';
 export class Lexer {
   private static code: string;
-  private static commentState: number = 0;
+  private static commentState = 0;
+  private static brackets = 0;
 
   private static lexing(): Token[] {
     let state: string = '';
@@ -19,6 +20,8 @@ export class Lexer {
     for (const index in this.code.split('')) {
       const char = this.code[index];
       if (['(', ')', '{', '}', '[', ']'].includes(char) && state !== Tokens.String) {
+        if (['(', '[', '{'].includes(char)) this.brackets++;
+        else this.brackets--;
         // Rechecking if tmp variable isn't empty before processing Node char
         if (tmp.length > 0) {
           state = '';
@@ -98,10 +101,15 @@ export class Lexer {
     return container.filter((token: Token) => token.value.length > 0);
   }
 
-  public static tokenize(source: string): Token[] {
+  public static tokenize(source: string, file: string): Token[] {
     // Formatting content
+    this.brackets = 0;
     this.code = Formatter.format(source);
     this.commentState = 0;
-    return this.lexing();
+    const res = this.lexing();
+    if (this.brackets !== 0) {
+      throw `Unexpected (, [ or { in ${file}`;
+    }
+    return res;
   }
 }
