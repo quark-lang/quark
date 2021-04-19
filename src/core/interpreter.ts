@@ -273,23 +273,39 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
   let result = '';
   if (node === undefined) return result;
   else if (Array.isArray(node)) {
-    result += (container ? new Array(tabs).fill(' ').join(' ') : '') + '(' + color.blue(`${(<Element>node[0]).value} `);
-    for (const index in node.slice(1)) {
-      const item = node.slice(1)[index];
-      result += stringify(item, true, tabs);
-      if (Number(index) + 1 !== node.slice(1).length) result += ' '
+    if ((<Element>node[0]).value === 'begin') {
+      result += '{\n';
+      for (const item of node.slice(1)) {
+        result += stringify(item, list, tabs + 1, true);
+      }
+      result += '}';
+    } else if ((<Element>node[0]).value === 'list') {
+      result += '[';
+      for (const index in node.slice(1)) {
+        const item = node.slice(1)[index];
+        result += stringify(item, true);
+        if (Number(index) + 1 !== node.slice(1).length) result += ' ';
+      }
+      result += ']';
+    } else {
+      result += (container ? new Array(tabs).fill(' ').join(' ') : '') + '(' + color.blue(`${(<Element>node[0]).value} `);
+      for (const index in node.slice(1)) {
+        const item = node.slice(1)[index];
+        result += stringify(item, true, tabs);
+        if (Number(index) + 1 !== node.slice(1).length) result += ' '
+      }
+      result += ')';
+      if (container) result += '\n' + new Array(tabs - 1).fill(' ').join(' ')
     }
-    result += ')';
-    if (container) result += '\n' + new Array(tabs - 1).fill(' ').join(' ')
   }
   else if (node.type === 'List') {
-    result += '(' + color.blue('list ');
+    result += '[';
     for (const index in node.value) {
       const item = node.value[index];
       result += stringify(item, true);
       if (Number(index) === node.value.length) result += ' ';
     }
-    result += ') ';
+    result += '] ';
   }
   else if (node.type === 'Word') {
     result += color.bold(<string>node.value);
