@@ -183,7 +183,9 @@ export class Variable {
     if (typeof _id === 'string') {
       const frameItem = Frame.variables().get(_id) as ValueElement;
       if (!Frame.exists(_id)) throw 'Variable ' + _id + ' does not exists!';
-      return Value.update(frameItem, await Interpreter.process(value));
+      const val = await Interpreter.process(value);
+      if (val.name === '') val.name = _id;
+      return Value.update(frameItem, val);
     }
     if ('index' in _id && 'variable' in _id) {
       const variable = Frame.variables().get((<any>_id).variable) as ValueElement;
@@ -303,7 +305,7 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
     for (const index in node.value) {
       const item = node.value[index];
       result += stringify(item, true);
-      if (Number(index) === node.value.length) result += ' ';
+      if (Number(index) !== node.value.length - 1) result += ' ';
     }
     result += '] ';
   }
