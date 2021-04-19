@@ -22,13 +22,18 @@ export class Parser {
     const token: Token = this.tokens[index];
     if (!token) return this.ast;
     if (token.token === Tokens.Node) {
-      if (['(', '{'].includes(token.value)) {
+      if (token.value === '(') {
         ast.push([]);
         return this.process(index + 1, ast.slice(-1)[0] as Block);
       } else if (token.value === '[') {
         ast.push([{ 
           type: 'Word',
           value: 'list', }]);
+        return this.process(index + 1, ast.slice(-1)[0] as Block);
+      } else if (token.value === '{') {
+        ast.push([{ 
+          type: 'Word',
+          value: 'begin', }]);
         return this.process(index + 1, ast.slice(-1)[0] as Block);
       }
       return this.process(index + 1, this.findParent(ast, this.ast) as Block);
