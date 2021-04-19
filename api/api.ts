@@ -32,6 +32,7 @@ export class QuarkModule {
       Frame.local.push({
         name: ns,
         value: {
+          name: ns,
           type: Types.Function,
           args: definition.args as unknown as Argument[] || [],
           js: true,
