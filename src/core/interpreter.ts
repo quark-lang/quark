@@ -138,7 +138,6 @@ export class Function {
       const processed = await Interpreter.process(args[index]);
       _args.push([correspondent, processed]);
     }
-
     // Pushing new private frame corresponding to function scope with function env
     Frame.pushFunctionFrame();
     Frame.pushLocalFrame(func.closure.flat());
@@ -218,6 +217,9 @@ export class Identifier {
   }
 }
 
+function deepCopy(el: any) {
+  return JSON.parse(JSON.stringify(el));
+}
 export class Value {
   public static get(element: Element) {
     if (element.type === 'Word') {
@@ -232,6 +234,8 @@ export class Value {
         type: 'None',
         value: undefined,
       }
+    } else if (<unknown>element.type === 'Quote') {
+      return [ deepCopy(element).value ];
     }
     return { ...element };
   }
@@ -260,11 +264,6 @@ export async function recursiveReaddir(src: string) {
 export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, container = false) {
   let result = '';
   if (node === undefined) return result;
-  if (isContainer(<Block>node)) {
-    result += '{\n';
-    result += stringify((<Block>node)[0], list, tabs + 1, true);
-    result += '}';
-  }
   else if (Array.isArray(node)) {
     result += (container ? new Array(tabs).fill(' ').join(' ') : '') + '(' + color.blue(`${(<Element>node[0]).value} `);
     for (const index in node.slice(1)) {
@@ -418,11 +417,6 @@ export class Interpreter {
       return node;
     } else if (isValue(node)) {
       return await Value.get(<Element>node);
-    } else if (isContainer(node)) {
-      Frame.pushLocalFrame();
-      const res = await Node.process(<Block>node);
-      Frame.popLocalFrame();
-      return res;
     } else if (Array.isArray(node)) {
       const [expr, ...args] = <Block>node;
       const expression: string = <string>(<Element>expr).value;
@@ -437,6 +431,13 @@ export class Interpreter {
         case 'index': return await List.index(<Element>args[0], <Element>args[1]);
         case 'if': return await Condition.process(args[0], args[1], args[2]);
         case 'while': return await While.process(args[0], args[1]);
+        case 'quote': return { type: 'Quote', value: args[0] };
+        case 'begin': {
+          Frame.pushLocalFrame();
+          const res = await Node.process(<Block>node);
+          Frame.popLocalFrame();
+          return res;
+        }
       }
 
      if (Frame.exists(expression)) {
