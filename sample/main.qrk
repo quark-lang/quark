@@ -17,6 +17,9 @@
   (print (Complex 5 6))
   (print [["test"] 7]) 
 
-  (print Complex (type ["test"]))
-  (print none)
+  (let quoteTest (fn (expr) {
+    (print expr)
+  }))
+  (quoteTest "test")
+  (print (quoteTest (quote (print "test"))))
 }
