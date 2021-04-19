@@ -261,6 +261,14 @@ export async function recursiveReaddir(src: string) {
   return files;
 }
 
+const getFunctionArgs = (func: Function) => {
+  const match = func.toString().match(/\(.*\)/);
+  if (match === null) throw 'Not possible';
+  const args = match[0];
+  const split = args.slice(1, args.length - 1).split(',');
+  return split;
+}
+
 export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, container = false) {
   let result = '';
   if (node === undefined) return result;
@@ -290,12 +298,16 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
   else if (node.type === 'String' && list === true) result += color.green(`"${node.value}"`);
   else if (node.type === 'Number' || node.type === 'Integer') result += color.yellow(node.value.toString());
   else if (node.type === 'Function') {
+    result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} `;
     if (node.js === true) {
-      const match = node.body.toString().match(/\(.*\)/)[0];
-      const split = match.slice(1, match.length - 1).split(',')
-      result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} (${split.map((x: string) => color.bold(x))}) ${color.gray('# Javascript code')} ))`;
+      const split = getFunctionArgs(node.body);
+      result += `(${split.map((x: string) => color.bold(x))}) ${color.gray('# Javascript code')}`;
     }
-    else result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} (${node.args.map(x => color.bold(x.value)).join(' ')}) ${stringify(<Block>node.body)}))`;
+    else {
+      const args = node.args.map(x => x.value);
+      result += `(${args.map(x => color.bold(x)).join(' ')}) ${stringify(<Block>node.body)}`;
+    }
+    result += '))';
   }
   else result += (<Element>node).value;
   return result;
@@ -383,7 +395,13 @@ export class Import {
 export function getValue(values: ValueElement[]): any {
   const result = [];
   for (const value of values) {
-    if (typeof value !== 'object') result.push(value);
+    if (value === undefined) {
+      result.push(setValue(value))
+    }
+    else if (value.type === 'Function') {
+      throw `Can't call API Functions with callback.`;
+    }
+    else if (typeof value !== 'object') result.push(value);
     else if (value.type === Types.List) {
       result.push(getValue(value.value));
     } else if ('value' in value) result.push(value.value === undefined ? 'none' : value.value);
