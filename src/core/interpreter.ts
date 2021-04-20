@@ -166,12 +166,14 @@ export class Variable {
     if (!identifier) return;
     const _id = (<Element>identifier).value;
     if (Frame.local.find((acc) => acc.name === _id) === undefined) {
-      const val = await Interpreter.process(value);
+      let val = await Interpreter.process(value);
+      if (!val) val = { type: 'None', value: undefined };
       val.name = _id;
       Frame.local.push({
         name: <string>_id,
         value: val,
       });
+      return val
     } else {
       await Variable.update(identifier, value);
     }
@@ -183,7 +185,8 @@ export class Variable {
     if (typeof _id === 'string') {
       const frameItem = Frame.variables().get(_id) as ValueElement;
       if (!Frame.exists(_id)) throw 'Variable ' + _id + ' does not exists!';
-      const val = await Interpreter.process(value);
+      let val = await Interpreter.process(value);
+      if (!val) val = { type: 'None', value: undefined };
       if (val.name === '') val.name = _id;
       return Value.update(frameItem, val);
     }
@@ -204,6 +207,19 @@ export class Variable {
 
   }
 }
+
+const getCircularReplacer = () => {
+  const seen = new WeakSet();
+  return (key: any, value: any) => {
+    if (typeof value === "object" && value !== null) {
+      if (seen.has(value)) {
+        return;
+      }
+      seen.add(value);
+    }
+    return value;
+  };
+};
 
 export class Identifier {
   public static async process(element: Element): Promise<string | { variable: any, index: any, }> {
@@ -300,7 +316,9 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
       if (container) result += '\n' + new Array(tabs - 1).fill(' ').join(' ')
     }
   }
-  else if (node.type === 'List') {
+  else if (<any>node.type === 'Object') {
+    result += JSON.stringify(node, getCircularReplacer(), 2);
+  } else if (node.type === 'List') {
     result += '[';
     for (const index in node.value) {
       const item = node.value[index];
