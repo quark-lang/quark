@@ -3,13 +3,63 @@
   (import "https://deno.land/std@0.83.0/path/mod.ts")
   (import "operators")
   (import "test.ts")
-  (print print)
-  (print +)
-  (let test (fn () {
-    (return (list "test" "bruh") (list "test" "bruh"))
+
+  (let object (fn (elements) elements))
+  (let printObject (fn (obj tabs) {
+    (if (= tabs none) { (set tabs 1) (print "{") })
+    (foreach obj (fn (item) {
+      (let tabulation (list:concat (list:fill (list:create tabs) " ")))
+      (if (= (type (index item 1)) "list") {
+        (print tabulation (index item 0) "=> {")
+        (printObject (index item 1) (+ tabs 1))
+        (print tabulation "}")
+      } {
+        (print tabulation (index item 0) "=>" (index item 1))
+      })
+    }))
+    (if (= tabs 1) (print "}"))
   }))
-  (print (test))
-  (del test)
-  (print (test))
-  (print test)
+  
+  (let object:get (fn (object property) {
+    (let res none)
+    (foreach object (fn (item) {
+      (if (= (index item 0) property) (set res (index item 1)))
+    }))
+    (return res)
+  }))
+
+  (let object:set (fn (object property value) {
+    (foreach object (fn (item) {
+      (if (= (index item 0) property) (set (index item 1) value))
+    }))
+  }))
+ 
+  (let ** pow)
+  (let random:new (object [
+    ["seed" (time:now)]
+    ["j" (- (** 2 31) 1)]
+    ["k" 16807]
+    ["period" (** 2 30)]
+  ]))
+  (let random (fn (min max) {
+    (let seed (object:get random:new "seed"))
+    (let j (object:get random:new "j"))
+    (let k (object:get random:new "k"))
+    (let period (object:get random:new "period"))
+
+    (object:set random:new "seed" (% (* k seed) j))
+
+    (set seed (object:get random:new "seed"))
+    (let toret (+ (* (- max min) (/ seed j)) min))
+    (object:set random:new "period" (- period 1))
+    (if (= (object:get random:new "period") 0) {
+      (object:set random:new "period" (** 2 30))
+    })
+    (return toret)
+  }))
+  (print (random 0 1))
+  (print (random 0 1))
+  (print (random 0 1))
+  (print (random 0 1))
+  (print (random 0 1))
 }
