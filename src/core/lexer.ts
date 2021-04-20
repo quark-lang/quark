@@ -98,6 +98,7 @@ export class Lexer {
       }
     }
     // Removing empty tokens from container
+    if (state === '') container.push(<any>{ type: Tokens.Word, value: tmp.join('') })
     return container.filter((token: Token) => token.value.length > 0);
   }
 
