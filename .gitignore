@@ -4,7 +4,6 @@ scripts
 dist
 
 # IDE related
-.vscode
 .idea
 .DS_Store
 
