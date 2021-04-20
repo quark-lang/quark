@@ -133,10 +133,10 @@ export class Function {
 
     // Processing argument values in order to stock them after
     const _args = [];
-    for (const index in args) {
+    for (const index in func.args) {
       const correspondent = func.args[index];
-      const processed = await Interpreter.process(args[index]);
-      _args.push([correspondent, processed]);
+      const processed = await Interpreter.process(args[Number(index)]);
+      _args.push([correspondent, processed === undefined ? { type: 'None', value: undefined } : processed]);
     }
     // Pushing new private frame corresponding to function scope with function env
     Frame.pushFunctionFrame();
@@ -235,9 +235,7 @@ export class Identifier {
   }
 }
 
-function deepCopy(el: any) {
-  return JSON.parse(JSON.stringify(el));
-}
+const deepCopy = (obj: any) => JSON.parse(JSON.stringify(obj));
 export class Value {
   public static get(element: Element) {
     if (element.type === 'Word') {
