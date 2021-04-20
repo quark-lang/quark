@@ -3,23 +3,13 @@
   (import "https://deno.land/std@0.83.0/path/mod.ts")
   (import "operators")
   (import "test.ts")
-  (print (red "test"))
-  (print (join "test" "bruh"))
-  (print (underline "tdest"))
-
-  (let Complex (fn (num1 num2) {
-    (return {
-      (return (++ (string num1) (++ " + " (++ (string num2) "i"))))
-    })
+  (print print)
+  (print +)
+  (let test (fn () {
+    (return (list "test" "bruh") (list "test" "bruh"))
   }))
-
-
-  (print (Complex 5 6))
-  (print [["test"] 7]) 
-
-  (let quoteTest (fn (expr) {
-    (print expr)
-  }))
-  (quoteTest "test")
-  (print (quoteTest (quote (print "test"))))
+  (print (test))
+  (del test)
+  (print (test))
+  (print test)
 }
