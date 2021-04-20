@@ -42,10 +42,7 @@ export class QuarkType {
   }
 
   public static object(obj: any) {
-    let root: any = [];
-    for (const parameter of Object.entries(obj))
-      root.push(QuarkType.list(setValueByType(parameter) as ValueElement[]));
-    return QuarkType.list(root);
+    return obj;
   }
 }
 
