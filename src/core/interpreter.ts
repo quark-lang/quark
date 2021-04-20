@@ -4,7 +4,7 @@ import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from 'https://deno.land/std@0.91.0/path/mod.ts';
 import * as color from 'https://deno.land/std@0.83.0/fmt/colors.ts';
 import { File } from '../utils/file.ts';
-import { isContainer, isObject, isValue, parentDir } from '../utils/runner.ts';
+import { isObject, isValue, parentDir } from '../utils/runner.ts';
 import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types.ts';
 import { getQuarkFolder } from '../main.ts';
 import { quarkify, setValue } from '../../api/quarkifier.ts';
@@ -476,7 +476,6 @@ export class Interpreter {
     } else if (Array.isArray(node)) {
       const [expr, ...args] = <Block>node;
       const expression: string = <string>(<Element>expr).value;
-
       switch (expression) {
         case 'let': return await Variable.declare(args[0], args[1]);
         case 'set': return await Variable.update(args[0], args[1]);
