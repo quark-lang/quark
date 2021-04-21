@@ -1,8 +1,8 @@
 import { getValue } from '../src/core/interpreter.ts';
 import { BooleanType, IntegerType, ListType, NoneType, StringType, Types, ValueElement } from '../src/typings/types.ts';
 
-export function quarkify(fn: (...data: any[]) => any, ...args: any[]): any {
-  return setValueByType(fn.call(fn, ...getValue(args)));
+export async function quarkify(fn: (...data: any[]) => any, ...args: any[]): Promise<any> {
+  return setValueByType(await fn.call(fn, ...getValue(args)));
 }
 
 export class QuarkType {
