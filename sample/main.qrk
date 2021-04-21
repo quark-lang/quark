@@ -3,6 +3,7 @@
   (import "https://deno.land/std@0.83.0/path/mod.ts")
   (import "operators")
   (import "test.ts")
+  (import "https://raw.githubusercontent.com/quark-lang/std/master/list/split/split.qrk")
 
   (let object (fn (elements) elements))
   (let printObject (fn (obj tabs) {
@@ -57,9 +58,5 @@
     })
     (return toret)
   }))
-  (print (random 0 1))
-  (print (random 0 1))
-  (print (random 0 1))
-  (print (random 0 1))
-  (print (random 0 1))
+  (print (split "test bruh" " "))
 }
