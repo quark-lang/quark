@@ -353,7 +353,6 @@ export class Import {
     const src = path.isAbsolute(file.value)
       ? ''
       : parentDir(paths.slice(-1)[0]);
-
     // Deducing STD module path
     const root: string = await getQuarkFolder();
     const std: string = path.join(root, 'std');
@@ -365,15 +364,17 @@ export class Import {
     // Setting final path to existing module
     const finalPath = file.value.startsWith('http')
       ? file.value
-      : existsSync(modulePath)
+      : modulePath.startsWith('http')
         ? modulePath
-        : existsSync(modulePath + '.qrk')
-          ? modulePath + '.qrk'
-          : existsSync(stdMod)
-            ? stdMod
-            : existsSync(stdMod + '.qrk')
-              ? stdMod + '.qrk'
-              : undefined;
+        : existsSync(modulePath)
+          ? modulePath
+          : existsSync(modulePath + '.qrk')
+            ? modulePath + '.qrk'
+            : existsSync(stdMod)
+              ? stdMod
+              : existsSync(stdMod + '.qrk')
+                ? stdMod + '.qrk'
+                : undefined;
     if (finalPath === undefined) throw `Module "${file.value}" does not exists!`;
     const files = [];
 
@@ -418,7 +419,9 @@ export class Import {
         }
         continue;
       }
-      const content: string = await File.read(file);
+      const content: string = file.startsWith('http')
+        ? await (await fetch(file)).text()
+        : await File.read(file);
 
       const res = await Interpreter.run(content, file, true);
       Frame.frame.concat(<FunctionFrame><unknown>res);
