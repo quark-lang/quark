@@ -41,8 +41,8 @@ export class QuarkType {
     }
   }
 
-  public static object(obj: any) {
-    return obj;
+  public static object(obj: any): any {
+    return { type: 'Object', value: obj };
   }
 }
 
