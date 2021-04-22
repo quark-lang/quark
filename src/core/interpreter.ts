@@ -145,6 +145,7 @@ export class Function {
     // Pushing new private frame corresponding to function scope with function env
     Frame.pushFunctionFrame();
     Frame.pushLocalFrame(func.closure.flat());
+    Frame.pushLocalFrame();
 
     // Declaring call arguments with before parsed arguments
     for (const arg of _args) {
