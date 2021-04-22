@@ -30,7 +30,7 @@ export class QuarkType {
   public static boolean(value: any): BooleanType {
     return {
       type: Types.Boolean,
-      value: Boolean(value),
+      value: typeof value === 'boolean' ? value : Boolean(value),
     }
   }
 
@@ -42,7 +42,8 @@ export class QuarkType {
   }
 
   public static object(obj: any): any {
-    return { type: 'Object', value: obj };
+    const array = Object.entries(obj);
+    return { type: 'List', value: array.length === 1 ? setValue(array[0]) : setValue(array) };
   }
 }
 
