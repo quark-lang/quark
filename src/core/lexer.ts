@@ -29,7 +29,8 @@ export class Lexer {
           tmp.splice(0, tmp.length);
         }
         container.push({ token: Tokens.Node, value: char as Node, });
-      } else if (char === '"' && state !== 'COMMENT' && !escaped) {
+        escaped = false;
+      } else if (char === '"' && state !== 'COMMENT' && escaped === false) {
         tmp.push(char);
         if (state === Tokens.String) {
           state = '';
@@ -88,6 +89,7 @@ export class Lexer {
                 break;
               default:
                 tmp.push(this.code[Number(index) + 1]);
+                break;
             }
             escaped = true;
           }
