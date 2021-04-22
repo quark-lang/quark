@@ -17,21 +17,26 @@
 
   (let object (fn (elements) elements))
   (let printObject (fn (obj tabs) {
-    (if (= tabs none) { (set tabs 1) (print "{") })
+    (if (= tabs none) { (set tabs 0) (print "{") } {})
     (let tabulations (list:concat (list:fill (list:create tabs) " ")))
     (if (isContainer obj) {
-      (foreach obj (fn (el) (printObject el tabs)))
+      (foreach obj (fn (el) {
+        (printObject el (+ tabs 1))
+      }))
     } {
       (if (isList (index obj 1)) {
         (print tabulations (index obj 0) "=> {")
         (printObject (index obj 1) (+ tabs 1))
         (print tabulations "}")
         (set tabs (- tabs 1))
+        (return none)
       } {
         (print tabulations (index obj 0) "=>" (index obj 1))
+        (return none)
       })
     })
-    (if (= tabs 1) (print "}"))
+    (print "}")
+    (return none)
   }))
   
   (let object:get (fn (object property) {
@@ -71,7 +76,7 @@
     })
     (return toret)
   }))
-  (let obj (json_parse "{ \"test\": { \"test\": 17 }, \"eheh\": \"yolo\" }"))
+  (let obj (json_parse "{ \"eheh\": \"yolo\", \"test\": { \"test\": 17 } }"))
   (printObject obj)
   (callback (fn (username test) {
     (print "test" username test)
