@@ -190,7 +190,7 @@ export class Variable {
       const frameItem = Frame.variables().get(_id) as ValueElement;
       if (!Frame.exists(_id)) throw 'Variable ' + _id + ' does not exists!';
       let val = await Interpreter.process(value);
-      if (!val) val = { type: 'None', value: undefined };
+      if (val === undefined) val = { type: 'None', value: undefined };
       if (val.name === '') val.name = _id;
       return Value.update(frameItem, val);
     }
@@ -242,6 +242,9 @@ export class Identifier {
 const deepCopy = (obj: any) => JSON.parse(JSON.stringify(obj));
 export class Value {
   public static get(element: Element) {
+    if (['true', 'false'].includes(String(element.value)) && <string>(element.type) !== 'Boolean') {
+      return { type: 'Boolean', value: element.value === 'false' ? false : true };
+    }
     if (element.type === 'Word') {
       if (Frame.exists(<string>element.value) === false) {
         if (<string>element.value === 'print') return element;
@@ -335,6 +338,7 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
   else if (node.type === 'None') result += color.gray('none');
   else if (node.type === 'String' && list === true) result += color.green(`"${node.value}"`);
   else if (node.type === 'Number' || node.type === 'Integer') result += color.yellow(node.value.toString());
+  else if (node.type === 'Boolean') result += color.yellow(String(node.value));
   else if (node.type === 'Function') {
     result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} `;
     if (node.js === true) {
