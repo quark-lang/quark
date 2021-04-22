@@ -14,7 +14,6 @@ export class Formatter {
           if (state === 'STRING') state = '';
           else {
             state = 'STRING';
-            formattedLine += ' ';
           }
         } else if (char === '#' && state === '') {
           state = 'COMMENT';
