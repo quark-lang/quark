@@ -110,8 +110,12 @@ export class Function {
     };
   }
 
-  public static async call(functionName: string | FunctionType, args: (Block | Element)[]) {
-    const func = Frame.variables().get(functionName);
+  public static async call(functionName: string & FunctionType, ...args: (Block | Element)[]) {
+    const func = functionName.body 
+      ? functionName
+      : Frame.variables().get(functionName);
+
+    if (functionName.body) args = <Atom[]>setValue(args);
 
     // Simply processing function as a js function
     if (func.js === true) {
@@ -315,7 +319,7 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
     }
   }
   else if (<any>node.type === 'Object') {
-    result += JSON.stringify(node, getCircularReplacer(), 2);
+    result += JSON.stringify((<any>node).value, getCircularReplacer(), 2);
   } else if (node.type === 'List') {
     result += '[';
     for (const index in node.value) {
@@ -323,7 +327,7 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
       result += stringify(item, true);
       if (Number(index) !== node.value.length - 1) result += ' ';
     }
-    result += '] ';
+    result += ']';
   }
   else if (node.type === 'Word') {
     result += color.bold(<string>node.value);
@@ -431,12 +435,14 @@ export class Import {
 
 export function getValue(values: ValueElement[]): any {
   const result = [];
-  for (const value of values) {
+  for (let value of values) {
     if (value === undefined) {
       result.push(setValue(value))
     }
     else if (value.type === 'Function') {
-      throw `Can't call API Functions with callback.`;
+      const _value = value;
+      value = (<any>Function.call).bind(null, _value);
+      result.push(value);
     }
     else if (typeof value !== 'object') result.push(value);
     else if (value.type === Types.List) {
@@ -499,7 +505,7 @@ export class Interpreter {
      if (Frame.exists(expression)) {
        const variable = <ValueElement>Frame.variables().get(expression);
        if (variable.type === 'Function') {
-         return await Function.call(expression, args);
+         return await Function.call(<string & FunctionType>expression, ...args);
        }
        return variable;
      } else {
