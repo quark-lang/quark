@@ -2,6 +2,13 @@ export class Formatter {
   public static format(source: string): string {
     let formattedOutput: string[] = [];
     let state: string = '';
+    source = source
+      .replace("\\x1b", "\x1b")
+      .replace("\\n", "\n")
+      .replace("\\r", "\r")
+      .replace("\\t", "\t")
+      .replace("\\0", "\0")
+      .replace("\\\\", "\\");
     const split = source.split(/\r?\n/g);
     for (const index in split) {
       const line = split[index];
