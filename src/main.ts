@@ -26,20 +26,10 @@ export function parseConfiguration(content: string): Record<string, string> {
 }
 
 export function getQuarkFolder(): string {
-  const configuration = existsSync('.quarkrc')
-    ? parseConfiguration(readFileSync('.quarkrc', 'utf-8'))
-    : {};
-
-  const condition =
-    configuration['name'] === 'quark-lang' &&
-    Boolean(configuration['core']) === true;
-
   const variable = process.env['QUARK'];
   if (variable === undefined) 
     throw `You have to export QUARK variable: export QUARK="path/to/quark"`;
-  return !condition
-    ? variable
-    : '';
+  return variable || undefined;
 }
 
 async function main(): Promise<void> {
