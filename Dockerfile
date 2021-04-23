@@ -1,14 +1,11 @@
-FROM hayd/alpine-deno:1.9.0 as builder
+FROM node:14.15.3-alpine3.12 as builder
 WORKDIR /app
-
-# Prefer not to run as root.
-USER deno
-
-# Cache the dependencies as a layer (this is re-run only when deps.ts is modified).
-# Ideally this will download and compile _all_ external files used in main.ts.
 
 # These steps will be re-run upon each file change in your working directory:
 ADD . /app
 # Compile the main app so that it doesn't need to be compiled each startup/entry.
-RUN deno cache --unstable src/main.ts
-CMD ["run", "--unstable", "-A", "-c", "tsconfig.json", "src/main.ts"]
+RUN npm install
+RUN npm run compile
+ENV QUARK "/app"
+
+CMD ["node", "./src/main.js"]
