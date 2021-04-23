@@ -1,6 +1,27 @@
 # Changelog
 Any changes related to Quark will be contained primarily in this file. Find all Quark updates below.
 
+## [2.0.0]() - 2021-04-23
+This new major version brings a lot of new features to the language and especially an important migration from Node to Deno. The latter will be continuously updated through PATCH versions to make Quark more and more stable.
+
+### Added
+- String interpolation ([#7acf575](https://github.com/quark-lang/quark/commit/7acf575))
+- Syntaxic sugar for `begin` and `list` ([#92960bc](https://github.com/quark-lang/quark/commit/92960bc))
+- Module URL import ([#68f5169](https://github.com/quark-lang/quark/commit/68f5169))
+- Pretty printing ([#1e12adc](https://github.com/quark-lang/quark/commit/1e12adc))
+- Expression quoting ([#e9ab606](https://github.com/quark-lang/quark/commit/e9ab606))
+- Native JS API Support ([#0267d9e](https://github.com/quark-lang/quark/commit/0267d9e))
+
+### Fixed
+- New implementation of stack ([#ca27725](https://github.com/quark-lang/quark/commit/ca27725))
+- Depthed imports ([#7e21de2](https://github.com/quark-lang/quark/commit/7e21de2))
+- EOF prevention ([#31b531d](https://github.com/quark-lang/quark/commit/31b531d))
+- String escaping ([#b8a9be2](https://github.com/quark-lang/quark/commit/b8a9be2))
+- Import paths on Windows ([#5ea50e9](https://github.com/quark-lang/quark/commit/5ea50e9))
+
+### Changed
+- Use of Node.js instead of Deno ([#c476fa9](https://github.com/quark-lang/quark/commit/c476fa9))
+
 ## [1.3.0]() - 2021-01-26
 
 ### Fixed
