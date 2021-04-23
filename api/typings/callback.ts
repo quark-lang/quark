@@ -1,4 +1,4 @@
-import { Block } from '../../src/typings/block.ts';
+import { Block } from '../../src/typings/block';
 
 export interface QuarkCallback {
   type: 'Function',

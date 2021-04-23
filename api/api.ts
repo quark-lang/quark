@@ -1,13 +1,13 @@
 import {
   Frame,
   Function,
-} from '../src/core/interpreter.ts';
+} from '../src/core/interpreter';
 import {
   Types,
   ValueElement,
   Argument,
-} from '../src/typings/types.ts';
-import { QuarkTypes } from './typings/types.ts';
+} from '../src/typings/types';
+import { QuarkTypes } from './typings/types';
 
 export interface QuarkDefinition {
   name: string,
