@@ -1,8 +1,6 @@
 {
-  (import "https://deno.land/std@0.83.0/fmt/colors.ts")
-  (import "https://deno.land/std@0.83.0/path/mod.ts")
   (import "operators")
-  (import "test.ts")
+  (import "test.js")
 
   (let every (fn (list predicate) {
     (let res true)
@@ -78,6 +76,12 @@
   }))
   (let obj (json_parse "{ \"eheh\": \"yolo\", \"test\": { \"test\": 17 } }"))
   (printObject obj)
+  (let ob (object [
+    ["welcome" (fn (username) {
+      (print "Hello" username)
+    })]
+  ]))
+  ((object:get ob "welcome") "test")
   (callback (fn (username test) {
     (print "test" username test)
   }))
