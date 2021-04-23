@@ -1,8 +1,7 @@
 # Project files.
 *.env
-scripts
-dist
 node_modules
+bin
 
 # IDE related
 .idea
