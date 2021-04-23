@@ -117,7 +117,6 @@ export class Function {
     const func = functionName.body 
       ? functionName
       : Frame.variables().get(functionName);
-
     if (functionName.body && args.every(isValue) === false) args = <Atom[]>setValue(args);
 
     // Simply processing function as a js function
@@ -341,9 +340,12 @@ export function stringify(node: Atom | ValueElement, list?: boolean, tabs = 0, c
   else if (node.type === 'Word') {
     result += color.bold(<string>node.value);
   }
+  else if (<any>node.type === 'Quote') {
+    result += stringify((<any>node).value);
+  }
   else if (node.type === 'None') result += color.gray('none');
   else if (node.type === 'String' && list === true) result += color.green(`"${node.value}"`);
-  else if (node.type === 'Number' || node.type === 'Integer') result += color.yellow(node.value.toString());
+  else if (node.type === 'Number') result += color.yellow(node.value.toString());
   else if (node.type === 'Boolean') result += color.yellow(String(node.value));
   else if (node.type === 'Function') {
     result += `(${color.blue('let')} ${color.bold(node.name)} (${color.blue('fn')} `;
@@ -470,6 +472,31 @@ export class Condition {
       return await Interpreter.process(otherwise);
     }
   }
+
+  public static async match(variable: Atom, elements: Atom) {
+    const value = await Interpreter.process(variable);
+
+    function areEquals(el1, el2) {
+      let res = false;
+      if (el1.type === el2.type) {
+        if (Array.isArray(el1.value) && Array.isArray(el2.value)) {
+          for (const index in el1.value) res = areEquals(el1.value[index], el2.value[index]);
+        } 
+        else if (el1.value === el2.value) res = true;
+        else res = false;
+      }
+      return res;
+    }
+
+    for (const [_, match, code] of <any>elements) {
+      const matchProcessed = await Interpreter.process(match);
+      if (areEquals(matchProcessed, value) || match.value === '_') {
+        const res =  await Interpreter.process(code);
+        if (res) return [res, true];
+        continue;
+      }
+    }
+  }
 }
 
 export class While {
@@ -502,6 +529,7 @@ export class Interpreter {
         case 'if': return await Condition.process(args[0], args[1], args[2]);
         case 'while': return await While.process(args[0], args[1]);
         case 'quote': return { type: 'Quote', value: args[0] };
+        case 'match': return await Condition.match(args[0], args.slice(1));
         case 'begin': {
           Frame.pushLocalFrame();
           const res = await Node.process(<Block>node);
