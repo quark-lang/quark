@@ -21,7 +21,6 @@ jobs:
       - name: Compile node app into executable
         run: |
           npm install
-          npm install nexe
           npm run compile
           ./node_modules/.bin/nexe
         
