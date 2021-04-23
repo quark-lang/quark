@@ -16,7 +16,7 @@
     "programming"
   ],
   "scripts": {
-    "compile": "esbuild src/main.ts --bundle --outdir=src --platform=node",
+    "compile": "./node_modules/.bin/esbuild src/main.ts --bundle --outdir=src --platform=node",
     "start": "yarn compile && node ./src/main.js"
   },
   "module": "/src/",
@@ -31,7 +31,9 @@
   "homepage": "https://github.com/thomasvergne/quark-lang#readme",
   "dependencies": {
     "colors": "^1.4.0",
+    "esbuild": "^0.11.13",
     "fs": "^0.0.1-security",
+    "nexe": "^4.0.0-beta.18",
     "node-fetch": "^2.6.1",
     "path": "^0.12.7",
     "prompt-sync": "^4.2.0"
