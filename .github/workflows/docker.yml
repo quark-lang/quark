@@ -11,7 +11,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
+      
+      - name: Checkout submodules
+        run: |
+          git clone https://github.com/quark-lang/std
+          git clone https://github.com/quark-lang/cli
+      
       - name: Build and push stable Docker image
         uses: docker/build-push-action@v1.1.0
         with:
