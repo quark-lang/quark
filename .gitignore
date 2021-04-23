@@ -2,10 +2,12 @@
 *.env
 scripts
 dist
+node_modules
 
 # IDE related
 .idea
 .DS_Store
+*.js
 
 # Build
 build
