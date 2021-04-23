@@ -406,7 +406,7 @@ export class Import {
       if (['.js', '.ts'].includes(path.extname(file))) {
         const _path = path.isAbsolute(file)
           ? file
-          : path.join(__filename, '..', '..', file).replace(/\\/g, '/');
+          : file.replace(/\\/g, '/');
         const mod = await import(_path);
         for (const func in mod) {
           if (typeof mod[func] === 'function') {
