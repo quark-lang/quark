@@ -1,13 +1,16 @@
-import type { Block, Element } from '../typings/block.ts';
-import { Parser } from './parser.ts';
-import { existsSync } from "https://deno.land/std/fs/mod.ts";
-import * as path from 'https://deno.land/std@0.91.0/path/mod.ts';
-import * as color from 'https://deno.land/std@0.83.0/fmt/colors.ts';
-import { File } from '../utils/file.ts';
-import { isObject, isValue, parentDir } from '../utils/runner.ts';
-import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types.ts';
-import { getQuarkFolder } from '../main.ts';
-import { quarkify, setValue } from '../../api/quarkifier.ts';
+import type { Block, Element } from '../typings/block';
+import { Parser } from './parser';
+import { existsSync, statSync } from 'fs';
+import { readdir } from 'fs/promises';
+import * as path from 'path';
+import * as color from 'colors';
+import { File } from '../utils/file';
+import { isObject, isValue, parentDir } from '../utils/runner';
+import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types';
+import { getQuarkFolder } from '../main';
+import { quarkify, setValue } from '../../api/quarkifier';
+import { fetch } from 'node-fetch';
+import { readdirSync } from 'fs';
 
 export type Stack = [FunctionFrame];
 export type FunctionFrame = [LocalFrame];
@@ -115,7 +118,7 @@ export class Function {
       ? functionName
       : Frame.variables().get(functionName);
 
-    if (functionName.body) args = <Atom[]>setValue(args);
+    if (functionName.body && args.every(isValue) === false) args = <Atom[]>setValue(args);
 
     // Simply processing function as a js function
     if (func.js === true) {
@@ -273,11 +276,13 @@ export class Value {
 export async function recursiveReaddir(src: string) {
   const files: string[] = [];
   const getFiles = async (src: string) => {
-    for await (const dirEntry of Deno.readDir(src)) {
-      if (dirEntry.isDirectory) {
-        await getFiles(path.join(src, dirEntry.name));
-      } else if (dirEntry.isFile) {
-        files.push(path.join(src, dirEntry.name));
+    for (const file of await readdir(src)) {
+      const _path = path.join(src, file);
+      const dirEntry = <any>statSync(_path);
+      if (dirEntry.isDirectory()) {
+        await getFiles(_path);
+      } else if (dirEntry.isFile()) {
+        files.push(_path);
       }
     }
   };
@@ -390,20 +395,18 @@ export class Import {
     if (finalPath.startsWith('http')) {
       files.push(finalPath);
     } else {
-      if (Deno.statSync(finalPath).isDirectory) {
+      if (statSync(finalPath).isDirectory()) {
         files.push(...await recursiveReaddir(finalPath));
       } else {
         files.push(finalPath);
       }
     }
-
+    
     for (const file of files) {
       if (['.js', '.ts'].includes(path.extname(file))) {
         const _path = path.isAbsolute(file)
           ? file
-          : file.startsWith('http')
-            ? file
-            : path.join('..', '..', file).replace(/\\/g, '/');
+          : path.join(__filename, '..', '..', file).replace(/\\/g, '/');
         const mod = await import(_path);
         for (const func in mod) {
           if (typeof mod[func] === 'function') {
@@ -507,15 +510,22 @@ export class Interpreter {
         }
       }
 
-     if (Frame.exists(expression)) {
-       const variable = <ValueElement>Frame.variables().get(expression);
-       if (variable.type === 'Function') {
-         return await Function.call(<string & FunctionType>expression, ...args);
-       }
-       return variable;
-     } else {
-       throw `Function "${expression}" does not exists!`;
-     }
+      if (Frame.exists(expression)) {
+        const variable = <ValueElement>Frame.variables().get(expression);
+        if (variable.type === 'Function') {
+          return await Function.call(<string & FunctionType>expression, ...args);
+        }
+        return variable;
+      } else {
+        const processed = await Interpreter.process(expr);
+        if ('type' in processed) {
+          if (processed.type === 'Function') {
+            return await Function.call(<string & FunctionType>processed, ...args);
+          }
+          return processed;
+        }
+        throw `Function "${expression}" does not exists!`;
+      }
     }
   }
 

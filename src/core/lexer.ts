@@ -1,9 +1,9 @@
 import {
   Token,
   Tokens,
-} from '../typings/token.ts';
-import type { Node } from '../typings/token.ts';
-import { Formatter } from './formatter.ts';
+} from '../typings/token';
+import type { Node } from '../typings/token';
+import { Formatter } from './formatter';
 export class Lexer {
   private static code: string;
   private static commentState = 0;

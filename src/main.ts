@@ -1,7 +1,7 @@
-import { File } from './utils/file.ts';
-import { Interpreter } from './core/interpreter.ts';
-import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
-import { existsSync } from 'https://deno.land/std/fs/mod.ts';
+import { File } from './utils/file';
+import { Interpreter } from './core/interpreter';
+import * as path from 'path';
+import { existsSync, readFileSync } from 'fs';
 import '../std/std.ts';
 
 export function arrayToObject(array: string[][]): Record<string, string> {
@@ -25,16 +25,16 @@ export function parseConfiguration(content: string): Record<string, string> {
   return arrayToObject(parsed);
 }
 
-export async function getQuarkFolder(): Promise<string> {
+export function getQuarkFolder(): string {
   const configuration = existsSync('.quarkrc')
-    ? parseConfiguration(await File.read('.quarkrc'))
+    ? parseConfiguration(readFileSync('.quarkrc', 'utf-8'))
     : {};
 
   const condition =
     configuration['name'] === 'quark-lang' &&
     Boolean(configuration['core']) === true;
 
-  const variable = Deno.env.get('QUARK');
+  const variable = process.env['QUARK'];
   if (variable === undefined) 
     throw `You have to export QUARK variable: export QUARK="path/to/quark"`;
   return !condition
@@ -53,4 +53,4 @@ async function main(): Promise<void> {
     throw exception;
   }
 }
-await main();
+main();

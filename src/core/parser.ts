@@ -1,6 +1,6 @@
-import { Token, Tokens, } from '../typings/token.ts';
-import type { Block, } from '../typings/block.ts';
-import { Lexer } from './lexer.ts';
+import { Token, Tokens, } from '../typings/token';
+import type { Block, } from '../typings/block';
+import { Lexer } from './lexer';
 
 export class Parser {
   private static tokens: Token[];
