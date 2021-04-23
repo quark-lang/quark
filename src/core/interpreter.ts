@@ -246,7 +246,7 @@ export class Identifier {
 const deepCopy = (obj: any) => JSON.parse(JSON.stringify(obj));
 export class Value {
   public static get(element: Element) {
-    if (['true', 'false'].includes(String(element.value)) && <string>(element.type) !== 'Boolean') {
+    if (['true', 'false'].includes(String(element.value)) && <string>(element.type) !== 'Boolean' && element.type !== 'String') {
       return { type: 'Boolean', value: element.value === 'false' ? false : true };
     }
     if (element.type === 'Word') {
@@ -407,7 +407,8 @@ export class Import {
         const _path = path.isAbsolute(file)
           ? file
           : file.replace(/\\/g, '/');
-        const mod = await import(_path);
+
+        const mod = require(path.normalize(_path));
         for (const func in mod) {
           if (typeof mod[func] === 'function') {
             Frame.local.push({
