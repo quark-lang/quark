@@ -13,18 +13,20 @@
   (let isList (fn (item) (= (type item) "list")))
   (let isContainer (fn (el) (every el isList)))
 
+  (let head (fn (list) (index list 0)))
+  
   (let object (fn (elements) elements))
-  (let printObject (fn (obj tabs) {
+  (let object:print (fn (obj tabs) {
     (if (= tabs none) { (set tabs 0) (print "{") } {})
     (let tabulations (list:concat (list:fill (list:create tabs) " ")))
     (if (isContainer obj) {
       (foreach obj (fn (el) {
-        (printObject el (+ tabs 1))
+        (object:print el (+ tabs 1))
       }))
     } {
       (if (isList (index obj 1)) {
         (print tabulations (index obj 0) "=> {")
-        (printObject (index obj 1) (+ tabs 1))
+        (object:print (index obj 1) (+ tabs 1))
         (print tabulations "}")
         (set tabs (- tabs 1))
         (return none)
@@ -75,7 +77,7 @@
     (return toret)
   }))
   (let obj (json_parse "{ \"eheh\": \"yolo\", \"test\": { \"test\": 17 } }"))
-  (printObject obj)
+  (object:print obj)
   (let ob (object [
     ["welcome" (fn (username) {
       (print "Hello" username)
@@ -85,4 +87,23 @@
   (callback (fn (username test) {
     (print "test" username test)
   }))
+
+  (let functors [
+    (fn (x) (+ x 5))
+    (fn (x) (* x 5))
+  ])
+
+  (let fmap (fn (fnArray array) {
+    (let result [])
+    (foreach array (fn (el) {
+      (let tmp el)
+      (foreach fnArray (fn (function) {
+        (set tmp (function tmp))
+      }))
+      (push result tmp)
+    }))
+    (return result)
+  }))
+
+  (print (fmap functors [1 2 3 4]))
 }
