@@ -17,6 +17,8 @@ jobs:
           git clone https://github.com/quark-lang/cli
       - name: Setup Node environment
         uses: actions/setup-node@v2.1.5
+        with:
+          node-version: 14.15.3
       
       - name: Compile node app into executable
         run: |
