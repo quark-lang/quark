@@ -21,9 +21,9 @@ jobs:
       - name: Compile node app into executable
         run: |
           npm install
-          npm install nexe -g
+          npm install nexe
           npm run compile
-          nexe
+          ./node_modules/.bin/nexe
         
       - name: ZIP Quark on Unix
         if: matrix.platform != 'windows-latest'
