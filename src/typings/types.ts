@@ -3,7 +3,7 @@ import { FunctionFrame, Stack } from '../core/interpreter';
 
 export enum Types {
   String = 'String',
-  Integer = 'Integer',
+  Integer = 'Number',
   Function = 'Function',
   Boolean = 'Boolean',
   None = 'None',
