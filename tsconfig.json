@@ -8,5 +8,11 @@
   ],
   "files": [
     "src/main.ts"
-  ]
+  ],
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "es2017",
+    "lib": ["ES2015", "ES2016", "ES2017"],
+    "moduleResolution": "node"
+  }
 }
