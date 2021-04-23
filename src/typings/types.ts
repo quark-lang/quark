@@ -1,5 +1,5 @@
-import { Block, Element } from './block.ts';
-import { FunctionFrame, Stack } from '../core/interpreter.ts';
+import { Block, Element } from './block';
+import { FunctionFrame, Stack } from '../core/interpreter';
 
 export enum Types {
   String = 'String',

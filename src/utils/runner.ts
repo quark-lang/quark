@@ -1,5 +1,5 @@
-import { Block, Element } from '../typings/block.ts';
-import * as path from 'https://deno.land/std@0.83.0/path/mod.ts';
+import { Block, Element } from '../typings/block';
+import * as path from 'path';
 
 export function isContainer(element: Block | Element): boolean {
   return Array.isArray(element) && element.every((child) => Array.isArray(child));
