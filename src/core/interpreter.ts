@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as color from 'colors';
 import { File } from '../utils/file';
 import { isObject, isValue, parentDir } from '../utils/runner';
-import { Argument, FunctionType, ListType, Types, ValueElement } from '../typings/types';
+import { Argument, FunctionType, ListType, StringType, Types, ValueElement } from '../typings/types';
 import { getQuarkFolder } from '../main';
 import { quarkify, setValue } from '../../api/quarkifier';
 import { fetch } from 'node-fetch';
@@ -263,6 +263,17 @@ export class Value {
       }
     } else if (<unknown>element.type === 'Quote') {
       return [ deepCopy(element).value ];
+    } else if (element.type === 'String') {
+      element = { ...element };
+      if (typeof element.value === 'string') {
+        while (element.value.match(/\$[^\s]+/)) {
+          const match = element.value.match(/\$[^\s]\w+/);
+          const variable = match[0].slice(1);
+          const value = Frame.exists(variable);
+          if (value === false) break;
+          element.value = element.value.slice(0, match.index) + value.value + element.value.slice(match.index + match[0].length, element.value.length);
+        }
+      }
     }
     return { ...element };
   }
