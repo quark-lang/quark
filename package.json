@@ -16,8 +16,10 @@
     "programming"
   ],
   "scripts": {
-    "compile": "./node_modules/.bin/esbuild src/main.ts --bundle --outdir=src --platform=node",
-    "start": "yarn compile && node ./src/main.js"
+    "build": "./node_modules/.bin/esbuild src/main.ts --bundle --outdir=src --platform=node",
+    "start": "yarn build && node ./src/main.js",
+    "compile": "yarn build && nexe -t 14.15.3 -o bin/main",
+    "binary": "yarn compile && bin/main"
   },
   "module": "/src/",
   "author": "thomasvergne",
