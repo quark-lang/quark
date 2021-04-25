@@ -1,6 +1,6 @@
 {
   "name": "quark-lang",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Quark is a compiled programming language written in Typescript. Its syntax is based on Lisp.",
   "main": "src/main.js",
   "bin": {
