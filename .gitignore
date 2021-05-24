@@ -8,6 +8,10 @@ bin
 .DS_Store
 *.js
 
+*.hi
+*.o
+Main
+
 # Build
 build
 quark
