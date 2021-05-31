@@ -42,10 +42,10 @@ module Core.Parser where
 
   parse' :: Parser Atom
   parse' = word
-          <|> string
-          <|> try double 
-          <|> integer
-          <|> do
+       <|> string
+       <|> try double 
+       <|> integer
+       <|> do
             char '('
             x <- try expression
             char ')'
