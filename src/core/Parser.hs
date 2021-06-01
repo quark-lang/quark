@@ -29,22 +29,33 @@ module Core.Parser where
 
   double :: Parser Atom
   double = do
+    b <- negative
     num <- many1 digit
     char '.'
     mantissa <- many1 digit
-    pure $ Double . read $ num <> "." <> mantissa
+    pure $ Double . read $ b <> num <> "." <> mantissa
 
+  negative :: Parser String
+  negative = do
+    x <- optionMaybe $ char '-'
+    pure $ case x of
+      Just _ -> "-"
+      Nothing -> ""
+            
   integer :: Parser Atom
-  integer = Integer . read <$> many1 digit
+  integer = do
+    b <- negative
+    num <- many1 digit
+    pure $ Integer . read $ b <> num
 
   expression :: Parser Atom
   expression = Expression <$> sepBy parse' spaces
 
   parse' :: Parser Atom
-  parse' = word
-       <|> string
-       <|> try double 
+  parse' = try double
        <|> integer
+       <|> string
+       <|> word
        <|> do
             char '('
             x <- try expression
