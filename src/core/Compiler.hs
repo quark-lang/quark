@@ -2,6 +2,7 @@
 module Core.Compiler where
   import Core.Parser
   import Control.Monad.State
+  import Control.Monad (when)
   import Data.List
   import Data.Sequence (update, fromList)
   import Data.Foldable (toList)
@@ -67,6 +68,7 @@ module Core.Compiler where
   compile :: Atom ->  State Program ()
   compile (Expression z@(x:xs)) = case x of
     Word "fn" -> do
+      Control.Monad.when (length xs < 2) $ error "You must specify arguments and body to a function"
       let (args:body:_) = xs
       addr <- address
       i <- next
@@ -120,7 +122,7 @@ module Core.Compiler where
 
     -- Compiling anonymous function
     Expression z@(Word "fn":_) -> do
-      compile x 
+      compile x
       mapM_ compile xs
       push $ CALL (length xs)
 
@@ -129,10 +131,10 @@ module Core.Compiler where
   compile (Integer i) = push $ PUSH (VInteger i)
   compile (String s)  = push $ PUSH (VString s)
   compile (Double d)  = push $ PUSH (VDouble d)
-  compile (Word w)    = push $ LOAD w 
+  compile (Word w)    = push $ LOAD w
   compile _ = return ()
 
   -- Useful functions
 
   initProgram :: Program
-  initProgram = (0, [[]], []) -- First element represents global scope
+  initProgram = (0, [[]], [[]]) -- First element represents global scope
