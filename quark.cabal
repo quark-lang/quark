@@ -1,0 +1,40 @@
+cabal-version:      2.4
+name:               quark
+version:            0.1.0
+description:        Quark is a compiled lisplike scripting language written in Haskell
+
+homepage:           https://github.com/quark-lang/quark#readme
+bug-reports:        https://github.com/quark-lang/quark/issues
+
+author:             thomasvergne
+maintainer:         thomas@quark-lang.dev
+
+copyright:          2021 Thomas
+license:            MIT
+license-file:       LICENSE
+
+extra-source-files:
+    CHANGELOG.md
+    README.md
+    CODE_OF_CONDUCT.md
+    CONTRIBUTING.md
+    GUIDE.md
+
+executable quark
+    main-is: Main.hs
+
+    other-modules:
+        Core.Compiler
+        Core.Parser
+
+    build-depends:
+        base >=4.7 && <5
+      , pretty-terminal
+      , parsec
+      , hspec
+      , hspec-parsec
+      , mtl
+      , containers
+
+    hs-source-dirs:   src
+    default-language: Haskell2010
