@@ -16,3 +16,6 @@ Main
 build
 quark
 quark.exe
+
+# Cabal
+dist-newstyle
