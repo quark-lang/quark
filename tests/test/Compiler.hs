@@ -98,4 +98,14 @@ module Test.Compiler where
             [STORE "cb", LOAD "cb", PUSH $ VInteger 3, CALL 1], -- fun function
             [STORE "x", LOAD "+", LOAD "x", PUSH $ VInteger 5, CALL 2] -- callback page
           ]
-          
+        
+        it "should compile anonymous function" $ do
+            compile' (Expression [
+              Expression [ Word "fn", Expression [ Word "x" ], Expression [ Word "+", Word "x", Integer 7 ] ],
+              Integer 4
+              ])
+            `shouldBe`
+            [
+              [ LOAD_SEGMENT 1, PUSH $ VInteger 4, CALL 1 ],
+              [ STORE "x", LOAD "+", LOAD "x", PUSH $ VInteger 7, CALL 2 ]
+            ]
