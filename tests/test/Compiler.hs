@@ -5,8 +5,11 @@ module Test.Compiler where
   import Core.Parser
   import Control.Monad.State (runState)
 
+  getResult :: Atom -> Program
+  getResult x = let (_,res) = runState (compile x) initProgram in res
+
   compile' :: Atom -> [Page]
-  compile' x = let (_,res) = runState (compile x) initProgram in let (_,p,_) = res in p
+  compile' x = let (_,p,_) = getResult x in p
 
   compilerTest :: IO()
   compilerTest = do
@@ -14,13 +17,13 @@ module Test.Compiler where
     hspec $ do
       describe "Values" $ do
         it "should push integer" $ do
-          compile' (Integer 7) `shouldBe` [[ PUSH (VInteger 7) ]]
+          compile' (Integer 7) `shouldBe` [[ PUSH $ VInteger 7 ]]
 
         it "should push double" $ do
-          compile' (Double 7.5) `shouldBe` [[ PUSH (VDouble 7.5) ]]
+          compile' (Double 7.5) `shouldBe` [[ PUSH $ VDouble 7.5 ]]
 
         it "should push string" $ do
-          compile' (String "test") `shouldBe` [[ PUSH (VString "test") ]]
+          compile' (String "test") `shouldBe` [[ PUSH $ VString "test" ]]
 
       describe "Variable declaration" $ do
         it "should fail if name isn't a word" $ do
@@ -54,3 +57,45 @@ module Test.Compiler where
               ]
             ])
           `shouldBe` [[LOAD_SEGMENT 1], [LOAD_SEGMENT 2], []]
+      
+      describe "Scoping" $ do
+        it "should correctly remove all variables" $ do
+          getResult (Expression [Word "begin", Expression [Word "let", Word "x", Integer 5]])
+            `shouldBe` (0, [[PUSH $VInteger 5, STORE "x", DROP "x"]], [[]])
+
+          compile' (Expression [Word "begin", 
+            Expression [Word "let", Word "x", Integer 5], 
+            Expression [Word "print", Word "x"] 
+            ]) 
+            `shouldBe` [[PUSH $ VInteger 5, STORE "x", LOAD "print", LOAD "x", CALL 1, DROP "x"]]
+
+          compile' (Expression [Word "begin", 
+            Expression [Word "begin", Expression [
+              Word "let", Word "x", Integer 5]], 
+              Expression [Word "print", Word "x"] 
+            ]) 
+            `shouldBe` [[PUSH $ VInteger 5, STORE "x", DROP "x", LOAD "print", LOAD "x", CALL 1]]
+      
+      describe "Call" $ do
+        it "should correctly call function" $ do
+          compile' (Expression [ Word "+", Integer 7, Integer 8 ]) 
+          `shouldBe` 
+          [[ LOAD "+", PUSH $ VInteger 7, PUSH $ VInteger 8, CALL 2 ]]
+
+        it "should compile callback" $ do
+          compile' (Expression [ Word "begin", Expression [
+            Word "let", Word "fun", Expression [
+              Word "fn", Expression [ Word "cb" ], Expression [
+                Word "cb", Integer 3 ]]],
+            Expression [
+              Word "fun", Expression [
+                Word "fn", Expression [ Word "x" ], Expression [
+                  Word "+", Word "x", Integer 5]]]
+            ])
+          `shouldBe`
+          [
+            [LOAD_SEGMENT 1, STORE "fun", LOAD "fun", LOAD_SEGMENT 2, CALL 1, DROP "fun"],
+            [STORE "cb", LOAD "cb", PUSH $ VInteger 3, CALL 1], -- fun function
+            [STORE "x", LOAD "+", LOAD "x", PUSH $ VInteger 5, CALL 2] -- callback page
+          ]
+          
