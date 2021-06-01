@@ -20,12 +20,24 @@ module Core.Parser where
     let atom = first_char : rest
     pure $ Word atom
 
+  escape :: Parser String
+  escape = do
+      d <- char '\\'
+      c <- oneOf "\\\"0nrvtbf"
+      return [d, c]
+
+  nonEscape :: Parser Char
+  nonEscape = noneOf "\\\"\0\n\r\v\t\b\f"
+
+  character :: Parser String
+  character = fmap return nonEscape <|> escape
+
   string :: Parser Atom
   string = do
     char '"'
-    x <- many $ noneOf "\""
+    x <- many character
     char '"'
-    pure $ String x
+    pure $ String $ concat x
 
   double :: Parser Atom
   double = do
