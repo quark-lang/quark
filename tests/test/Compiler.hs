@@ -109,3 +109,37 @@ module Test.Compiler where
               [ LOAD_SEGMENT 1, PUSH $ VInteger 4, CALL 1 ],
               [ STORE "x", LOAD "+", LOAD "x", PUSH $ VInteger 7, CALL 2 ]
             ]
+      
+      describe "Conditions" $ do
+        it "should create two pages and jump" $ do
+          compile' (Expression [
+            Expression [ Word "if", Expression [ Word "=", Integer 7, Integer 8 ], 
+              Expression [ Word "print", String "test" ],
+              Expression [ Word "print", String "nooooo" ]
+            ]
+            ])
+          `shouldBe` [
+            [ LOAD "=", PUSH $ VInteger 7, PUSH $ VInteger 8, CALL 2, JUMP 1 2 ],
+            [ LOAD "print", PUSH $ VString "test", CALL 1 ],
+            [ LOAD "print", PUSH $ VString "nooooo", CALL 1 ]
+          ]
+
+        it "should compile conditions inside conditions" $ do
+          compile' (Expression [
+            Word "if", 
+              Expression [ Word "=", Integer 5, Integer 3],
+              Expression [ Word "if",
+                Expression [Word "=", Integer 7, Integer 2],
+                Expression [Word "print", Integer 2],
+                Expression [Word "print", Integer 7]
+              ],
+              Expression [Word "print", Integer 45]
+            ]) 
+          `shouldBe` 
+          [
+            [LOAD "=", PUSH (VInteger 5), PUSH (VInteger 3), CALL 2, JUMP 1 4],
+            [LOAD "=", PUSH (VInteger 7), PUSH (VInteger 2), CALL 2, JUMP 2 3],
+            [LOAD "print", PUSH (VInteger 2), CALL 1],
+            [LOAD "print", PUSH (VInteger 7), CALL 1],
+            [LOAD "print", PUSH (VInteger 45), CALL 1]
+          ]
