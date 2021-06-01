@@ -51,7 +51,8 @@ system.
 To install Quark, you will need:
 
 ```
-Deno >= 1.6.0
+GHC >= 8.10.x
+Cabal >= 3.4.0
 ```
 
 ### Installing
@@ -103,9 +104,9 @@ To deploy Quark lang, do:
 To build the project, do:
 
 ```bash
- $ mkdir build
- $ deno compile --unstable src/main.ts -o build/quark-lang
- $ ./build/quark-lang
+ $ cabal update
+ $ cabal build
+ $ ./quark
 
  # OR
 
