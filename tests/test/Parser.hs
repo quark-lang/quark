@@ -4,8 +4,7 @@ module Test.Parser where
   import Core.Parser 
   import Test.Hspec.Parsec hiding (parse)
 
-  main :: IO()
-  main = hspec $ do
+  parserTest = hspec $ do
     describe "Brackets" $ do
       it "should error on mismatched brackets" $ do
         parse `shouldFailOn` "(()"
