@@ -6,8 +6,9 @@ module Main where
   import System.Console.Pretty
 
   colorizeValue :: Value -> String
-  colorizeValue (VInteger i) = color Yellow (show i)
+  colorizeValue (VInteger i)  = color Yellow (show i)
   colorizeValue (VString str) = color Green (show str)
+  colorizeValue (VDouble d)   = color Yellow (show d)
 
   colorizeInstruction :: Bytecode -> String
   colorizeInstruction (LOAD_SEGMENT seg) = style Bold " LOAD_SEGMENT " ++ color Yellow (show seg)
@@ -15,6 +16,8 @@ module Main where
   colorizeInstruction (CALL i)           = style Bold " CALL " ++ color Yellow (show i)
   colorizeInstruction (STORE x)          = style Bold " STORE " ++ color Blue x
   colorizeInstruction (LOAD x)           = style Bold " LOAD " ++ color Blue x
+  colorizeInstruction (DROP x)           = style Bold " DROP " ++ color Blue x
+  colorizeInstruction (JUMP i j)         = style Bold " JUMP " ++ color Yellow (show i) ++ " " ++ color Yellow (show j)
 
 
   printProgram :: [Page] -> IO()
@@ -27,11 +30,11 @@ module Main where
       ) indexed
 
   main = do
-    let res = parse "((fn (x) (x (+ 5 2))) 7 \"test\")"
+    let res = parse "(if (= 5 3) (print 4) (print 1))"
     case res of
       Left err -> error . show $ err
       Right ast -> do
         let (_, res) = runState (compile ast) initProgram
-        let (_, prgm) = res
+        let (_, prgm,_) = res
         printProgram prgm
         -- print ast
