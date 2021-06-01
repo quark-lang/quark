@@ -63,13 +63,11 @@ Cabal >= 3.4.0
 
 To run the tests:
 
+```bash
+ $ cabal test
+ # OR in order to get test details
+ $ cabal test --test-show-details=direct
 ```
- deno test
-```
-
-### Break down into end to end tests
-
-No tests for the moment.
 
 ### And coding style tests
 
