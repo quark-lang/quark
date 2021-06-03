@@ -6,31 +6,54 @@ module Core.Compiler where
   import Data.List
   import Data.Sequence (update, fromList)
   import Data.Foldable (toList)
+  import qualified Data.Map as M
+
+  -- VM Types
+
+  type Frame    = [Value]
+  type Stack    = [Frame]
+
+  type Variable = (String, Value)
+  type Table    = M.Map String Value
+
+
 
   data Value
     = VString String
     | VInteger Integer
     | VDouble Double
+    | VBool Bool
     | VList [Value]
-    | VLambda [Bytecode]
+    | VCode [Bytecode] (Frame, Table)
     deriving (Show, Eq, Ord)
   data Bytecode
     = PUSH Value
     | STORE String
     | LOAD String
     | LOAD_SEGMENT Int
-    | PRINT
+    | PRINT Int
     | CALL Int
     | DROP String
     | JUMP Int Int
+    | LIST Int
+
+    | ADD
+    | MUL
+    | SUB
+    | DIV
+
+    -- Comparison instructions
+    | CMP_EQ
+    | CMP_GT
+    | CMP_LT
     deriving (Show, Ord, Eq)
 
   type Page = [Bytecode]
   type Address = Int
   type Segment = (Address, Page)
 
-  type Variable = String
-  type Scope = [Variable]
+  type Name = String
+  type Scope = [Name]
 
   type Program = (Address, [Page], [Scope])
 
@@ -67,12 +90,20 @@ module Core.Compiler where
 
   compile :: Atom ->  State Program ()
   compile (Expression z@(x:xs)) = case x of
+    Word "=" -> mapM_ compile xs >> push CMP_EQ
+    Word "-" -> mapM_ compile xs >> push SUB
+    Word "+" -> mapM_ compile xs >> push ADD
+    Word "*" -> mapM_ compile xs >> push MUL
+    Word "print" -> mapM_ compile xs >> push (PRINT (length xs))
+
+    Word "list" -> mapM_ compile xs >> push (LIST $ length xs)
+
     Word "fn" -> do
       Control.Monad.when (length xs < 2) $ error "You must specify arguments and body to a function"
       let (args:body:_) = xs
       addr <- address
       i <- next
-      push $ LOAD_SEGMENT $ i -- Loading future segment
+      push $ LOAD_SEGMENT i -- Loading future segment
       increment -- Incrementing segment pointer
 
       case args of
