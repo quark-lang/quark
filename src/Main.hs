@@ -6,6 +6,7 @@ module Main where
   import System.Console.Pretty
   import VM.Interpreter
   import VM.Stack
+  import System.Environment
 
   colorizeValue :: Value -> String
   colorizeValue (VInteger i)  = color Yellow (show i)
@@ -36,15 +37,20 @@ module Main where
       ) indexed
 
   main = do
-    let path = "./sample/test.qrk"
-    content <- filter (/='\n') <$> readFile path
-    let res = parse content
-    --print res
-    case res of
-      Left err -> error . show $ err
-      Right ast -> do
-        let (_, res) = runState (compile ast) initProgram
-        let (_, prgm,_) = res
-        (_, res') <- runStateT (run prgm) initProgram'
-        print res'
+    args <- getArgs
+
+    case args of
+      [] -> error "You must specify a file to run!"
+      (x:_) -> do
+        content <- filter (/='\n') <$> readFile x
+        let res = parse content
+        --print res
+        case res of
+          Left err -> error . show $ err
+          Right ast -> do
+            let (_, res) = runState (compile ast) initProgram
+            let (_, prgm,_) = res
+            runStateT (run prgm) initProgram'
+
+        --print res'
         --printProgram prgm
