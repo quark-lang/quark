@@ -16,8 +16,6 @@ module Core.Compiler where
   type Variable = (String, Value)
   type Table    = M.Map String Value
 
-
-
   data Value
     = VString String
     | VInteger Integer
@@ -25,6 +23,7 @@ module Core.Compiler where
     | VBool Bool
     | VList [Value]
     | VCode [Bytecode] (Frame, Table)
+    | VNone
     deriving (Show, Eq, Ord)
   data Bytecode
     = PUSH Value
