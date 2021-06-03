@@ -2,8 +2,10 @@
 module Main where
   import Core.Parser (parse)
   import Core.Compiler
-  import Control.Monad.State (runState)
+  import Control.Monad.State (runState, runStateT)
   import System.Console.Pretty
+  import VM.Interpreter
+  import VM.Stack
 
   colorizeValue :: Value -> String
   colorizeValue (VInteger i)  = color Yellow (show i)
@@ -18,6 +20,10 @@ module Main where
   colorizeInstruction (LOAD x)           = style Bold " LOAD " ++ color Blue x
   colorizeInstruction (DROP x)           = style Bold " DROP " ++ color Blue x
   colorizeInstruction (JUMP i j)         = style Bold " JUMP " ++ color Yellow (show i) ++ " " ++ color Yellow (show j)
+  colorizeInstruction SUB                = style Bold " SUB"
+  colorizeInstruction MUL                = style Bold " MUL"
+  colorizeInstruction CMP_EQ             = style Bold " CMP_EQ"
+  colorizeInstruction (PRINT i)          = style Bold " PRINT " ++ color Yellow (show i)
 
 
   printProgram :: [Page] -> IO()
@@ -30,11 +36,15 @@ module Main where
       ) indexed
 
   main = do
-    let res = parse "(if (= 5 3) (print 4) (print 1))"
+    let path = "./sample/test.qrk"
+    content <- filter (/='\n') <$> readFile path
+    let res = parse content
+    --print res
     case res of
       Left err -> error . show $ err
       Right ast -> do
         let (_, res) = runState (compile ast) initProgram
         let (_, prgm,_) = res
-        printProgram prgm
-        -- print ast
+        (_, res') <- runStateT (run prgm) initProgram'
+        print res'
+        --printProgram prgm
