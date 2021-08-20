@@ -87,7 +87,7 @@ In Quark, loops are structured as the following :
 })
 ```
 
-E.g.: 
+e.g.: 
 ```lisp
 {
   (let i 0)
