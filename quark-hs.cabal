@@ -1,0 +1,44 @@
+cabal-version:      2.4
+name:               quark-hs
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             thomasvergne
+maintainer:         thomas@quark-lang.dev
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+executable quark-hs
+    main-is:          Main.hs
+
+    -- Modules included in this executable, other than Main.
+    other-modules:
+        Core.Parser.Combinator
+        Core.Parser.Parser
+        Core.Parser.AST
+        Core.Parser.Utils.Module
+        Core.Parser.Utils.Pretty
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:    
+        base ^>=4.14.1.0
+      , mtl
+      , directory
+      , filepath
+      , ansi-terminal
+    hs-source-dirs:   app
+    default-language: Haskell2010
