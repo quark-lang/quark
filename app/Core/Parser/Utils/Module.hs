@@ -8,6 +8,7 @@ module Core.Parser.Utils.Module where
   import Data.Functor ((<&>))
   import Data.List
   import Data.Foldable
+  import Control.Monad
   
   parse :: String -> IO (Maybe AST)
   parse file = do
@@ -20,7 +21,6 @@ module Core.Parser.Utils.Module where
           Left err -> print err >> return Nothing
           Right ast -> do
             x <- visitAST (dropFileName file) (head ast)
-            print x
             Just <$> visitAST (dropFileName file) (if length ast > 1 then Node "begin" ast else head ast)
       else print ("File " ++ file ++ " does not exist") >> return Nothing
 
@@ -28,28 +28,18 @@ module Core.Parser.Utils.Module where
   resolveImport :: (String, String) -> IO (Maybe AST)
   resolveImport (base, path) = parse $ base </> path
 
-  findIndexR :: (a->Bool) -> [a] -> Maybe Int
-  findIndexR pred v = (length v-)
-    <$> foldl (\a x -> if pred x
-                        then Just 1
-                        else succ<$>a) Nothing v
-
-  slice :: [a] -> Int -> Int -> [a]
-  slice xs i j = take (j - i) $ drop i xs
-
   visitAST :: String -> AST -> IO AST
   -- resolving import
-  visitAST p (Node n z) = do
-    xs <- mapM (\case
-      Node "import" [String path] -> do
-        y <- resolveImport (p, path)
-        print y 
-        case y of
-          Nothing -> return $ Node "import" [String path]
-          Just ast -> return ast
-      x -> return x) z
-    print xs
-    return $ Node n xs
+  visitAST p z@(Node "import" [String path]) = resolveImport (p, path) >>= \case
+    Nothing -> return z
+    Just ast -> return $ Node "spread" [ast]
+  visitAST p a@(Node n z) = do
+    xy <- foldlM (\a x -> do
+      x <- visitAST p x
+      case x of
+        Node "spread" [Node "begin" xs] -> return $ a ++ xs
+        _ -> return $ a ++ [x]) [] z
+    return $ Node n xy
 
   -- Value visiting
   visitAST _ i@(Integer _) = return i
