@@ -58,11 +58,17 @@ module Core.Parser.Parser where
     dec <- many1 digit
     return $ Float (read $ num ++ "." ++ dec)
 
+  parseSugar :: Parser String AST
+  parseSugar = choices
+    [
+      parseBeginSugar,
+      parseListSugar
+    ]
+
   parse :: Parser String AST
   parse = lexeme . choices $
     [
-      parseBeginSugar,
-      parseListSugar,
+      parseSugar,
       parseExpr,
       parseString,
       parseFloat,
