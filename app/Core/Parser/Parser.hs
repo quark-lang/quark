@@ -21,7 +21,7 @@ module Core.Parser.Parser where
     return $ Node name args
 
   parseWord :: Parser String String
-  parseWord = many1 $ letter <|> digit <|> noneOf "() {}"
+  parseWord = many1 $ letter <|> digit <|> noneOf "() {}[]"
 
   parseString :: Parser String AST
   parseString = String <$> (char '"' *> many (noneOf "\"") <* char '"')
@@ -32,6 +32,13 @@ module Core.Parser.Parser where
     expr <- many parse
     char '}'
     return $ Node "begin" expr
+
+  parseListSugar :: Parser String AST
+  parseListSugar = do
+    lexeme $ char '['
+    expr <- many parse
+    char ']'
+    return $ Node "list" expr
 
   parseNumber :: Parser String AST
   parseNumber = do
@@ -55,6 +62,7 @@ module Core.Parser.Parser where
   parse = lexeme . choices $
     [
       parseBeginSugar,
+      parseListSugar,
       parseExpr,
       parseString,
       parseFloat,
