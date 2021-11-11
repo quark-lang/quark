@@ -1,8 +1,14 @@
 module Core.Parser.Utils.Pretty where
-  import Core.Parser.AST (AST(..))
   import System.Console.ANSI
+  import Core.Parser.AST           (AST(..))
   import System.Console.ANSI.Codes (ConsoleIntensity(BoldIntensity))
   
+  {-
+    Module: AST pretty printer
+    Description: Pretty prints an AST with indentation and colors
+    Author: thomasvergne
+  -}
+
   indent :: Integer -> String
   indent n = replicate (fromIntegral n) ' '
 
