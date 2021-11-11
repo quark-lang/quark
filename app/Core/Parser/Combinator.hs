@@ -6,13 +6,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Core.Parser.Combinator where
-  import Data.Bifunctor (first, second)
-  import Control.Monad.Trans (MonadTrans(lift), MonadIO(liftIO))
-  import Control.Monad (MonadPlus(mzero, mplus))
-  import Control.Applicative hiding (many)
-  import Data.Foldable (asum)
-  import Control.Monad.Identity
-  import Data.Char
+  import Data.Bifunctor         (first, second)
+  import Control.Monad.Trans    (MonadTrans(lift), MonadIO(liftIO))
+  import Control.Monad          (MonadPlus(mzero, mplus))
+  import Control.Applicative    (Alternative((<|>), empty))
+  import Data.Foldable          (asum)
+  import Control.Monad.Identity (MonadPlus(..), Identity(runIdentity))
+  import Data.Char              (isLetter, isDigit)
   
   {-
     Module: Parser combinator
@@ -30,11 +30,13 @@ module Core.Parser.Combinator where
   runParser :: Parser s a -> s -> (Either [String] a, s)
   runParser p s = runIdentity $ runParserT p s
 
+  -- Stream class describe how can a type s be destructured 
   class Eq s => Stream s where
     type Token s :: *
     pop :: s -> Maybe (s, Token s)
     elem :: Token s -> s -> Bool
 
+  -- Stream instance for all generic lists
   instance Eq a => Stream [a] where
     type Token [a] = a
     pop [] = Nothing

@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeApplications #-}
 module Core.Parser.Parser where
   import Core.Parser.Combinator
-  import Core.Parser.AST
+  import Core.Parser.AST     (AST(..))
   import Control.Applicative ((<|>))
-  import Data.Maybe (isJust)
+  import Data.Maybe          (isJust)
   
   {-
     Module: Quark parser
@@ -20,8 +20,11 @@ module Core.Parser.Parser where
     char ')'
     return $ Node name args
 
+  blacklist :: String
+  blacklist = "() {}[]"
+
   parseWord :: Parser String String
-  parseWord = many1 $ letter <|> digit <|> noneOf "() {}[]"
+  parseWord = many1 $ letter <|> digit <|> noneOf blacklist
 
   parseString :: Parser String AST
   parseString = String <$> (char '"' *> many (noneOf "\"") <* char '"')
@@ -47,6 +50,7 @@ module Core.Parser.Parser where
     return . Integer . read $ parseSign sign ++ num
     where parseSign s = if isJust s then let (Just x) = s in "-" else ""
 
+  -- this function should be used only if AST is integer
   getInteger :: AST -> Integer
   getInteger (Integer i) = i
   getInteger _ = error "Not an integer"
@@ -76,6 +80,8 @@ module Core.Parser.Parser where
       Literal <$> parseWord
     ]
 
+  -- lexeme take a parser p and ignore spaces while consuming parser
+  lexeme :: Monad m => ParserT String e m a -> ParserT String e m a
   lexeme p = p <* spaces
 
   -- remove eol from string
