@@ -25,7 +25,7 @@ module Core.Parser.Utils.Module where
         case res of
           Left err -> print err >> return Nothing
           Right ast ->
-            let ast' = if length ast > 1 then Node "begin" ast else head ast
+            let ast' = if length ast > 1 then Node (Literal "begin") ast else head ast
               in Just <$> visitAST (dropFileName file) ast'
       else print ("File " ++ file ++ " does not exist") >> return Nothing
 
@@ -35,15 +35,15 @@ module Core.Parser.Utils.Module where
 
   visitAST :: String -> AST -> IO AST
   -- resolving import
-  visitAST p z@(Node "import" [String path]) =
+  visitAST p z@(Node (Literal "import") [String path]) =
     resolveImport (p, path) >>= \case
       -- if importing does not work, return the original node
       Nothing -> return z
       -- return a node which gonna be spread
-      Just ast -> return $ Node "spread" [ast]
+      Just ast -> return $ Node (Literal "spread") [ast]
 
   -- Converting list to their Cons/Nil representation
-  visitAST p (Node "list" xs) = visitAST p $ convertList xs
+  visitAST p (Node (Literal "list") xs) = visitAST p $ convertList xs
 
   visitAST p a@(Node n z) = do
     -- building new children by folding
@@ -52,9 +52,12 @@ module Core.Parser.Utils.Module where
       case x of
         -- spreading function just put 
         -- children content in the current built
-        Node "spread" [Node "begin" xs] -> return $ a ++ xs
+        Node (Literal "spread") [Node (Literal "begin") xs] -> return $ a ++ xs
         _ -> return $ a ++ [x]) [] z
-    return $ Node n xy
+    r <- visitAST p n
+    return $ Node (case r of
+      Node (Literal "spread") [xs] -> xs
+      _ -> r) xy
 
   -- Value visiting
   visitAST _ i@(Integer _) = return i
@@ -63,12 +66,12 @@ module Core.Parser.Utils.Module where
   visitAST _ f@(Float _)   = return f
   visitAST _ s@(Literal _) = return s
   -- Converting char to integer
-  visitAST _   (Char c)    = return . Node "chr" $ [Integer . toInteger . ord $ c]
+  visitAST _   (Char c)    = return . Node (Literal "chr") $ [Integer . toInteger . ord $ c]
 
   convertList :: [AST] -> AST
   convertList [] = Literal "Nil"
-  convertList (x:xs) = Node "Cons" [x, convertList xs]
+  convertList (x:xs) = Node (Literal "Cons") [x, convertList xs]
 
   convertString :: String -> AST
-  convertString s = Node "list" $ map Char s
+  convertString s = Node (Literal "list") $ map Char s
   

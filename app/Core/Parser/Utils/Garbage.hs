@@ -17,30 +17,30 @@ module Core.Parser.Utils.Garbage where
           filterOnce x (y:ys) i = if (y == x) && (i == 0) then filterOnce x ys 1 else y : filterOnce x ys i
 
   toList :: AST -> [AST]
-  toList (Node "Cons" [x, Literal "Nil"])  = [x]
-  toList (Node "Cons" [x, xs]) = x : toList xs
+  toList (Node (Literal "Cons") [x, Literal "Nil"])  = [x]
+  toList (Node (Literal "Cons") [x, xs]) = x : toList xs
   toList _ = error "is not a list"
 
   garbageCollection :: AST -> AST
-  garbageCollection p@(Node "begin" xs) = do
+  garbageCollection p@(Node (Literal "begin") xs) = do
     let xs' = foldl (\acc x -> case garbageCollection x of
-                Node "begin" xs -> acc ++ xs
+                Node (Literal "begin") xs -> acc ++ xs
                 x -> acc ++ [x]) [] xs
 
     let vars =
           removeDuplicates $ foldl (\a x -> case x of
-            Node "drop" [name] -> removeOne name (reverse a)
-            Node "let" (name:_:_) -> name : a
+            Node (Literal "drop") [name] -> removeOne name (reverse a)
+            Node (Literal "let") (name:_:_) -> name : a
             _ -> a) [] xs'
 
-    Node "begin" $ xs' ++ map (\x -> Node "drop" [x]) vars
-  garbageCollection (Node "fn" [args, p]) = do
+    Node (Literal "begin") $ xs' ++ map (\x -> Node (Literal "drop") [x]) vars
+  garbageCollection (Node (Literal "fn") [args, p]) = do
     let xs'   = garbageCollection p
     -- dropping function arguments
-    let args' = map (\x -> Node "drop" [x]) (toList args)
+    let args' = map (\x -> Node (Literal "drop") [x]) (toList args)
     case xs' of 
-      Node "begin" xs -> Node "fn" (args : xs ++ args')
-      _ -> Node "fn" ([args, xs'] ++ args')
+      Node (Literal "begin") xs -> Node (Literal "fn") (args : xs ++ args')
+      _ -> Node (Literal "fn") ([args, xs'] ++ args')
       
   garbageCollection (Node n z) = Node n $ map garbageCollection z
   garbageCollection x = x
