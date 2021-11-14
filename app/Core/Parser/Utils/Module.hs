@@ -71,29 +71,4 @@ module Core.Parser.Utils.Module where
 
   convertString :: String -> AST
   convertString s = Node "list" $ map Char s
-
-  removeDuplicates :: Eq a => [a] -> [a]
-  removeDuplicates = foldl (\acc x -> if x `elem` acc then acc else acc ++ [x]) []
-
-  removeOne :: Eq a => a -> [a] -> [a]
-  removeOne x xs = filterOnce x xs 0
-    where filterOnce :: Eq a => a -> [a] -> Int -> [a]
-          filterOnce _ [] _ = []
-          filterOnce x (y:ys) i = if (y == x) && (i == 0) then filterOnce x ys 1 else y : filterOnce x ys i
-
-
-  garbageCollection :: AST -> AST
-  garbageCollection p@(Node "begin" xs) = do
-    let xs' = foldl (\acc x -> case garbageCollection x of
-                Node "begin" xs -> acc ++ xs
-                x -> acc ++ [x]) [] xs
-
-    let vars =
-          removeDuplicates $ foldl (\a x -> case x of
-            Node "drop" [name] -> removeOne name (reverse a)
-            Node "let" (name:_:_) -> name : a
-            _ -> a) [] xs'
-
-    Node "begin" $ xs' ++ map (\x -> Node "drop" [x]) vars
-
-  garbageCollection x = x
+  
