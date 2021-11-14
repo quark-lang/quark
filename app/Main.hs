@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
-  import Core.Parser.Utils.Module (parse)
+  import Core.Parser.Utils.Module (parse, garbageCollection, removeOne)
   import Core.Parser.Utils.Pretty (showAST)
   
   main :: IO ()
@@ -9,5 +9,7 @@ module Main where
     res <- parse src
     case res of
       Nothing -> print "ERROR"
-      Just ast -> showAST 0 ast
+      Just ast -> do
+        let r = garbageCollection ast
+        showAST 0 r
 
