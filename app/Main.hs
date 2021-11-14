@@ -3,7 +3,7 @@ module Main where
   import Core.Parser.Utils.Module (parse)
   import Core.Parser.Utils.Pretty (showAST)
   import Core.Parser.Utils.Garbage (garbageCollection)
-  import Core.Parser.Utils.Closure (convertClosure)
+  import Core.Parser.Utils.Closure (convertClosure, Data(..))
   
   main :: IO ()
   main = do
@@ -13,5 +13,6 @@ module Main where
       Nothing -> print "ERROR"
       Just ast -> do
         let r = garbageCollection ast
-        showAST 0 (convertClosure r r)
+        let d = Data []
+        showAST 0 (convertClosure (r, d) r)
 
