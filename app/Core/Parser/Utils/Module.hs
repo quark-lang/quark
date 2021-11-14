@@ -7,7 +7,8 @@ module Core.Parser.Utils.Module where
   import Core.Parser.Combinator (runParser, many)
   import Data.Functor           ((<&>))
   import Data.Foldable          (foldlM)
-  
+  import Data.Char
+
   {-
     Module: Parser utils
     Description: Set of functions to extra-parse AST 
@@ -23,7 +24,7 @@ module Core.Parser.Utils.Module where
         let (res, _) = runParser (many Parser.parse) content
         case res of
           Left err -> print err >> return Nothing
-          Right ast -> 
+          Right ast ->
             let ast' = if length ast > 1 then Node "begin" ast else head ast
               in Just <$> visitAST (dropFileName file) ast'
       else print ("File " ++ file ++ " does not exist") >> return Nothing
@@ -34,12 +35,15 @@ module Core.Parser.Utils.Module where
 
   visitAST :: String -> AST -> IO AST
   -- resolving import
-  visitAST p z@(Node "import" [String path]) = 
+  visitAST p z@(Node "import" [String path]) =
     resolveImport (p, path) >>= \case
       -- if importing does not work, return the original node
       Nothing -> return z
       -- return a node which gonna be spread
       Just ast -> return $ Node "spread" [ast]
+
+  -- Converting list to their Cons/Nil representation
+  visitAST p (Node "list" xs) = visitAST p $ convertList xs
 
   visitAST p a@(Node n z) = do
     -- building new children by folding
@@ -54,6 +58,42 @@ module Core.Parser.Utils.Module where
 
   -- Value visiting
   visitAST _ i@(Integer _) = return i
-  visitAST _ s@(String _) = return s
-  visitAST _ f@(Float _) = return f
+  -- Converting string to list of chars
+  visitAST p   (String s)  = visitAST p $ convertString s
+  visitAST _ f@(Float _)   = return f
   visitAST _ s@(Literal _) = return s
+  -- Converting char to integer
+  visitAST _   (Char c)    = return . Node "chr" $ [Integer . toInteger . ord $ c]
+
+  convertList :: [AST] -> AST
+  convertList [] = Literal "Nil"
+  convertList (x:xs) = Node "Cons" [x, convertList xs]
+
+  convertString :: String -> AST
+  convertString s = Node "list" $ map Char s
+
+  removeDuplicates :: Eq a => [a] -> [a]
+  removeDuplicates = foldl (\acc x -> if x `elem` acc then acc else acc ++ [x]) []
+
+  removeOne :: Eq a => a -> [a] -> [a]
+  removeOne x xs = filterOnce x xs 0
+    where filterOnce :: Eq a => a -> [a] -> Int -> [a]
+          filterOnce _ [] _ = []
+          filterOnce x (y:ys) i = if (y == x) && (i == 0) then filterOnce x ys 1 else y : filterOnce x ys i
+
+
+  garbageCollection :: AST -> AST
+  garbageCollection p@(Node "begin" xs) = do
+    let xs' = foldl (\acc x -> case garbageCollection x of
+                Node "begin" xs -> acc ++ xs
+                x -> acc ++ [x]) [] xs
+
+    let vars =
+          removeDuplicates $ foldl (\a x -> case x of
+            Node "drop" [name] -> removeOne name (reverse a)
+            Node "let" (name:_:_) -> name : a
+            _ -> a) [] xs'
+
+    Node "begin" $ xs' ++ map (\x -> Node "drop" [x]) vars
+
+  garbageCollection x = x
