@@ -15,7 +15,7 @@ module Core.Parser.Parser where
   parseExpr :: Parser String AST
   parseExpr = do
     char '('
-    name <- lexeme parseWord
+    name <- parse
     args <- many parse
     char ')'
     return $ Node name args
@@ -37,14 +37,14 @@ module Core.Parser.Parser where
     lexeme $ char '{'
     expr <- many parse
     char '}'
-    return $ Node "begin" expr
+    return $ Node (Literal "begin") expr
 
   parseListSugar :: Parser String AST
   parseListSugar = do
     lexeme $ char '['
     expr <- many parse
     char ']'
-    return $ Node "list" expr
+    return $ Node (Literal "list") expr
 
   parseNumber :: Parser String AST
   parseNumber = do
