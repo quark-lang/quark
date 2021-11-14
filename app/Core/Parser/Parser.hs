@@ -23,6 +23,9 @@ module Core.Parser.Parser where
   blacklist :: String
   blacklist = "() {}[]"
 
+  parseChar :: Parser String AST
+  parseChar = Char <$> (char '\'' *> anyChar <* char '\'')
+
   parseWord :: Parser String String
   parseWord = many1 $ letter <|> digit <|> noneOf blacklist
 
@@ -75,6 +78,7 @@ module Core.Parser.Parser where
       parseSugar,
       parseExpr,
       parseString,
+      parseChar,
       parseFloat,
       parseNumber,
       Literal <$> parseWord
