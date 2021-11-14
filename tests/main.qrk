@@ -1,5 +1,9 @@
 {
   (let x 5)
-  (import "path.qrk")
   (let y 4)
+  {
+    (import "path.qrk")
+    (drop x)
+  }
+  (drop y)
 }
