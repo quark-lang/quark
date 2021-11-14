@@ -29,8 +29,13 @@ executable quark-hs
         Core.Parser.Combinator
         Core.Parser.Parser
         Core.Parser.AST
+        
         Core.Parser.Utils.Module
         Core.Parser.Utils.Pretty
+        Core.Parser.Utils.Garbage
+        Core.Parser.Utils.Closure
+
+        Core.Compiler.Compiler
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
