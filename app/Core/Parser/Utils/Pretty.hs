@@ -23,28 +23,34 @@ module Core.Parser.Utils.Pretty where
     mapM_ (showAST (i + 2)) xs
   showAST i val = 
     putStr (indent i) >> case val of
-     Integer n -> do
-       setSGR [SetColor Foreground Vivid Black]
-       putStr "Integer "
-       setSGR [Reset, SetColor Foreground Vivid Yellow]
-       print n
-       setSGR [Reset]
-     String s -> do
-       setSGR [SetColor Foreground Vivid Black]
-       putStr "String "
-       setSGR [Reset, SetColor Foreground Dull Green]
-       print s
-       setSGR [Reset]
-     Float x -> do
-       setSGR [SetColor Foreground Vivid Black]
-       putStr "Float "
-       setSGR [Reset, SetColor Foreground Vivid Yellow]
-       print x
-       setSGR [Reset]
-     Literal s -> do
+      Integer n -> do
+        setSGR [SetColor Foreground Vivid Black]
+        putStr "Integer "
+        setSGR [Reset, SetColor Foreground Vivid Yellow]
+        print n
+        setSGR [Reset]
+      String s -> do
+        setSGR [SetColor Foreground Vivid Black]
+        putStr "String "
+        setSGR [Reset, SetColor Foreground Dull Green]
+        print s
+        setSGR [Reset]
+      Float x -> do
+        setSGR [SetColor Foreground Vivid Black]
+        putStr "Float "
+        setSGR [Reset, SetColor Foreground Vivid Yellow]
+        print x
+        setSGR [Reset]
+      Char c -> do
+        setSGR [SetColor Foreground Vivid Black]
+        putStr "Char "
+        setSGR [Reset, SetColor Foreground Dull Green]
+        print c
+        setSGR [Reset]
+      Literal s -> do
         setSGR [SetColor Foreground Vivid Black]
         putStr "Literal "
         setSGR [Reset, SetConsoleIntensity BoldIntensity]
         putStrLn s
         setSGR [Reset]
-     _ -> print "NO CASE"
+      _ -> print "NO CASE"
