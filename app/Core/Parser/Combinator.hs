@@ -52,11 +52,7 @@ module Core.Parser.Combinator where
     ParserT f <*> ParserT a = ParserT \s -> do
       (f', s') <- f s
       (a', s'') <- a s'
-      case (f', a') of
-        (Right f', Right a') -> pure (Right (f' a'), s'')
-        (Right f', Left e) -> pure (Left e, s'')
-        (Left e, Right a') -> pure (Left e, s'')
-        (Left e, Left e') -> pure (Left e', s'')
+      return (f' <*> a', s'')
 
   instance Monad m => Monad (ParserT s e m) where
     return = pure
