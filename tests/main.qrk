@@ -1,9 +1,7 @@
 {
-  (let x 5)
-  (let y 4)
-  {
-    (import "path.qrk")
-    (drop x)
-  }
-  (drop y)
+  (let test (fn [x] {
+    (let cls (fn [y] (+ x y)))
+    (return cls)
+  }))
+  (print (test 5))
 }
