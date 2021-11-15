@@ -1,7 +1,6 @@
 {
-  (if (_)
-    (if (_)
-      (print 2)
-      (print 4))
-    (print 3))
+  (let f (fn [x]
+    (if (= x 2) 
+      (fn [y] (+ x y)) x)))
+  (print ((f 1) 2))
 }
