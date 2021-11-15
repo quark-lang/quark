@@ -65,5 +65,5 @@ module Core.Parser.Utils.Closure where
           body' = map (\x -> let a = replaceVariables vars' x in convertClosure (a, Data []) a) body
         in Node (Literal "fn") (args : body')
   convertClosure (p, d) (Node n xs)
-    = Node n (map (convertClosure (p, d)) xs)
+    = Node (convertClosure (p, d) n) (map (convertClosure (p, d)) xs)
   convertClosure _ x = x
