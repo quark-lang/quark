@@ -29,6 +29,18 @@ module Core.Compiler.Compiler where
 
   compile i (Node (Literal "return") (x:_))
     = compile i x ++ [RETURN]
+  
+  compile i (Node (Literal "add") (x:y:_))
+    = compile i x ++ compile i y ++ [ADD]
+  
+  compile i (Node (Literal "sub") (x:y:_))
+    = compile i x ++ compile i y ++ [SUB]
+
+  compile i (Node (Literal "mul") (x:y:_))
+    = compile i x ++ compile i y ++ [MUL]
+  
+  compile i (Node (Literal "div") (x:y:_))
+    = compile i x ++ compile i y ++ [DIV]
 
   compile i (Node (Literal "if") (cond:then_:else_:_))
     = let cond' = compile (i + 1) cond
