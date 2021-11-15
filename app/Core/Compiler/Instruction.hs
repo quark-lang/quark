@@ -13,15 +13,19 @@ module Core.Compiler.Instruction where
     | MAKE_LAMBDA Int
     | CALL Int
     | RETURN
-    | HALT
     | ENV String
-    | EXTERN Int
 
     -- arithmetic
     | ADD
     | SUB
     | MUL
     | DIV
+
+    -- miscellaneous
+    | HALT
+    | EXTERN Int
+    | JUMP Int
+    | JUMP_IF Int Int
     deriving Show
 
   type Bytecode = [Instruction]
