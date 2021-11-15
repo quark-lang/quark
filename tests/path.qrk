@@ -1,1 +1,6 @@
-(fn [x] (+ x 4))
+{
+  (let f (fn [x] 
+    (fn [y] (+ x y))))
+
+  (print ((f 1) 2))
+}
