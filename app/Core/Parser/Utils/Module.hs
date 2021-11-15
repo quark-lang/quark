@@ -45,6 +45,14 @@ module Core.Parser.Utils.Module where
   -- Converting list to their Cons/Nil representation
   visitAST p (Node (Literal "list") xs) = visitAST p $ convertList xs
 
+  visitAST p (Node (Literal "let") (name:value:rest:_))
+    = visitAST p $ 
+      Node (Literal "let") [
+        name,
+        Node (Node (Literal "fn") [
+          Node (Literal "Cons") [name, Literal "Nil"], 
+          rest]) [value]]
+
   visitAST p a@(Node n z) = do
     -- building new children by folding
     xy <- foldlM (\a x -> do
