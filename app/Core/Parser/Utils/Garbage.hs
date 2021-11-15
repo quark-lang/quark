@@ -17,6 +17,7 @@ module Core.Parser.Utils.Garbage where
           filterOnce x (y:ys) i = if (y == x) && (i == 0) then filterOnce x ys 1 else y : filterOnce x ys i
 
   toList :: AST -> [AST]
+  toList (Literal "Nil") = []
   toList (Node (Literal "Cons") [x, Literal "Nil"])  = [x]
   toList (Node (Literal "Cons") [x, xs]) = x : toList xs
   toList _ = error "is not a list"
@@ -42,5 +43,5 @@ module Core.Parser.Utils.Garbage where
       Node (Literal "begin") xs -> Node (Literal "fn") (args : xs ++ args')
       _ -> Node (Literal "fn") ([args, xs'] ++ args')
       
-  garbageCollection (Node n z) = Node n $ map garbageCollection z
+  garbageCollection (Node n z) = Node (garbageCollection n) $ map garbageCollection z
   garbageCollection x = x
