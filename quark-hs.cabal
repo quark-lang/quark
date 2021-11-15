@@ -26,6 +26,7 @@ executable quark-hs
 
     -- Modules included in this executable, other than Main.
     other-modules:
+        -- Parser related
         Core.Parser.Combinator
         Core.Parser.Parser
         Core.Parser.AST
@@ -35,6 +36,9 @@ executable quark-hs
         Core.Parser.Utils.Garbage
         Core.Parser.Utils.Closure
 
+        -- Compiler related
+        Core.Compiler.Instruction
+        Core.Compiler.Compiler
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    
