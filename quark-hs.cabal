@@ -39,6 +39,7 @@ executable quark-hs
         -- Compiler related
         Core.Compiler.Instruction
         Core.Compiler.Compiler
+        Core.Compiler.Utils.Pretty
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    
