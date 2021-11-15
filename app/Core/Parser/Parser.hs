@@ -31,7 +31,13 @@ module Core.Parser.Parser where
 
   parseString :: Parser String AST
   parseString = String <$> (char '"' *> many (noneOf "\"") <* char '"')
-  
+
+  parseVoid :: Parser String AST
+  parseVoid = do
+    char '('
+    char ')'
+    return . Literal $ "Nil"
+
   parseBeginSugar :: Parser String AST
   parseBeginSugar = do
     lexeme $ char '{'
@@ -78,6 +84,7 @@ module Core.Parser.Parser where
       parseSugar,
       parseExpr,
       parseString,
+      parseVoid,
       parseChar,
       parseFloat,
       parseNumber,
