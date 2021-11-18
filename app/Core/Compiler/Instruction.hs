@@ -1,7 +1,7 @@
 module Core.Compiler.Instruction where
   data Instruction
     -- value related
-    = PUSH Int
+    = PUSH Float
     | POP
 
     -- variable related
@@ -24,8 +24,9 @@ module Core.Compiler.Instruction where
     -- miscellaneous
     | HALT
     | EXTERN Int
-    | JUMP Int
-    | JUMP_IF Int Int
+    | JUMP Int     -- absolute jump
+    | JUMP_REL Int -- relative jump
+    | JUMP_ELSE Int  -- relative jump if true with then length
     deriving Show
 
   type Bytecode = [Instruction]
