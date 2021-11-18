@@ -1,7 +1,7 @@
 module Core.Compiler.Instruction where
   data Instruction
     -- value related
-    = PUSH Float
+    = PUSH Int
     | POP
 
     -- variable related

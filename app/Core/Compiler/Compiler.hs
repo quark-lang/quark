@@ -71,7 +71,6 @@ module Core.Compiler.Compiler where
 
   compile i (Literal x) = [LOAD x]
   compile _ (Integer i) = [PUSH (fromInteger i)]
-  compile _ (Float f)   = [PUSH f]
   compile _ _ = []
 
   serialize :: Bytecode -> (String, Int)
