@@ -24,6 +24,9 @@ extra-source-files: CHANGELOG.md
 executable quark-hs
     main-is:          Main.hs
 
+    includes:
+      app/Core/VM/main.c
+
     -- Modules included in this executable, other than Main.
     other-modules:
         -- Parser related
@@ -35,10 +38,12 @@ executable quark-hs
         Core.Parser.Utils.Pretty
         Core.Parser.Utils.Garbage
         Core.Parser.Utils.Closure
+        Core.Parser.Utils.ConstantPropagation
 
         -- Compiler related
         Core.Compiler.Instruction
         Core.Compiler.Compiler
+        Core.Compiler.Serializer
         Core.Compiler.Utils.Pretty
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
