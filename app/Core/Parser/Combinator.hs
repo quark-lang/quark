@@ -130,6 +130,12 @@ module Core.Parser.Combinator where
   -- parse one or more times
   many1 :: Monad m => ParserT s e m a -> ParserT s e m [a]
   many1 p = (:) <$> p <*> many p
+
+  manyTill :: Monad m => ParserT s e m a -> ParserT s e m b -> ParserT s e m [a]
+  manyTill p q = do
+    x <- p
+    xs <- manyTill p q
+    pure (x:xs)
   
   between :: Monad m => ParserT s e m a -> ParserT s e m b -> ParserT s e m c -> ParserT s e m c
   between open close p = open *> p <* close
