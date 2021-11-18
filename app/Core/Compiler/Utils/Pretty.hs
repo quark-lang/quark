@@ -34,11 +34,12 @@ module Core.Compiler.Utils.Pretty where
   showInstruction HALT = putStrLn (instruction Red "HALT       ")
   showInstruction (JUMP i) 
     = putStr (instruction Yellow "JUMP       ") >> putStrLn (bold . show $ i)
-  showInstruction (JUMP_IF a b)
-    = putStr (instruction Yellow "JUMP_IF    ") 
-        >> putStr (bold . show $ a) 
-        >> putStr " "
-        >> putStrLn (bold . show $ b)
+  showInstruction (JUMP_ELSE a)
+    = putStr (instruction Yellow "JUMP_ELSE  ") 
+        >> putStrLn (bold . show $ a) 
+  showInstruction (JUMP_REL a)
+    = putStr (instruction Yellow "JUMP_REL   ") 
+        >> putStrLn (bold . show $ a) 
   showInstruction (EXTERN i)
     = putStr (instruction Black "EXTERN     ") >> putStrLn (bold . show $ i)
   
