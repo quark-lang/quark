@@ -22,6 +22,10 @@ module Core.Parser.Utils.Garbage where
   toList (Node (Literal "Cons") [x, xs]) = x : toList xs
   toList _ = error "is not a list"
 
+  fromList :: [AST] -> AST
+  fromList [] = Literal "Nil"
+  fromList (x:xs) = Node (Literal "Cons") [x, fromList xs]
+
   garbageCollection :: AST -> AST
   garbageCollection p@(Node (Literal "begin") xs) = do
     let xs' = foldl (\acc x -> case garbageCollection x of
