@@ -9,13 +9,15 @@ module Main where
   import Core.Compiler.Compiler (compile)
   import Core.Compiler.Utils.Pretty (showBytecode)
   import Core.Compiler.Serializer
+  import Data.List
+  import Core.Compiler.Instruction
+  import Core.Parser.AST
 
   import Foreign.C.Types
   import Foreign.Ptr
   import Foreign.StablePtr ()
   import Foreign.C.String
   import Foreign.Marshal.Array
-  import Core.Parser.Utils.ConstantPropagation
   foreign import capi "Core/VM/main.c runVM"
     runVM :: Ptr (Ptr CInt) -> CInt -> Ptr (Ptr CChar) -> CInt -> IO CInt
 
@@ -29,27 +31,26 @@ module Main where
   convertConstants xs = do
     ys <- mapM newCString xs
     newArray ys
-
+  
   main :: IO ()
   main = do
-    let src = "tests/path.qrk"
+    let src = "tests/main.qrk"
     res <- parse src
     case res of
       Nothing -> print "ERROR"
       Just ast -> do
-        let r = garbageCollection ast
-        let d = Data []
-        let c = convertClosure (r, d) r
-        -- showAST 0 c
-        let res = compile 0 c
-        showBytecode res
-        let Serialized blob constants = runSerializer res
-        print blob
+        let c = convertClosure ast
+        showAST 0 c
+        let g = garbageCollection ast
+        let e = compile 0 (case g of
+                  Node (Literal "begin") _ -> g
+                  _ -> Node (Literal "begin") [g])
 
-        blob' <- convertBlob blob
-        constants' <- convertConstants constants
+        print e
 
-        x <- runVM blob' (fromIntegral $ length blob) constants' (fromIntegral $ length constants)
-        print x
-
+        outputBytecode "bytecode.bin" e
     
+  outputBytecode :: String -> Bytecode -> IO ()
+  outputBytecode src b = do
+    let content = unlines $ map show b
+    writeFile src content
