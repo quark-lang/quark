@@ -6,7 +6,6 @@ bin
 # IDE related
 .idea
 .DS_Store
-*.js
 
 *.hi
 *.o
