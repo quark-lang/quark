@@ -1,11 +1,13 @@
 {-# LANGUAGE LambdaCase #-}
 module Core.Parser.Utils.Closure where
   import Core.Parser.AST (AST(..))
-  import Core.Parser.Utils.Garbage (removeDuplicates, toList)
+  import Core.Parser.Utils.Garbage (removeDuplicates, toList, fromList)
+  import Control.Monad.State
 
   {-
     Module: Lambda lifting
-    Description: Converting closured functions to normal functions and putting them at the top of the scope and passing their environment to the arguments 
+    Description: Passing lambda environment through their heading arguments and
+                 partially calling them.
     Author: thomasvergne
   -}
 
@@ -13,57 +15,66 @@ module Core.Parser.Utils.Closure where
     variables :: [String]
   } deriving Show
 
-  addVariable :: String -> Data -> Data
-  addVariable var (Data vars) = Data (var:vars)
+  type Scope = State Data
 
-  addVariables :: [String] -> Data -> Data
-  addVariables vars (Data vars') = Data (vars ++ vars')
+  addVariable :: String -> Scope ()
+  addVariable var = modify (\(Data vars) -> Data (var:vars))
 
-  getLiterals :: AST -> [AST] -> [AST]
-  getLiterals (Literal "Nil") xs = xs
-  getLiterals x@(Literal _) xs = x:xs
-  getLiterals (Node (Literal "fn") _) xs = xs
-  getLiterals (Node _ xs) xs' = foldl (flip getLiterals) xs' xs
-  getLiterals _ xs = xs
+  removeVariable :: String -> Scope ()
+  removeVariable var = modify (\(Data vars) -> Data (filter (/=var) vars))
 
-  confront :: [AST] -> [String] -> [AST]
-  confront = foldl (\ xs y -> filter (\ (Literal x) -> x /= y) xs)
+  removeVariables :: [String] -> Scope ()
+  removeVariables = mapM_ removeVariable
 
-  getVariablesNotInScope :: AST -> Data -> [AST]
-  getVariablesNotInScope s d = removeDuplicates $ confront (getLiterals s []) (variables d)
+  getVariables :: Scope [String]
+  getVariables = gets variables
 
-  replaceVariables :: [AST] -> AST -> AST
-  replaceVariables vars (Node n xs) = Node n (map (replaceVariables vars) xs)
-  replaceVariables vars x@(Literal _) =
-    if x `elem` vars
-      then Node (Literal "env") [x]
-      else x
-  replaceVariables _ x = x
+  diff :: Eq a => [a] -> [a] -> [a]
+  diff xs ys = filter (\x -> not (elem x ys)) xs
 
-  getArgName :: AST -> String
-  getArgName (Literal n) = n
-  getArgName _ = error "Argument must be a literal!"
+  fromLiterals :: [AST] -> [String]
+  fromLiterals = map (\case
+    Literal s -> s
+    _ -> error "fromLiterals: not a literal")
+  
+  convertClosure :: AST -> AST
+  convertClosure a = evalState (convertClosure' a) (Data [])
+    where 
+      convertClosure' (Node (Literal "fn") (args:body:_)) = do
+        let args'   = fromLiterals (toList args)
+        newVars <- getVariables
 
-  convertClosure :: (AST, Data) -> AST -> AST
-  convertClosure (p, d) (Node (Literal "begin") xs)
-    = Node (Literal "begin") (map (convertClosure (p, d)) xs)
-  convertClosure (p, d) (Node (Literal "fn") (args:body))
-    = do
-      -- collecting variables name in function scope
-      let vars = 
-            foldl (\acc -> \case
-              Node (Literal "let") [Literal name, _] -> addVariable name acc
-              _ -> acc) d body
-              
-      -- adding to data arguments as variable
-      let args' = addVariables (map getArgName (toList args)) vars
+        mapM addVariable args' -- adding the variables to the scope
+        body' <- convertClosure' body
+        removeVariables args' -- removing the variables from the scope
 
-      -- replacing environment variables
-      let vars' = 
-            getVariablesNotInScope 
-              (Node (Literal "begin") body) args'
-          body' = map (\x -> let a = replaceVariables vars' x in convertClosure (a, Data []) a) body
-        in Node (Literal "fn") (args : body')
-  convertClosure (p, d) (Node n xs)
-    = Node (convertClosure (p, d) n) (map (convertClosure (p, d)) xs)
-  convertClosure _ x = x
+        let newFnArgs = fromList $ map Literal (newVars ++ args')
+        
+        let newFn = Node (Literal "fn") [newFnArgs, body']
+
+        -- additionnally adding environment arguments call
+        return $ (Node newFn $ map Literal newVars)
+
+      convertClosure' (Node (Literal "let") (Literal var:value:_)) = do
+        -- reducing value before adding variable because variable shouldn't
+        -- be accessed from the value
+        value' <- convertClosure' value
+        addVariable var
+        
+        -- rebuilding the let expression
+        return $ Node (Literal "let") [Literal var, value']
+
+      -- Converting standard node is just in reducing recursively and then
+      -- removing difference from old scope and new scope
+      convertClosure' (Node n xs) = do
+        oldVars <- getVariables
+
+        n'  <- convertClosure' n
+        xs' <- mapM convertClosure' xs 
+
+        newVars <- getVariables
+        removeVariables (diff newVars oldVars)
+
+        return $ Node n' xs'
+
+      convertClosure' x = return x
