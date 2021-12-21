@@ -4,19 +4,19 @@
 (defm defn [name args body]
   (let name (fn args body)))
 
-(let x 5)
-(print x)
-{
-  (let x (+ x 2))
-  (print x)
-}
+
 
 (defm || or)
 (defm && and)
-(print x)
 
 (defm not [x] (if (= x 1) 0 1))
 (defm <= [x y] (not (> x y)))
 (defm >= [x y] (or (> x y) (= x y)))
 (defm < [x y] (not (>= x y)))
-(print (|| (= x 5) (< x 5)))
+
+(defn . [f g x] (f (g x)))
+
+(defn add [x]
+  (fn [y] (+ x y)))
+
+(print ((add 5) 2))
