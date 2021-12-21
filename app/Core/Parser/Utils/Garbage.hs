@@ -5,6 +5,7 @@ module Core.Parser.Utils.Garbage where
     (when, foldM, modify, evalStateT, MonadState(get), StateT)
   import Core.Parser.Macros (common)
   import Data.List ((\\))
+  import Data.Functor ((<&>))
 
   {-
     Module: Garbage collection
@@ -31,9 +32,7 @@ module Core.Parser.Utils.Garbage where
   dropVariable = modify . removeOne
 
   lookupVariable :: Monad m => String -> GarbageState m Bool
-  lookupVariable x = do
-    xs <- get
-    return $ x `elem` xs
+  lookupVariable x = get <&> (x `elem`)
 
   removeUnusedVariables :: Monad m => AST -> GarbageState m AST
   removeUnusedVariables (Node (Literal "begin") xs) = do
@@ -58,7 +57,7 @@ module Core.Parser.Utils.Garbage where
       when x (dropVariable n) >> return (Literal n)
 
   removeUnusedVariables x = return x
-  
+
   scopeElimination :: Monad m => AST -> GarbageState m AST
   scopeElimination (Node (Literal "begin") xs) = do
     curr <- get
@@ -69,7 +68,7 @@ module Core.Parser.Utils.Garbage where
         _ -> return $ acc ++ [x']) [] xs
     new <- get
     return $ Node (Literal "spread") (xs' ++ map (\x -> Node (Literal "drop") [Literal x]) (new \\ curr))
-  
+
   scopeElimination z@(Node (Literal "let") (Literal name:xs)) = do
     addVariable name
     xs' <- mapM scopeElimination xs
@@ -83,7 +82,7 @@ module Core.Parser.Utils.Garbage where
         (Node (Literal "spread") xs) -> return $ acc ++ xs
         _ -> return $ acc ++ [x']) [] xs
     return $ Node n' xs'
-  
+
   scopeElimination x = return x
 
   runGarbageCollector :: (Monad m, MonadFail m) => AST -> m AST
