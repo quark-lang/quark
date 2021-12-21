@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Core.Parser.Utils.Closure where
   import Core.Parser.AST (AST(..))
-  import Core.Parser.Utils.Garbage (removeDuplicates, toList, fromList)
+  import Core.Parser.Utils.Garbage (removeDuplicates)
   import Control.Monad.State
 
   {-

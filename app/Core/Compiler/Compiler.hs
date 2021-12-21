@@ -1,7 +1,6 @@
 module Core.Compiler.Compiler where
   import Core.Compiler.Instruction (Bytecode, Instruction(..))
   import Core.Parser.AST (AST(..))
-  import Core.Parser.Utils.Garbage (toList)
 
   flat :: [[a]] -> [a]
   flat xs = foldl (++) [] xs
