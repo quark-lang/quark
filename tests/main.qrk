@@ -1,14 +1,14 @@
-(let ack (fn [m n]
-  (if (= m 0)
-    (+ n 1)
-    (if (= n 0)
-      (ack (- m 1) 1)
-      (ack (- m 1) (ack m (- n 1)))))
-))
+(defm const [name value]
+  (defm name value))
 
-(let facto (fn [n]
-  (if (= n 0)
-    1
-    (* n (facto (- n 1))))))
+(defm defn [name args body]
+  (let name (fn args body)))
 
-(print (ack 3 6))
+(const y 5)
+(const z 10)
+
+
+(defn add [x]
+  (fn [y] (+ x (+ y z))))
+
+(print ((add y) y))
