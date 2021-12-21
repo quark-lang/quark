@@ -3,6 +3,7 @@ module Core.Parser.Macros where
   import Control.Monad.State
   import Data.Foldable (find)
   import Data.List
+  import Data.Maybe
   
   {-
     Module: Macro processing
@@ -71,7 +72,7 @@ module Core.Parser.Macros where
     xs <- compileMacro body
     mapM_ (dropMacro . unliteral) args
     return $ Node (Literal "fn") [Node (Literal "list") args, xs]
-
+  
   compileMacro z@(Node (Literal n) xs) = do
     r <- lookupMacro n
     xs' <- mapM compileMacro xs
@@ -173,9 +174,9 @@ module Core.Parser.Macros where
   -- check if variable can be constant
   fixLet :: AST -> AST
   fixLet (Node (Literal "let") [Literal name, value])
-    = if isPure value
-        then Node (Literal "defm") [Literal name, value]
-        else Node (Literal "let") [Literal name, value]
+    = if isPure value && not (findInAST (fixLet value) name)
+        then Node (Literal "defm") [Literal name, fixLet value]
+        else Node (Literal "let") [Literal name, fixLet value]
 
   fixLet (Node n xs) = Node (fixLet n) (map fixLet xs)
   fixLet x = x
