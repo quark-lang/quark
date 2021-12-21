@@ -16,11 +16,15 @@ module Core.Parser.Utils.Pretty where
   showAST i (Node n xs) = do
     putStr . indent $ i
     setSGR [SetColor Foreground Dull Green]
-    putStrLn "Node "
+    putStr "Node "
+    setSGR [Reset]
+    putStrLn "{"
     setSGR [SetColor Foreground Vivid Black]
     showAST (i + 2) n
     setSGR [Reset]
     mapM_ (showAST (i + 2)) xs
+    putStr . indent $ i
+    putStrLn "}"
   showAST i val = 
     putStr (indent i) >> case val of
       Integer n -> do
