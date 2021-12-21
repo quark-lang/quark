@@ -1,6 +1,11 @@
+{-# LANGUAGE LambdaCase #-}
 module Core.Parser.Utils.Garbage where
   import Core.Parser.AST (AST(..))
-  
+  import Control.Monad.State
+    (when, foldM, modify, evalStateT, MonadState(get), StateT)
+  import Core.Parser.Macros (common)
+  import Data.List ((\\))
+
   {-
     Module: Garbage collection
     Description: Scope elimination by garbage collection which is a process of adding drop call to the AST
@@ -16,36 +21,73 @@ module Core.Parser.Utils.Garbage where
           filterOnce _ [] _ = []
           filterOnce x (y:ys) i = if (y == x) && (i == 0) then filterOnce x ys 1 else y : filterOnce x ys i
 
-  toList :: AST -> [AST]
-  toList (Literal "Nil") = []
-  toList (Node (Literal "Cons") [x, Literal "Nil"])  = [x]
-  toList (Node (Literal "Cons") [x, xs]) = x : toList xs
-  toList _ = error "is not a list"
+  type Variables = [String]
+  type GarbageState m a = StateT Variables m a
 
-  fromList :: [AST] -> AST
-  fromList [] = Literal "Nil"
-  fromList (x:xs) = Node (Literal "Cons") [x, fromList xs]
+  addVariable :: Monad m => String -> GarbageState m ()
+  addVariable = modify . (:)
 
-  garbageCollection :: AST -> AST
-  garbageCollection p@(Node (Literal "begin") xs) = do
-    let xs' = foldl (\acc x -> case garbageCollection x of
-                Node (Literal "begin") xs -> acc ++ xs
-                x -> acc ++ [x]) [] xs
+  dropVariable :: Monad m => String -> GarbageState m ()
+  dropVariable = modify . removeOne
 
-    let vars =
-          removeDuplicates $ foldl (\a x -> case x of
-            Node (Literal "drop") [name] -> removeOne name (reverse a)
-            Node (Literal "let") (name:_:_) -> name : a
-            _ -> a) [] xs'
+  lookupVariable :: Monad m => String -> GarbageState m Bool
+  lookupVariable x = do
+    xs <- get
+    return $ x `elem` xs
 
-    Node (Literal "begin") $ xs' ++ map (\x -> Node (Literal "drop") [x]) vars
-  garbageCollection (Node (Literal "fn") [args, p]) = do
-    let xs'   = garbageCollection p
-    -- dropping function arguments
-    let args' = map (\x -> Node (Literal "drop") [x]) (toList args)
-    case xs' of 
-      Node (Literal "begin") xs -> Node (Literal "fn") (args : xs ++ args')
-      _ -> Node (Literal "fn") ([args, xs'] ++ args')
-      
-  garbageCollection (Node n z) = Node (garbageCollection n) $ map garbageCollection z
-  garbageCollection x = x
+  removeUnusedVariables :: Monad m => AST -> GarbageState m AST
+  removeUnusedVariables (Node (Literal "begin") xs) = do
+    curr <- get
+    xs' <- mapM (\case
+      x@(Node (Literal "let") (Literal name:_)) -> addVariable name >> return x
+      x -> removeUnusedVariables x) xs
+    new <- get
+    let scope_variables = new \\ curr
+    let xs'' = filter (\case
+                Node (Literal "let") (Literal name:_) -> notElem name scope_variables
+                _ -> True) xs'
+    return $ Node (Literal "begin") xs''
+
+  removeUnusedVariables (Node n xs) = do
+    n' <- removeUnusedVariables n
+    xs' <- mapM removeUnusedVariables xs
+    return $ Node n' xs'
+
+  removeUnusedVariables (Literal n) =
+    lookupVariable n >>= \x ->
+      when x (dropVariable n) >> return (Literal n)
+
+  removeUnusedVariables x = return x
+  
+  scopeElimination :: Monad m => AST -> GarbageState m AST
+  scopeElimination (Node (Literal "begin") xs) = do
+    curr <- get
+    xs' <- foldM (\acc x -> do
+      x' <- scopeElimination x
+      case x' of
+        (Node (Literal "spread") xs) -> return $ acc ++ xs
+        _ -> return $ acc ++ [x']) [] xs
+    new <- get
+    return $ Node (Literal "spread") (xs' ++ map (\x -> Node (Literal "drop") [Literal x]) (new \\ curr))
+  
+  scopeElimination z@(Node (Literal "let") (Literal name:xs)) = do
+    addVariable name
+    xs' <- mapM scopeElimination xs
+    return z
+
+  scopeElimination (Node n xs) = do
+    n' <- scopeElimination n
+    xs' <- foldM (\acc x -> do
+      x' <- scopeElimination x
+      case x' of
+        (Node (Literal "spread") xs) -> return $ acc ++ xs
+        _ -> return $ acc ++ [x']) [] xs
+    return $ Node n' xs'
+  
+  scopeElimination x = return x
+
+  runGarbageCollector :: (Monad m, MonadFail m) => AST -> m AST
+  runGarbageCollector a = do
+    a' <- evalStateT (removeUnusedVariables a) []
+    Node (Literal "spread") xs <- evalStateT (scopeElimination a') []
+    return $ Node (Literal "begin") xs
