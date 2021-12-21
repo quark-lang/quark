@@ -43,7 +43,9 @@ module Core.Parser.Utils.Module where
       Just ast -> return $ Node (Literal "spread") [ast]
 
   -- Converting list to their Cons/Nil representation
-  visitAST p (Node (Literal "list") xs) = visitAST p $ convertList xs
+  visitAST p (Node (Literal "list") xs) = do
+    xs' <- mapM (visitAST p) xs
+    return $ Node (Literal "list") xs'
 
   visitAST p (Node (Literal "let") (name:value:rest:_))
     = visitAST p $ 
@@ -75,10 +77,6 @@ module Core.Parser.Utils.Module where
   visitAST _ s@(Literal _) = return s
   -- Converting char to integer
   visitAST _   (Char c)    = return . Node (Literal "chr") $ [Integer . toInteger . ord $ c]
-
-  convertList :: [AST] -> AST
-  convertList [] = Literal "Nil"
-  convertList (x:xs) = Node (Literal "Cons") [x, convertList xs]
 
   convertString :: String -> AST
   convertString s = Node (Literal "list") $ map Char s
