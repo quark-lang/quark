@@ -26,7 +26,7 @@ module Core.Parser.Macros where
   lookupMacro n = gets (find (\m -> name m == n))
 
   runMacroCompiler :: (Monad m, MonadIO m) => AST -> m AST
-  runMacroCompiler a = removeMacros <$> evalStateT (compileMacro $ fixUnrecursive a) []
+  runMacroCompiler a = removeMacros <$> evalStateT (compileMacro . fixUnrecursive $ fixLet a) []
 
   dropMacro :: Monad m => String -> MacroST m ()
   dropMacro n = modify (filter (\m -> name m /= n))
@@ -39,15 +39,18 @@ module Core.Parser.Macros where
   unliteral _ = error "Not a literal"
 
   compileMacro :: (Monad m, MonadIO m) => AST -> MacroST m AST
+  -- registerint macro as a function
   compileMacro z@(Node (Literal "defm") [ Literal name, Node (Literal "list") args, body ]) = do
     registerMacro $ Macro name (map unliteral args) body
     return z
 
+  -- registering simple macro variable
   compileMacro z@(Node (Literal "defm") [ Literal name, value ]) = do
     v' <- compileMacro value
     registerMacro $ Macro name [] v'
     return z
   
+  -- processing begin by controling the macro flow scope
   compileMacro z@(Node (Literal "begin") xs) = do
     curr <- get
     xs'  <- mapM compileMacro xs
@@ -55,26 +58,41 @@ module Core.Parser.Macros where
     put $ common new curr
     return $ Node (Literal "begin") xs'
 
+  -- processing function by registering arguments as macros
+  -- for avoiding conflicts between other macros and arguments
   compileMacro (Node (Literal "fn") [Node (Literal "list") args, body]) = do
     mapM_ (\z@(Literal n) -> registerMacro (Macro n [] z)) args 
     xs <- compileMacro body
-    mapM_ (\(Literal n) -> dropMacro n) args
+    mapM_ (dropMacro . unliteral) args
     return $ Node (Literal "fn") [Node (Literal "list") args, xs]
 
   compileMacro z@(Node (Literal n) xs) = do
     r <- lookupMacro n
     xs' <- mapM compileMacro xs
     case r of
+      -- compiling macro call without explicit arguments
+      Just (Macro _ [] body) -> do
+        n' <- compileMacro body
+        return $ Node n' xs'
+
+      -- normally compiling macro
       Just (Macro _ args body) -> do
         let args' = zip args xs'
-        compileMacro $ replaceMacroArgs body args'
+        x <- compileMacro $ replaceMacroArgs body args'
+        case x of
+          (Node (Literal "fn") _) -> return (Node x xs')
+          _ -> return x
+
+      -- returning unmodified node if no macro found
       Nothing -> return $ Node (Literal n) xs'
 
+  -- default case for Node processing
   compileMacro (Node n xs) = do
     xs' <- mapM compileMacro xs
     n'  <- compileMacro n
     return $ Node n' xs'
 
+  -- modifying literal with eventual found macro
   compileMacro (Literal x) = do
     r <- lookupMacro x
     case r of
@@ -85,6 +103,7 @@ module Core.Parser.Macros where
 
   type MacroVariable = (String, AST)
 
+  -- function helper to replace macro arguments with call values
   replaceMacroArgs :: AST -> [MacroVariable] -> AST
   replaceMacroArgs (Node n xs) a = Node (replaceMacroArgs n a) (map (`replaceMacroArgs` a) xs)
   replaceMacroArgs (Literal n) a =
@@ -93,7 +112,7 @@ module Core.Parser.Macros where
         Just (_, v) -> v
         Nothing -> Literal n
   replaceMacroArgs x _ = x
-
+  
   findInAST :: AST -> String -> Bool
   findInAST (Node n xs) y = findInAST n y || any (`findInAST`y) xs 
   findInAST (Literal n) y = n == y
@@ -101,6 +120,10 @@ module Core.Parser.Macros where
 
   -- replace unrecursive functions with macros
   fixUnrecursive :: AST -> AST
+  fixUnrecursive z@(Node (Literal "const") [Literal name, Node (Literal "fn") [args, body]])
+    = if findInAST body name
+      then z
+      else Node (Literal "defm") [Literal name, args, body]
   fixUnrecursive (Node (Literal "defn") [Literal name, args, body ])
     = if findInAST body name
       then Node (Literal "defn") [Literal name, args, body]
@@ -116,3 +139,19 @@ module Core.Parser.Macros where
   removeMacros :: AST -> AST
   removeMacros (Node n xs) = Node n (filter (not . isMacro) (map removeMacros xs))
   removeMacros x = x
+  
+  isPure :: AST -> Bool
+  isPure (Node (Literal "print") _) = False
+  isPure (Node (Literal "input") _) = False
+  isPure (Node n xs) = isPure n || all isPure xs
+  isPure _ = True
+
+  -- check if variable can be constant
+  fixLet :: AST -> AST
+  fixLet (Node (Literal "let") [Literal name, value])
+    = if isPure value
+        then Node (Literal "defm") [Literal name, value]
+        else Node (Literal "let") [Literal name, value]
+
+  fixLet (Node n xs) = Node (fixLet n) (map fixLet xs)
+  fixLet x = x
