@@ -2,7 +2,8 @@ module Core.Parser.Macros where
   import Core.Parser.AST (AST(..))
   import Control.Monad.State
   import Data.Foldable (find)
-
+  import Data.List
+  
   {-
     Module: Macro processing
     Description: Process macro elimination and macro expansion
@@ -54,7 +55,7 @@ module Core.Parser.Macros where
     v' <- compileMacro value
     registerMacro $ Macro name [] v'
     return z
-  
+
   -- processing begin by controling the macro flow scope
   compileMacro z@(Node (Literal "begin") xs) = do
     curr <- get
@@ -66,7 +67,7 @@ module Core.Parser.Macros where
   -- processing function by registering arguments as macros
   -- for avoiding conflicts between other macros and arguments
   compileMacro (Node (Literal "fn") [Node (Literal "list") args, body]) = do
-    mapM_ (\z@(Literal n) -> registerMacro (Macro n [] z)) args 
+    mapM_ (\z@(Literal n) -> registerMacro (Macro n [] z)) args
     xs <- compileMacro body
     mapM_ (dropMacro . unliteral) args
     return $ Node (Literal "fn") [Node (Literal "list") args, xs]
@@ -82,7 +83,7 @@ module Core.Parser.Macros where
 
       -- normally compiling macro
       Just (Macro _ args body) -> do
-        let args' = zip args xs'
+        let args' = zipArguments args xs'
         compileMacro $ replaceMacroArgs body args'
 
       -- returning unmodified node if no macro found
@@ -98,9 +99,9 @@ module Core.Parser.Macros where
   compileMacro (Literal x) = do
     r <- lookupMacro x
     case r of
-      Just (Macro _ _ body) -> return body
-      Nothing -> return $ Literal x
-
+        Just (Macro _ _ body) -> return body
+        Nothing -> return $ Literal x
+  
   compileMacro x = return x
 
   type MacroVariable = (String, AST)
@@ -109,14 +110,35 @@ module Core.Parser.Macros where
   replaceMacroArgs :: AST -> [MacroVariable] -> AST
   replaceMacroArgs (Node n xs) a = Node (replaceMacroArgs n a) (map (`replaceMacroArgs` a) xs)
   replaceMacroArgs (Literal n) a =
-    let found = find (\(n', _) -> n == n') a
+    let found = find (\(n', _) -> remove "..." n == n') a
       in case found of
-        Just (_, v) -> v
+        Just (_, v) -> 
+          if "..." `isPrefixOf` n 
+            then case v of
+              Node (Literal "list") xs -> Node (Literal "spread") xs
+              _ -> v  
+            else v
         Nothing -> Literal n
   replaceMacroArgs x _ = x
   
+  remove :: String -> String -> String
+  remove w "" = ""
+  remove w s@(c:cs) 
+    | w `isPrefixOf` s = remove w (drop (length w) s)
+    | otherwise = c : remove w cs
+
+  -- zipping arguments with taking care of spread arguments
+  zipArguments :: [String] -> [AST] -> [(String, AST)]
+  zipArguments [x] z@(y:ys) =
+    if "..." `isPrefixOf` x
+      then [(remove "..." x, Node (Literal "list") z)]
+      else [(x, y)]
+  zipArguments (x:xs) (y:ys) = (x, y) : zipArguments xs ys
+  zipArguments (x:_) [] = [(x, Literal "Nil")]
+  zipArguments [] _ = []
+
   findInAST :: AST -> String -> Bool
-  findInAST (Node n xs) y = findInAST n y || any (`findInAST`y) xs 
+  findInAST (Node n xs) y = findInAST n y || any (`findInAST`y) xs
   findInAST (Literal n) y = n == y
   findInAST _ _ = False
 
@@ -141,7 +163,7 @@ module Core.Parser.Macros where
   removeMacros :: AST -> AST
   removeMacros (Node n xs) = Node n (filter (not . isMacro) (map removeMacros xs))
   removeMacros x = x
-  
+
   isPure :: AST -> Bool
   isPure (Node (Literal "print") _) = False
   isPure (Node (Literal "input") _) = False
