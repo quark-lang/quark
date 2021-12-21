@@ -1,7 +1,6 @@
 module Core.Parser.Macros where
   import Core.Parser.AST (AST(..))
   import Control.Monad.State
-    (MonadIO, gets, modify, evalStateT, MonadState(put, get), StateT)
   import Data.Foldable (find)
 
   {-
@@ -39,7 +38,13 @@ module Core.Parser.Macros where
   unliteral _ = error "Not a literal"
 
   compileMacro :: (Monad m, MonadIO m) => AST -> MacroST m AST
-  -- registerint macro as a function
+  -- processing unprocessed unrecursive lambda calls
+  compileMacro z@(Node (Node (Literal "fn") [Node (Literal "list") args, body]) xs) = do
+    xs' <- mapM compileMacro xs
+    let args' = zip (map unliteral args) xs'
+    return $ replaceMacroArgs body args'
+
+  -- registering macro as a function
   compileMacro z@(Node (Literal "defm") [ Literal name, Node (Literal "list") args, body ]) = do
     registerMacro $ Macro name (map unliteral args) body
     return z
@@ -78,10 +83,7 @@ module Core.Parser.Macros where
       -- normally compiling macro
       Just (Macro _ args body) -> do
         let args' = zip args xs'
-        x <- compileMacro $ replaceMacroArgs body args'
-        case x of
-          (Node (Literal "fn") _) -> return (Node x xs')
-          _ -> return x
+        compileMacro $ replaceMacroArgs body args'
 
       -- returning unmodified node if no macro found
       Nothing -> return $ Node (Literal n) xs'
@@ -90,7 +92,7 @@ module Core.Parser.Macros where
   compileMacro (Node n xs) = do
     xs' <- mapM compileMacro xs
     n'  <- compileMacro n
-    return $ Node n' xs'
+    compileMacro $ Node n' xs'
 
   -- modifying literal with eventual found macro
   compileMacro (Literal x) = do
