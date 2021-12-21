@@ -1,12 +1,9 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE CApiFFI #-}
 module Main where
   import Core.Parser.Utils.Module (parse)
   import Core.Parser.Utils.Pretty (showAST)
   import Core.Parser.Utils.Garbage (runGarbageCollector)
-  import Core.Parser.Utils.ConstantPropagation
-  import Core.Parser.Macros
+  import Core.Parser.Utils.ConstantPropagation ( propagate )
+  import Core.Parser.Macros (runMacroCompiler)
   
   main :: IO ()
   main = do
