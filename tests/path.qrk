@@ -5,5 +5,4 @@
       (* n (facto (- n 1)))
     )))
 
-  (print (facto 50))
 }

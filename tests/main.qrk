@@ -1,9 +1,12 @@
 (defm const [name value]
   (defm name value))
 
+(import "path.qrk")
+
 (defm defn [name args body]
   (let name (fn args body)))
 
+(print (facto 5))
 (defm || or)
 (defm && and)
 (defm ... [x] ...x)
