@@ -9,11 +9,13 @@ module Core.Parser.Utils.ConstantPropagation where
   
   propagate :: AST -> AST
   -- folding condition branches
-  propagate (Node (Literal "if") [cond, then', else']) =
+  propagate z@(Node (Literal "if") [cond, then', else']) =
     let cond' = propagate cond
-      in if cond' == Float 1.0
-        then propagate then'
-        else propagate else'
+      in case cond' of
+        Float f -> if f == 1.0
+          then propagate then'
+          else propagate else'
+        _ -> z
 
   -- folding some basic operations
   propagate z@(Node (Literal n) [x, y]) = 
