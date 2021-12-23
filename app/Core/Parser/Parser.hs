@@ -1,10 +1,9 @@
-{-# LANGUAGE TypeApplications #-}
 module Core.Parser.Parser where
   import Core.Parser.Combinator
   import Core.Parser.AST     (AST(..))
   import Control.Applicative ((<|>))
   import Data.Maybe          (isJust)
-  
+
   {-
     Module: Quark parser
     Description: Lisp like parser using custom combinator library
