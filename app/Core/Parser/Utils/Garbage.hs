@@ -2,7 +2,6 @@
 module Core.Parser.Utils.Garbage where
   import Core.Parser.AST (AST(..))
   import Control.Monad.State
-    (when, foldM, modify, evalStateT, MonadState(get), StateT)
   import Core.Parser.Macros (common)
   import Data.List ((\\))
   import Data.Functor ((<&>))
@@ -69,23 +68,28 @@ module Core.Parser.Utils.Garbage where
     new <- get
     return $ Node (Literal "spread") (xs' ++ map (\x -> Node (Literal "drop") [Literal x]) (new \\ curr))
 
-  scopeElimination z@(Node (Literal "let") (Literal name:xs)) = do
+  scopeElimination z@(Node (Literal "let") (Literal name:value:_)) = do
     addVariable name
-    xs' <- mapM scopeElimination xs
-    return z
-
+    xs' <- scopeElimination value >>= \case
+      (Node (Literal "spread") xs) -> return xs
+      x -> return [x]
+    return $ Node (Literal "let") (Literal name:xs')
+  
   scopeElimination (Node n xs) = do
     n' <- scopeElimination n
     xs' <- foldM (\acc x -> do
       x' <- scopeElimination x
       case x' of
-        (Node (Literal "spread") xs) -> return $ acc ++ xs
+        Node (Literal "spread") [x] -> 
+          return $ acc ++ [x]
+        Node (Literal "spread") xs -> 
+          return $ acc ++ [Node (Literal "begin") xs]
         _ -> return $ acc ++ [x']) [] xs
     return $ Node n' xs'
 
   scopeElimination x = return x
 
-  runGarbageCollector :: (Monad m, MonadFail m) => AST -> m AST
+  runGarbageCollector :: (Monad m, MonadFail m, MonadIO m) => AST -> m AST
   runGarbageCollector a = do
     a' <- evalStateT (removeUnusedVariables a) []
     Node (Literal "spread") xs <- evalStateT (scopeElimination a') []
