@@ -1,83 +1,99 @@
+{-# LANGUAGE ConstraintKinds, FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 module Core.Compiler.Compiler where
-  import Core.Compiler.Instruction (Bytecode, Instruction(..))
-  import Core.Parser.AST (AST(..))
+  import qualified Core.Parser.AST as A
+  import Control.Monad.State
+  import GHC.Float (float2Double)
+  import Core.Parser.Macros (unliteral)
+  import Data.Functor ((<&>))
 
-  flat :: [[a]] -> [a]
-  flat xs = foldl (++) [] xs
+  data CompilerState = CompilerState {
+    bound :: [(String, String)],
+    stateID :: Int
+  } deriving Show
 
-  compile :: Int -> AST -> Bytecode
-  compile i (Node (Literal "begin") xs)
-    = let r  = foldl (\acc x -> acc ++ compile (length acc) x) [] xs
-          i' = length r
-        in r ++ [HALT]
+  type Compiler m = (MonadState CompilerState m, MonadIO m)
 
-  compile i (Node (Literal "let") ((Literal name):value:_))
-    = compile i value ++ [STORE name]
+  -- Representing a Javascript AST
+  data AST
+    -- Expressions
+    = FunctionCall AST [AST]
+    | Identifier String
+    | String String
+    | Number Double
+    | Lambda [String] AST
+    | BinaryExpression String AST AST
+    | Block [AST]
 
-  compile i (Node (Literal "drop") ((Literal name):_))
-    = [DROP name]
+    -- Statements
+    | Assignment String AST
+    | Condition AST AST AST
+    | Delete AST
+    deriving Show
 
-  compile i (Node (Literal "print") (x:_))
-    = compile i x ++ [EXTERN 0]
+  addVariable :: Compiler m => String -> m (String, String)
+  addVariable name = do
+    bound <- gets bound
+    id <- gets stateID
+    modify $ \s -> s { stateID = id + 1, bound = (name, "_v" ++ show id) : bound }
+    return (name, "_v" ++ show id)
 
-  compile i (Node (Literal "env") ((Literal x):_))
-    = [ENV x]
+  popVariable :: Compiler m => m (String, String)
+  popVariable =
+    gets bound >>= \case
+      [] -> error "No variables to pop"
+      (x:xs) -> do
+        modify $ \s -> s { bound = xs }
+        return x
 
-  compile i (Node (Literal "chr") (x:_))
-    = compile i x ++ [EXTERN 2]
+  compile :: Compiler m => A.AST -> m AST
+  compile (A.Node (A.Literal "begin") xs) = do
+    before <- gets stateID
+    xs' <- mapM compile xs
+    after  <- gets stateID
+    replicateM_ (after - before) popVariable
+    return $ Block xs'
+
+  compile (A.Node (A.Literal "let") [A.Literal name, value]) = do
+    (_, id) <- addVariable name
+    return <$> Assignment id =<< compile value
+
+  compile (A.Node (A.Literal "fn") [A.Node (A.Literal "list") args, body]) = do
+    before <- gets stateID
+    args' <- mapM (\(A.Literal name) -> addVariable name <&> snd) args
+    xs <- compile body
+    after <- gets stateID
+    replicateM_ (after - before) popVariable
+    return $ Lambda args' xs
+
+  compile (A.Node (A.Literal "if") [cond, then_, else_]) =
+    Condition <$> compile cond <*> compile then_ <*> compile else_
+
+  compile (A.Node (A.Literal "drop") [name]) = Delete <$> compile name
+
+  compile (A.Node n xs) =
+    compile n >>= \case
+      x@(Identifier i) -> if i `elem` binaryExprs
+        then BinaryExpression i <$> compile (head xs) <*> compile (last xs)
+        else FunctionCall x <$> mapM compile xs
+      x -> FunctionCall x <$> mapM compile xs
+
+  compile (A.Literal "nil") = return $ Identifier "null"
+
+  compile (A.Literal s) = do
+    bound <- gets bound
+    return $ case lookup s bound of
+      Just id -> Identifier id
+      Nothing -> Identifier s
+
+  compile (A.Float n) = return . Number . float2Double $ n
+  compile (A.String s) = return $ String s
+  compile (A.Integer n) = return . Number . fromIntegral $ n
+
+  compile n = liftIO $ print n >> return (Block [])
   
-  compile i (Node (Literal "=") (x:y:_))
-    = compile i x ++ compile i y ++ [EXTERN 1]
+  binaryExprs :: [String]
+  binaryExprs = ["+", "-", "*", "/", ">", "=", "or", "and"]
 
-  compile i (Node (Literal "return") (x:_))
-    = compile i x ++ [RETURN]
-
-  compile i (Node (Literal "+") (x:y:_))
-    = compile i x ++ compile i y ++ [ADD]
-
-  compile i (Node (Literal "-") (x:y:_))
-    = compile i x ++ compile i y ++ [SUB]
-
-  compile i (Node (Literal "*") (x:y:_))
-    = compile i x ++ compile i y ++ [MUL]
-
-  compile i (Node (Literal "/") (x:y:_))
-    = compile i x ++ compile i y ++ [DIV]
-
-  compile i (Node (Literal "if") (cond:then_:else_:_))
-    = let cond' = compile (i + 1) cond
-          i' = i + 1
-          lc = length cond'
-
-          -- taking in account the condition length to compute new i
-          then_' = compile (i' + lc) then_
-          lt = length then_'
-
-          else_' = compile (i' + lt + lc + 1) else_
-          le = length else_'
-
-          -- computing new i with 1 for the incrementing and two for the jump
-      in cond' ++ [JUMP_ELSE $ lt + 1]
-          ++ then_' ++ [JUMP_REL le]
-          ++ else_'
-
-  compile i (Node (Literal "fn") (args:body))
-    = let args'  = map (\(Literal name) -> STORE name) (toList args)
-          body'  = map (compile i) body
-          body'' = concat (args' : body')
-          l      = length body''
-      in  MAKE_LAMBDA (l + 1) : body'' ++ [RETURN]
-
-  compile i (Node x xs)
-    = foldl (\acc x -> acc ++ compile (length acc + i) x) (compile i x) xs ++ [CALL (length xs)]
-
-  compile _ (Literal "+") = [ADD]
-  compile _ (Literal "-") = [SUB]
-  compile _ (Literal "*") = [MUL]
-  compile _ (Literal "/") = [DIV]
-  compile i (Literal x) = [LOAD x]
-  compile _ (Integer i) = [PUSH (fromInteger i)]
-  compile _ _ = []
-
-  serialize :: Bytecode -> (String, Int)
-  serialize xs = (flat $ map ((++";") . show) xs, length xs)
+  runCompiler :: MonadIO m => A.AST -> m AST
+  runCompiler a = evalStateT (compile a) (CompilerState [("print", "console.log")] 0)

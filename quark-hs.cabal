@@ -31,12 +31,15 @@ executable quark-hs
         Core.Parser.Parser
         Core.Parser.AST
         Core.Parser.Macros
-        Core.Parser.Utils.ConstantPropagation
         
+        Core.Parser.Utils.ConstantPropagation
         Core.Parser.Utils.Module
         Core.Parser.Utils.Pretty
         Core.Parser.Utils.Garbage
+        Core.Parser.Utils.ClosureConversion
 
+        Core.Compiler.Compiler
+        Core.Compiler.Javascript
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    
