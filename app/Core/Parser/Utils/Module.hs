@@ -7,7 +7,7 @@ module Core.Parser.Utils.Module where
   import Core.Parser.Combinator (runParser, many)
   import Data.Functor           ((<&>))
   import Data.Foldable          (foldlM)
-  import Data.Char
+  import Data.Char              (ord)
 
   {-
     Module: Parser utils
@@ -52,7 +52,7 @@ module Core.Parser.Utils.Module where
       Node (Literal "let") [
         name,
         Node (Node (Literal "fn") [
-          Node (Literal "Cons") [name, Literal "Nil"], 
+          Node (Literal "list") [name], 
           rest]) [value]]
 
   visitAST p a@(Node n z) = do
