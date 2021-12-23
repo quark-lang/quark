@@ -19,12 +19,13 @@
 (defm defn [name args body]
   (let name (fn args body)))
 
-(let x 5)
-(let test (fn [x]
-  (fn [y]
-    (if (= x y) 1 (test (- x 1))))))
-(defn main [] {
-  (print ((test 5) x))
-})
+(let test (fn [x y]
+  (fn [z]
+    (if (= x y) 1 (test (- x z))))))
 
+(let main (fn [x] {
+  (let a (input 5))
+  (print ((test 5) a))
+}))
+ 
 (main)
