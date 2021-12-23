@@ -1,6 +1,7 @@
 module Core.Parser.Utils.ConstantPropagation where
   import Core.Parser.AST (AST(..))
-
+  import Core.Parser.Macros
+  
   {-
     Module: Constant propagation
     Description: Containing functions for propagating constants through AST in order to reduce it
@@ -39,3 +40,27 @@ module Core.Parser.Utils.ConstantPropagation where
   propagate (Integer n) = Float $ fromIntegral n
   propagate n = n
   
+  -- detect if node contains declaration or impure call
+  checkForDeletion :: AST -> Bool
+  checkForDeletion (Node (Literal "let") _) = False
+  checkForDeletion (Node (Literal "print") _) = False
+  checkForDeletion (Node (Literal "input") _) = False
+  checkForDeletion (Node n xs) 
+    = (isPure n && checkForDeletion n) || any checkForDeletion xs
+  checkForDeletion _ = True
+  
+  -- remove eventual useless scopes remaining after constant propagation
+  removeUselessScopes :: AST -> AST
+  removeUselessScopes z@(Node (Literal "begin") xs)
+    = if all checkForDeletion xs
+        then last xs
+        else z
+  removeUselessScopes (Node (Literal "spread") [x]) = removeUselessScopes x
+  removeUselessScopes (Node n xs) = 
+    Node (removeUselessScopes n) (map removeUselessScopes xs)
+  removeUselessScopes n = n
+
+  runRemover :: AST -> AST
+  runRemover (Node (Literal "begin") xs) 
+    = Node (Literal "begin") $ map removeUselessScopes xs
+  runRemover z = removeUselessScopes z
