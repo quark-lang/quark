@@ -126,11 +126,8 @@ module Core.Parser.Utils.ClosureConversion where
   -- Special case for defn 
   convert z@(Node (Literal "let") [Literal name, Node (Literal "fn") [Node (Literal "list") args, body]]) = do
     next <- nextName
-    addEnvironment next
-    
-    -- Saving environment before computing function conversion
     env <- getEnvironment
-
+    
     -- Adding arguments to environment
     let args' = map unliteral args
     mapM_ addEnvironment args'
@@ -142,17 +139,18 @@ module Core.Parser.Utils.ClosureConversion where
     -- Removing the lambda environment
     current <- getEnvironment
     let env' = common env current
-    modify $ \s -> s { environment = env' }
+    modify $ \s -> s { environment = env }
 
     -- Building and inserting closure
-    let closure = Closure next args' (env \\ current, body')
+    let closure = Closure next args' (common env current, body')
     modify $ \s -> s { ast = closure : ast s }
-    return z
+    return $ Literal "nil"
   
   -- Adding variable to the environment when defined
   convert (Node (Literal "let") [Literal name, value]) = do
     addEnvironment name
-    convert value
+    value' <- convert value
+    return $ Node (Literal "let") [Literal name, value']
 
   convert z@(Node (Literal "fn") [Node (Literal "list") args, body]) = do
     env <- getEnvironment
@@ -164,7 +162,7 @@ module Core.Parser.Utils.ClosureConversion where
     -- Removing the lambda environment
     current <- getEnvironment
     let env' = common env current
-    modify $ \s -> s { environment = env' }
+    modify $ \s -> s { environment = env }
 
     -- Building and inserting closure
     name <- addClosure (env', body') args'
