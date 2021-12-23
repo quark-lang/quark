@@ -1,12 +1,6 @@
 (defm const [name value]
   (defm name value))
-
-(import "path.qrk")
-
-(defm defn [name args body]
-  (let name (fn args body)))
-
-(print (facto 5))
+  
 (defm || or)
 (defm && and)
 (defm ... [x] ...x)
@@ -22,8 +16,15 @@
 (defn . [f g x] 
   (f (g x)))
 
-(defn add [x]
-  (fn [y] (+ x y)))
+(defm defn [name args body]
+  (let name (fn args body)))
 
-(print (... [5 2 3]))
+(let x 5)
+(let test (fn [x]
+  (fn [y]
+    (if (= x y) 1 (test (- x 1))))))
+(defn main [] {
+  (print ((test 5) x))
+})
 
+(main)
