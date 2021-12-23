@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Core.Parser.Macros where
   import Core.Parser.AST (AST(..))
   import Control.Monad.State
@@ -29,8 +30,16 @@ module Core.Parser.Macros where
   runMacroCompiler :: (Monad m, MonadIO m) => AST -> m AST
   runMacroCompiler a = removeMacros <$> evalStateT (compileMacro . fixUnrecursive $ fixLet a) []
 
-  dropMacro :: Monad m => String -> MacroST m ()
-  dropMacro n = modify (filter (\m -> name m /= n))
+  dropMacro :: (Monad m, MonadIO m) => String -> MacroST m ()
+  dropMacro n = do
+    macros <- get
+    put $ f macros n False
+    where
+      f :: [Macro] -> String -> Bool -> [Macro]
+      f [] _ _ = []
+      f (m:ms) n i = if name m == n && not i
+        then ms
+        else m : f ms n i
 
   common :: Eq a => [a] -> [a] -> [a]
   common xs ys = foldr (\x acc -> if x `elem` ys then x:acc else acc) [] xs
@@ -42,10 +51,16 @@ module Core.Parser.Macros where
   compileMacro :: (Monad m, MonadIO m) => AST -> MacroST m AST
   -- processing unprocessed unrecursive lambda calls
   compileMacro z@(Node (Node (Literal "fn") [Node (Literal "list") args, body]) xs) = do
-    xs' <- mapM compileMacro xs
-    let args' = zip (map unliteral args) xs'
-    return $ replaceMacroArgs body args'
+    let args' = zip (map unliteral args) xs
+    compileMacro $ replaceMacroArgs body args'
 
+  compileMacro (Node (Literal "let") [Literal name, value]) = do
+    lookupMacro name >>= \case
+      Just m -> dropMacro name
+      Nothing -> return ()
+    value' <- compileMacro value
+    return $ Node (Literal "let") [Literal name, value']
+  
   -- registering macro as a function
   compileMacro z@(Node (Literal "defm") [ Literal name, Node (Literal "list") args, body ]) = do
     registerMacro $ Macro name (map unliteral args) body
@@ -75,33 +90,36 @@ module Core.Parser.Macros where
   
   compileMacro z@(Node (Literal n) xs) = do
     r <- lookupMacro n
-    xs' <- mapM compileMacro xs
     case r of
       -- compiling macro call without explicit arguments
-      Just (Macro _ [] body) -> do
-        n' <- compileMacro body
-        return $ Node n' xs'
+      Just (Macro _ [] body) -> 
+        compileMacro body
 
       -- normally compiling macro
       Just (Macro _ args body) -> do
-        let args' = zipArguments args xs'
+        let args' = zipArguments args xs
         compileMacro $ replaceMacroArgs body args'
 
       -- returning unmodified node if no macro found
-      Nothing -> return $ Node (Literal n) xs'
+      Nothing -> Node (Literal n) <$> mapM compileMacro xs
 
   -- default case for Node processing
   compileMacro (Node n xs) = do
     xs' <- mapM compileMacro xs
     n'  <- compileMacro n
-    compileMacro $ Node n' xs'
+    return $ Node n' xs'
 
   -- modifying literal with eventual found macro
   compileMacro (Literal x) = do
-    r <- lookupMacro x
-    case r of
-        Just (Macro _ _ body) -> return body
-        Nothing -> return $ Literal x
+    --when (x == "x") $ do
+    --  lookupMacro x >>= liftIO . print
+    lookupMacro x >>= \case
+      Just (Macro _ _ body) -> case body of
+        z@(Literal n) -> if n == x 
+          then return z 
+          else compileMacro z
+        _ -> compileMacro body
+      Nothing -> return $ Literal x
   
   compileMacro x = return x
 
@@ -139,8 +157,8 @@ module Core.Parser.Macros where
   zipArguments [] _ = []
 
   findInAST :: AST -> String -> Bool
+  findInAST (Node (Literal n) xs) y = n == y || any (`findInAST`y) xs
   findInAST (Node n xs) y = findInAST n y || any (`findInAST`y) xs
-  findInAST (Literal n) y = n == y
   findInAST _ _ = False
 
   -- replace unrecursive functions with macros
@@ -162,7 +180,7 @@ module Core.Parser.Macros where
   isMacro _ = False
 
   removeMacros :: AST -> AST
-  removeMacros (Node n xs) = Node n (filter (not . isMacro) (map removeMacros xs))
+  removeMacros (Node n xs) = Node (removeMacros n) (filter (not . isMacro) (map removeMacros xs))
   removeMacros x = x
 
   isPure :: AST -> Bool
