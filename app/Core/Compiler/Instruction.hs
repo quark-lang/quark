@@ -5,15 +5,15 @@ module Core.Compiler.Instruction where
     | POP
 
     -- variable related
-    | STORE String
-    | LOAD String
-    | DROP String
+    | STORE Int
+    | LOAD Int
+    | LOAD_SECTION Int
+    | DROP Int
 
     -- lambda related
     | MAKE_LAMBDA Int
     | CALL Int
     | RETURN
-    | ENV String
 
     -- arithmetic
     | ADD
@@ -29,4 +29,6 @@ module Core.Compiler.Instruction where
     | JUMP_ELSE Int  -- relative jump if true with then length
     deriving Show
 
-  type Bytecode = [Instruction]
+  -- storing section ID and instructions
+  data Section = Section Int [Instruction]
+    deriving Show
