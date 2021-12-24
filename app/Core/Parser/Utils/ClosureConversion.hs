@@ -89,8 +89,7 @@ module Core.Parser.Utils.ClosureConversion where
           f' _ [] _ = []
           f' f (x:xs) i = if f x && i == 0 
             then x : f' f xs (i + 1) 
-            else f' f xs i
-          
+            else f' f xs i  
 
   removeSymbol :: ClosureST m => String -> m ()
   removeSymbol x = modify $ \s -> s { symbolTable = filterOnce (\(a, b) -> a /= x) (symbolTable s) }
@@ -144,7 +143,7 @@ module Core.Parser.Utils.ClosureConversion where
     -- Building and inserting closure
     let closure = Closure next args' (common env current, body')
     modify $ \s -> s { ast = closure : ast s }
-    return $ Literal "nil"
+    return $ Node (Literal "make-closure") [Literal next]
   
   -- Adding variable to the environment when defined
   convert (Node (Literal "let") [Literal name, value]) = do
@@ -166,7 +165,7 @@ module Core.Parser.Utils.ClosureConversion where
 
     -- Building and inserting closure
     name <- addClosure (env', body') args'
-    return $ Literal name
+    return $ Node (Literal "make-closure") $ Literal name : map Literal env'
     
     
   convert (Node (Literal "drop") [x]) = do
