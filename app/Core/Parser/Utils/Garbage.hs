@@ -5,7 +5,8 @@ module Core.Parser.Utils.Garbage where
   import Core.Parser.Macros (common)
   import Data.List ((\\))
   import Data.Functor ((<&>))
-
+  import Core.Parser.Utils.Pretty (showAST)
+  
   {-
     Module: Garbage collection
     Description: Scope elimination by garbage collection which is a process of adding drop call to the AST
@@ -15,11 +16,16 @@ module Core.Parser.Utils.Garbage where
   removeDuplicates :: Eq a => [a] -> [a]
   removeDuplicates = foldl (\acc x -> if x `elem` acc then acc else acc ++ [x]) []
 
+  filterOnce :: (a -> Bool) -> [a] -> [a]
+  filterOnce f xs = f' f xs 0
+    where f' :: (a -> Bool) -> [a] -> Int -> [a]
+          f' _ [] _ = []
+          f' f (x:xs) i = if f x && i == 0
+            then x : f' f xs (i + 1)
+            else f' f xs i
+
   removeOne :: Eq a => a -> [a] -> [a]
-  removeOne x xs = filterOnce x xs 0
-    where filterOnce :: Eq a => a -> [a] -> Int -> [a]
-          filterOnce _ [] _ = []
-          filterOnce x (y:ys) i = if (y == x) && (i == 0) then filterOnce x ys 1 else y : filterOnce x ys i
+  removeOne x = filterOnce (== x)
 
   type Variables = [String]
   type GarbageState m a = StateT Variables m a
@@ -33,18 +39,26 @@ module Core.Parser.Utils.Garbage where
   lookupVariable :: Monad m => String -> GarbageState m Bool
   lookupVariable x = get <&> (x `elem`)
 
-  removeUnusedVariables :: Monad m => AST -> GarbageState m AST
-  removeUnusedVariables (Node (Literal "begin") xs) = do
+  removeUnusedVariables :: (Monad m, MonadIO m) => AST -> GarbageState m AST
+  removeUnusedVariables z@(Node (Literal "begin") xs) = do
+    -- getting current environment
     curr <- get
-    xs' <- mapM (\case
-      x@(Node (Literal "let") (Literal name:_)) -> addVariable name >> return x
-      x -> removeUnusedVariables x) xs
-    new <- get
-    let scope_variables = new \\ curr
-    let xs'' = filter (\case
-                Node (Literal "let") (Literal name:_) -> notElem name scope_variables
-                _ -> True) xs'
-    return $ Node (Literal "begin") xs''
+    xs'  <- mapM removeUnusedVariables xs
+    new  <- get
+    -- get begin environment
+    let beginEnv = filter (`elem` curr) new
+    let begin = filter (\case
+          Node (Literal "let") (Literal name:_) -> notElem name beginEnv
+          _ -> True) xs'
+    
+    return $ Node (Literal "begin") begin
+
+  removeUnusedVariables (Node (Literal "let") [Literal name, value]) = do
+    -- adding variable to environment
+    addVariable name
+    -- removing unused variables
+    val <- removeUnusedVariables value
+    return $ Node (Literal "let") [Literal name, val]
 
   removeUnusedVariables (Node n xs) = do
     n' <- removeUnusedVariables n
@@ -74,15 +88,15 @@ module Core.Parser.Utils.Garbage where
       (Node (Literal "spread") xs) -> return xs
       x -> return [x]
     return $ Node (Literal "let") (Literal name:xs')
-  
+
   scopeElimination (Node n xs) = do
     n' <- scopeElimination n
     xs' <- foldM (\acc x -> do
       x' <- scopeElimination x
       case x' of
-        Node (Literal "spread") [x] -> 
+        Node (Literal "spread") [x] ->
           return $ acc ++ [x]
-        Node (Literal "spread") xs -> 
+        Node (Literal "spread") xs ->
           return $ acc ++ [Node (Literal "begin") xs]
         _ -> return $ acc ++ [x']) [] xs
     return $ Node n' xs'
