@@ -39,7 +39,8 @@ executable quark-hs
         Core.Parser.Utils.ClosureConversion
 
         Core.Compiler.Compiler
-        Core.COmpiler.Instruction
+        Core.Compiler.Instruction
+        Core.Compiler.Utils.Pretty
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    
