@@ -6,8 +6,12 @@ module Main where
   import Core.Parser.Macros (runMacroCompiler)
   import Core.Parser.Utils.ClosureConversion
   import Core.Compiler.Compiler
-  import Core.Compiler.Javascript (compileJavascript)
+  import Core.Parser.Utils.ClosureConversion (ClosuredAST)
+  import Data.List
   
+  sortClosures :: ClosuredAST -> ClosuredAST
+  sortClosures = sortBy (\(Closure a _ _) (Closure b _ _) -> compare a b)
+
   main :: IO ()
   main = do
     let src = "tests/main.qrk"
@@ -18,9 +22,12 @@ module Main where
         m <- runMacroCompiler ast
         g <- runGarbageCollector m
         let c = runRemover $ propagate g
-        showAST 0 c
         ClosureConversion _ ast _ _ <- runClosureConverter c
-        mapM_ (\(Closure n _ (t, b)) -> print (n, t, b)) ast
+        let ast' = sortClosures ast
+        mapM_ (putStrLn . ("\n"++) . show) ast'
+        section <- compile ast'
+        putStrLn ""
+        mapM_ print section
         
 
     
