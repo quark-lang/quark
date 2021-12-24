@@ -1,14 +1,15 @@
 {-# LANGUAGE ConstraintKinds, FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 module Core.Compiler.Compiler where
   import Core.Parser.AST
   import Control.Monad.State
+    (MonadIO(..), evalStateT, MonadState(get, put), evalStateT)
   import GHC.Float (float2Double)
   import Core.Parser.Macros (unliteral)
   import Data.Functor ((<&>))
   import Core.Parser.Utils.ClosureConversion
+    (ClosuredAST, ClosuredNode(..))
   import Core.Compiler.Instruction
-  import Control.Monad.State (evalStateT)
+    (Section(..), Instruction(..))
 
   data Lambda = Lambda {
     pointer :: Int,
@@ -42,12 +43,13 @@ module Core.Compiler.Compiler where
   compileLambda :: LambdaState m => ClosuredNode -> Int -> m Section
   compileLambda (Closure name args (env, body)) i = do
     mapM_ addPointer $ args ++ env
-    Section i <$> helper body
+    Section i . (++ [RETURN]) <$> helper body
     where helper :: LambdaState m => AST -> m [Instruction]
           helper (Node (Literal "let") [Literal name, value]) = do
             addr <- addPointer name
             v <- helper value
             return $ v ++ [STORE addr]
+          -- make-closure is a function which takes a lambda and captured environment and loading it while loading the environment too
           helper (Node (Literal "make-closure") (name:env)) = do
             section <- helper name
             addrs <- mapM (getPointer . unliteral) env
@@ -55,6 +57,7 @@ module Core.Compiler.Compiler where
               [] -> error "No closures with this name"
               [LOAD_SECTION x] -> return [LOAD_CLOSURE x addrs]
               _ -> error "Multiple closures with this name"
+
           helper (Node (Literal "begin") xs) = concat <$> mapM helper xs
           helper (Node (Literal "print") [value]) = helper value <&> (++ [EXTERN 0])
           helper (Node (Literal "input") [value]) = helper value <&> (++ [EXTERN 1])
@@ -68,6 +71,11 @@ module Core.Compiler.Compiler where
             rhs' <- helper rhs
             return $ lhs' ++ rhs' ++ [EXTERN 3]
 
+          helper (Node (Literal "*") [lhs, rhs]) = do
+            lhs' <- helper lhs
+            rhs' <- helper rhs
+            return $ lhs' ++ rhs' ++ [EXTERN 4]
+
           helper (Node (Literal "if") [cond, t, e]) = do
             c <- helper cond
             t' <- helper t
@@ -80,12 +88,12 @@ module Core.Compiler.Compiler where
               else do
                 addr <- getPointer n
                 return [DROP addr]
-            
+
           helper (Node n xs) = do
             n' <- helper n
             xs' <- mapM helper xs
             return $ n' ++ concat xs' ++ [CALL (length xs)]
-            
+
           helper (Literal n) =
             if startsWith "lambda" n
               then return [LOAD_SECTION . read $ removeStringFromString "lambda" n]
