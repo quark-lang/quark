@@ -1,17 +1,17 @@
 module Core.Compiler.Instruction where
-  import Core.Compiler.Utils.Pretty
+  import Core.Compiler.Utils.Pretty (instruction, argument)
   import System.Console.ANSI (Color(..), ColorIntensity (..))
-  import Data.List
   data Instruction
     -- value related
     = PUSH Int
     | POP
 
     -- variable related
+    -- loading and storing is done by specifying the variable pointer
     | STORE Int
     | LOAD Int
     | LOAD_SECTION Int
-    | LOAD_CLOSURE Int [Int]
+    | LOAD_CLOSURE Int [Int] -- load a closure section and its environment
     | DROP Int
 
     -- lambda related
@@ -27,15 +27,18 @@ module Core.Compiler.Instruction where
 
     -- miscellaneous
     | HALT
-    | EXTERN Int
-    | JUMP Int     -- absolute jump
+    | EXTERN Int -- external function call like print or input
+    | JUMP Int -- absolute jump
     | JUMP_REL Int -- relative jump
-    | JUMP_ELSE Int  -- relative jump if true with then length
+    | JUMP_ELSE Int -- relative jump if true with then length
 
   -- storing section ID and instructions
   data Section = Section Int [Instruction]
 
+  ic :: String -> String
   ic = instruction (Dull, Green)
+  
+  section :: String -> String
   section = argument (Vivid, Black)
 
   instance Show Instruction where
