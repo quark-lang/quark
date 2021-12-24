@@ -23,9 +23,14 @@
   (fn [z]
     (if (= x y) 1 (test (- x z))))))
 
+{
+  (let test (fn [x]
+    (fn [y]
+      (if (= x y) 1 (test (- x y))))))
+}
+
 (let main (fn [x] {
-  (let a (input 5))
-  (print ((test 5) a))
+  (print ((test 5) 6))
 }))
  
 (main)
