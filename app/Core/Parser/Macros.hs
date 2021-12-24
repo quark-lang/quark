@@ -169,7 +169,7 @@ module Core.Parser.Macros where
       then z
       else Node (Literal "defm") [Literal name, args, body]
   fixUnrecursive (Node (Literal "defn") [Literal name, args, body ])
-    = if findInAST body name
+    = if findInAST body name || name == "main"
       then Node (Literal "let") [Literal name, Node (Literal "fn") [args, body]]
       else Node (Literal "defm") [Literal name, args, body]
 
