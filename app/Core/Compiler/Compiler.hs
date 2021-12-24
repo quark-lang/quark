@@ -27,7 +27,7 @@ module Core.Compiler.Compiler where
   getPointer n = do
     Lambda p vars <- get
     case lookup n vars of
-      Just p' -> return p
+      Just p' -> return p'
       Nothing -> liftIO (print n) >> return (-1)
 
   toInt :: Float -> Int
@@ -48,6 +48,13 @@ module Core.Compiler.Compiler where
             addr <- addPointer name
             v <- helper value
             return $ v ++ [STORE addr]
+          helper (Node (Literal "make-closure") (name:env)) = do
+            section <- helper name
+            addrs <- mapM (getPointer . unliteral) env
+            case section of
+              [] -> error "No closures with this name"
+              [LOAD_SECTION x] -> return [LOAD_CLOSURE x addrs]
+              _ -> error "Multiple closures with this name"
           helper (Node (Literal "begin") xs) = concat <$> mapM helper xs
           helper (Node (Literal "print") [value]) = helper value <&> (++ [EXTERN 0])
           helper (Node (Literal "input") [value]) = helper value <&> (++ [EXTERN 1])
@@ -55,15 +62,18 @@ module Core.Compiler.Compiler where
             lhs' <- helper lhs
             rhs' <- helper rhs
             return $ lhs' ++ rhs' ++ [EXTERN 2]
+
           helper (Node (Literal "-") [lhs, rhs]) = do
             lhs' <- helper lhs
             rhs' <- helper rhs
             return $ lhs' ++ rhs' ++ [EXTERN 3]
+
           helper (Node (Literal "if") [cond, t, e]) = do
             c <- helper cond
             t' <- helper t
             e' <- helper e
             return $ c ++ [JUMP_ELSE (length t')] ++ t' ++ [JUMP_REL (length e')] ++ e'
+
           helper (Node (Literal "drop") [Literal n]) =
             if startsWith "lambda" n
               then return []
@@ -75,6 +85,7 @@ module Core.Compiler.Compiler where
             n' <- helper n
             xs' <- mapM helper xs
             return $ n' ++ concat xs' ++ [CALL (length xs)]
+            
           helper (Literal n) =
             if startsWith "lambda" n
               then return [LOAD_SECTION . read $ removeStringFromString "lambda" n]
@@ -84,6 +95,7 @@ module Core.Compiler.Compiler where
           helper (Float f)   = return [PUSH $ toInt f]
           helper (Integer n) = return [PUSH $ fromInteger n]
           helper x = return []
+  compileLambda (Application _) i = return $ Section (-i) []
 
   compile :: (Monad m, MonadIO m) => ClosuredAST -> m [Section]
   compile xs = do
