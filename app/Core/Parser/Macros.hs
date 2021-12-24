@@ -92,9 +92,10 @@ module Core.Parser.Macros where
     r <- lookupMacro n
     case r of
       -- compiling macro call without explicit arguments
-      Just (Macro _ [] body) -> 
-        compileMacro body
-
+      Just (Macro _ [] body) -> do
+        if findInAST body n 
+          then compileMacro body
+          else return body
       -- normally compiling macro
       Just (Macro _ args body) -> do
         let args' = zipArguments args xs
@@ -169,7 +170,7 @@ module Core.Parser.Macros where
       else Node (Literal "defm") [Literal name, args, body]
   fixUnrecursive (Node (Literal "defn") [Literal name, args, body ])
     = if findInAST body name
-      then Node (Literal "defn") [Literal name, args, body]
+      then Node (Literal "let") [Literal name, Node (Literal "fn") [args, body]]
       else Node (Literal "defm") [Literal name, args, body]
 
   fixUnrecursive (Node n xs) = Node (fixUnrecursive n) (map fixUnrecursive xs)
