@@ -1,4 +1,7 @@
 module Core.Compiler.Instruction where
+  import Core.Compiler.Utils.Pretty
+  import System.Console.ANSI (Color(..), ColorIntensity (..))
+  import Data.List
   data Instruction
     -- value related
     = PUSH Int
@@ -8,6 +11,7 @@ module Core.Compiler.Instruction where
     | STORE Int
     | LOAD Int
     | LOAD_SECTION Int
+    | LOAD_CLOSURE Int [Int]
     | DROP Int
 
     -- lambda related
@@ -27,8 +31,36 @@ module Core.Compiler.Instruction where
     | JUMP Int     -- absolute jump
     | JUMP_REL Int -- relative jump
     | JUMP_ELSE Int  -- relative jump if true with then length
-    deriving Show
 
   -- storing section ID and instructions
   data Section = Section Int [Instruction]
-    deriving Show
+
+  ic = instruction (Dull, Green)
+  section = argument (Vivid, Black)
+
+  instance Show Instruction where
+    show (PUSH n) = ic "PUSH" ++ show n
+    show POP = ic "POP"
+    show (STORE n) = ic "STORE" ++ show n
+    show (LOAD n) = ic "LOAD" ++ show n
+    show (LOAD_SECTION n) = ic "LOAD_SECTION" ++ section (".section" ++ show n)
+    show (LOAD_CLOSURE n ns) = ic "LOAD_CLOSURE"
+      ++ section (".section" ++ show n) ++ " " ++ unwords (map show ns)
+    show (DROP n) = ic "DROP" ++ show n
+    show (MAKE_LAMBDA n) = ic "MAKE_LAMBDA" ++ show n
+    show (CALL n) = ic "CALL" ++ show n
+    show RETURN = ic "RETURN"
+    show ADD = ic "ADD"
+    show SUB = ic "SUB"
+    show MUL = ic "MUL"
+    show DIV = ic "DIV"
+    show HALT = ic "HALT"
+    show (EXTERN n) = ic "EXTERN" ++ show n
+    show (JUMP n) = ic "JUMP" ++ show n
+    show (JUMP_REL n) = ic "JUMP_REL" ++ show n
+    show (JUMP_ELSE n) = ic "JUMP_ELSE" ++ show n
+    
+  instance Show Section where
+    show (Section n is) =
+      section $ ".section" ++ show n ++ ":" ++ "\n"
+      ++ unlines (map (("  "++) . show) is)
