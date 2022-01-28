@@ -4,13 +4,9 @@ module Main where
   import Core.Parser.Utils.Garbage (runGarbageCollector)
   import Core.Parser.Utils.ConstantPropagation (propagate, runRemover)
   import Core.Parser.Macros (runMacroCompiler)
-  import Core.Parser.Utils.ClosureConversion
-  import Core.Compiler.Compiler
-  import Core.Parser.Utils.ClosureConversion (ClosuredAST)
-  import Data.List
-  
-  sortClosures :: ClosuredAST -> ClosuredAST
-  sortClosures = sortBy (\(Closure a _ _) (Closure b _ _) -> compare a b)
+  import Core.Parser.Utils.ClosureConversion (runConverter, closures)
+  import Core.Parser.TypeDeducer (runDeducer)
+  import Core.Compiler.CLang (runCompiler)
 
   main :: IO ()
   main = do
@@ -20,14 +16,14 @@ module Main where
       Nothing -> print "ERROR"
       Just ast -> do
         m <- runMacroCompiler ast
+        -- removing useless scope related things
         g <- runGarbageCollector m
-        let c = runRemover $ propagate g
-        ClosureConversion _ ast _ _ <- runClosureConverter c
-        let ast' = sortClosures ast
-        mapM_ (putStrLn . ("\n"++) . show) ast'
-        section <- compile ast'
-        putStrLn ""
-        mapM_ print section
-        
-
-    
+        -- propagating constants and removing useless code
+        let r = runRemover $ propagate g
+        -- creating a typed AST
+        x <- runDeducer r
+        print x
+        -- converting closures
+        t <- runConverter x
+        c <- runCompiler $ closures t
+        print c
