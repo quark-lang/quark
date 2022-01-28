@@ -6,3 +6,39 @@
     )))
 
 }
+
+(defm const [name value]
+  (defm name value))
+  
+(defm || or)
+(defm && and)
+(defm ... [x] ...x)
+
+(defm not [x] 
+  (if (= x 1) 0 1))
+(defm <= [x y] 
+  (not (> x y)))
+(defm >= [x y] 
+  (or (> x y) (= x y)))
+(defm < [x y] 
+  (not (>= x y)))
+(defn . [f g x] 
+  (f (g x)))
+
+(defm defn [name args body]
+  (let name (fn args body)))
+
+(defn facto [n]
+  (if (= n 1) 1 (* n (facto (- n 1)))))
+
+{
+  (defn facto [n]
+    (if (= n 3) 1 (* n (facto (- n 1)))))
+  (facto 5)
+}
+
+(defn main [] {
+  (print (facto 10))
+})
+
+(main)
