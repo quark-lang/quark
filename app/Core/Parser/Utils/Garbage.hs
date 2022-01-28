@@ -46,7 +46,7 @@ module Core.Parser.Utils.Garbage where
     xs'  <- mapM removeUnusedVariables xs
     new  <- get
     -- get begin environment
-    let beginEnv = filter (`elem` curr) new
+    let beginEnv = curr \\ new
     let begin = filter (\case
           Node (Literal "let") (Literal name:_) -> notElem name beginEnv
           _ -> True) xs'
@@ -94,10 +94,8 @@ module Core.Parser.Utils.Garbage where
     xs' <- foldM (\acc x -> do
       x' <- scopeElimination x
       case x' of
-        Node (Literal "spread") [x] ->
+        Node (Literal "begin") [x] ->
           return $ acc ++ [x]
-        Node (Literal "spread") xs ->
-          return $ acc ++ [Node (Literal "begin") xs]
         _ -> return $ acc ++ [x']) [] xs
     return $ Node n' xs'
 
@@ -107,4 +105,4 @@ module Core.Parser.Utils.Garbage where
   runGarbageCollector a = do
     a' <- evalStateT (removeUnusedVariables a) []
     Node (Literal "spread") xs <- evalStateT (scopeElimination a') []
-    return $ Node (Literal "begin") xs
+    return a'
