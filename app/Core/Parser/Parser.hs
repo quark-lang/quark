@@ -23,13 +23,13 @@ module Core.Parser.Parser where
   blacklist = "() {}[]"
 
   parseChar :: Parser String AST
-  parseChar = Char <$> (char '\'' *> anyChar <* char '\'')
+  parseChar = Char <$> (char '\'' *> (escaped <|> anyChar) <* char '\'')
 
   parseWord :: Parser String String
   parseWord = many1 $ letter <|> digit <|> noneOf blacklist
 
   parseString :: Parser String AST
-  parseString = String <$> (char '"' *> many (noneOf "\"") <* char '"')
+  parseString = String <$> (char '"' *> many (escaped <|> noneOf "\"") <* char '"')
 
   parseVoid :: Parser String AST
   parseVoid = do
@@ -69,6 +69,17 @@ module Core.Parser.Parser where
     char '.'
     dec <- many1 digit
     return $ Float (read $ num ++ "." ++ dec)
+
+  escaped :: Parser String Char
+  escaped = do
+    char '\\'
+    x <- oneOf codes
+    let z = zip codes replacements
+    return $ case lookup x z of
+      Nothing -> x
+      Just x' -> x'
+  codes        = ['b',  'n',  'f',  'r',  't',  '\\', '\"', '/']
+  replacements = ['\b', '\n', '\f', '\r', '\t', '\\', '\"', '/']
 
   parseSugar :: Parser String AST
   parseSugar = choices
