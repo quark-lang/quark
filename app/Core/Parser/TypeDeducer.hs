@@ -10,6 +10,7 @@ module Core.Parser.TypeDeducer where
   data Type
     = Lambda [Type] Type
     | Value String
+    | List Type Int
     | None
     deriving (Show, Eq)
 
@@ -30,6 +31,12 @@ module Core.Parser.TypeDeducer where
   getType (Integer _ t) = t
   getType (Float _ t)   = t
   getType (Literal _ t) = t
+
+  setType :: TypedAST -> Type -> TypedAST
+  setType (Node n xs _) t = Node n xs t
+  setType (Integer i _) t = Integer i t
+  setType (Float f _) t   = Float f t
+  setType (Literal n _) t = Literal n t
 
   isCall (Node (Literal _ _) _ _) = True
   isCall _ = False
@@ -61,7 +68,7 @@ module Core.Parser.TypeDeducer where
   unpackLiteral (Literal n _) = n
   unpackLiteral _ = error "test"
 
-  isLambdaUnfinished (Lambda args ret) = all isLambdaUnfinished args && isLambdaUnfinished ret
+  isLambdaUnfinished (Lambda args ret) = any isLambdaUnfinished args || isLambdaUnfinished ret
   isLambdaUnfinished (Value "a") = True
   isLambdaUnfinished None = False
   isLambdaUnfinished _ = False
@@ -74,24 +81,45 @@ module Core.Parser.TypeDeducer where
   getReturn (Lambda _ ret) = ret
   getReturn x = x
 
-  merge e1 [] = e1
-  merge [] e2 = e2
-  merge (e1@(n, _):e1s) e2s = if isJust $ find ((==n) . fst) e2s then e1 : merge e1s (filterOnce ((/=n) . fst) e2s) else e1 : merge e1s e2s
-
   replaceType :: TypedAST -> String -> Type -> TypedAST
   replaceType z@(Literal n _) name t =
     if n == name then Literal n t else z
-  replaceType (Node n xs _) name t =
+  replaceType (Node x@(Literal n _) args t') name t =
+    let n' = replaceType x name t
+      in Node n' (map (\x -> replaceType x name t) args) (if n == name then getReturn t else t')
+  replaceType (Node n xs t') name t =
     let n' = (replaceType n name t)
-        t' = getReturn $ getType n'
       in Node n' (map (\x -> replaceType x name t) xs) t'
   replaceType x _ _ = x
 
+  merge :: TypingEnvironment -> TypingEnvironment -> TypingEnvironment
+  merge old new =
+    map (\z@(n, t) -> case lookup n new of
+      Nothing -> z
+      Just t' -> if isLambdaUnfinished t && not (isLambdaUnfinished t') then (n, t') else z) old
+
+  isString :: Type -> Bool
+  isString (List x _) = isChar x
+  isString _ = False
+
+  isChar :: Type -> Bool
+  isChar (Value "char") = True
+  isChar _ = False
+
+  isInteger :: Type -> Bool
+  isInteger (Value "int") = True
+  isInteger _ = False
+
   infer :: Deducer m => A.AST -> m TypedAST
+  infer (A.Node (A.Literal "list") xs) = do
+    xs' <- mapM infer xs
+    let t' = List (getType . head $ xs') (length xs')
+    return $ Node (Literal "list" None) xs' t'
   infer (A.Node (A.Literal "begin") xs) = do
     env <- get
     t <- mapM infer xs
-    put env
+    env' <- get
+    put (merge env env')
     let t' = getType . last $ t
     return $ Node (Literal "begin" t') t t'
 
@@ -114,6 +142,15 @@ module Core.Parser.TypeDeducer where
   --        ] None)
   --      else error $ "Lambda type of " ++ name ++ " could not be determined!"
 
+  infer (A.Node (A.Literal "print") [value]) = do
+    v <- infer value
+    let t = getType v
+    return $ if isString t
+      then Node (Literal "#print_str" (Lambda [List (Value "char") 8] (Value "int"))) [v] (Value "int")
+      else if isChar t
+        then Node (Literal "#print_chr" (Lambda [Value "char"] (Value "int"))) [v] (Value "int")
+        else Node (Literal "#print_int" (Lambda [Value "int"] (Value "int"))) [v] (Value "int")
+
   infer (A.Node (A.Literal "let") [A.Literal name, value]) = do
     case value of
       (A.Node (A.Literal "fn") [A.Node (A.Literal "list") xs, _]) ->
@@ -130,7 +167,6 @@ module Core.Parser.TypeDeducer where
     t <- infer body
     let args' = map unliteral args
     args'' <- map fromJust . filter isJust <$> mapM search args'
-    mapM removeType args'
     return $ Node (Literal "fn" None) [
       Node (Literal "list" None) (map (\(n, t) -> Literal n t) (zip args' args'')) None,
       t
@@ -140,32 +176,36 @@ module Core.Parser.TypeDeducer where
     c <- infer cond
     t <- infer then'
     e <- infer else'
-    if getType t == getType e
-      then return $ Node (Literal "if" (getType t)) [c, t, e] (getType t)
-      else error "Not the same type"
+    return $ Node (Literal "if" (getType t)) [c, t, e] (getType t)
 
   infer (A.Node n xs) = do
     n'  <- infer n
     xs' <- mapM infer xs
-    let (Lambda args ret) = getType n'
-    xs'' <-
-      mapM (\(x, t) -> if isLiteral x && getType x == Value "a"
-        then
-          let x' = unpackLiteral x
-            in changeType (x', t) >> return (Literal x' t)
-        else if isLambdaUnfinished (getType x)
-          then let (Node (Literal n _) xs _) = x
-                   txs = map getType xs
-                  in changeType (n, Lambda txs t) >> return x
-          else return x) (zip xs' args)
-    return $ Node n' xs'' ret
+    case getType n' of
+      Lambda args ret -> do
+        xs'' <- mapM (\(t, z) -> if isLambdaUnfinished (getType z)
+                      then (do
+                        case z of
+                          Literal n _ -> changeType (n, t)
+                          _ -> return ()
+                        return $ setType z t)
+                      else return z) (zip args xs')
+        case getType n' of
+          z@(Lambda args ret) -> if isLambdaUnfinished z
+            then
+              let args'' = map (\(x, y) -> if isLambdaUnfinished x then getType y else x) (zip args xs'')
+                in case n' of
+                  Literal n _ -> return $ Node (Literal n (Lambda args'' ret)) xs'' ret
+                  x -> return $ Node n' xs'' ret
+            else return $ Node n' xs'' ret
+      x -> (liftIO $ print (xs, x)) >> error "test"
 
   infer (A.Literal n) =
     search n >>= return . Literal n . \case
       Nothing -> Value "a"
       Just x -> x
 
-  infer (A.Float f)   = return $ Float f (Value "int")
+  infer (A.Float f)   = return $ Float f (Value "float")
   infer (A.Integer i) = return $ Integer i (Value "int")
 
   builtins = [
@@ -173,7 +213,9 @@ module Core.Parser.TypeDeducer where
       ("+", Lambda [Value "int", Value "int"] (Value "int")),
       ("-", Lambda [Value "int", Value "int"] (Value "int")),
       ("*", Lambda [Value "int", Value "int"] (Value "int")),
-      ("=", Lambda [Value "int", Value "int"] (Value "int"))
+      ("=", Lambda [Value "int", Value "int"] (Value "int")),
+      ("chr", Lambda [Value "int"] (Value "char")),
+      ("printf", Lambda [List (Value "char") 0, Value "a"] (Value "int"))
     ]
 
   runDeducer a = evalStateT (infer a) builtins
