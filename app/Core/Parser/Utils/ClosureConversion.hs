@@ -102,7 +102,9 @@ module Core.Parser.Utils.ClosureConversion where
   -- Closure conversion
   convert :: Converter m => TypedAST -> m TypedAST
   convert (Node (Literal "let" _) [Literal name t, Node (Literal "fn" _) [Node (Literal "list" _) args _, body] _] t1) = do
-    next <- createClosureName
+    next <- case name of
+      "main" -> return "main"
+      _ -> createClosureName
     env <- gets tempEnvironment
 
     let args' = map typedUnliteral args
@@ -116,7 +118,7 @@ module Core.Parser.Utils.ClosureConversion where
 
     let closure = Closure (next, t) current args' body'
     addClosure closure
-    return $ Node (Literal "make-closure" None) [Literal next t] None
+    return $ Node (Literal "make-closure" None) (Literal next t : map (\(n, t) -> Literal n t) current) None
 
   convert (Node (Literal "fn" _) [Node (Literal "list" _) args _, body] t) = do
     env <- gets tempEnvironment
