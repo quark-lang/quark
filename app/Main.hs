@@ -4,9 +4,9 @@ module Main where
   import Core.Parser.Utils.Garbage (runGarbageCollector)
   import Core.Parser.Utils.ConstantPropagation (propagate, runRemover)
   import Core.Parser.Macros (runMacroCompiler)
-  import Core.Parser.Utils.ClosureConversion -- (runConverter, closures)
-  import Core.Parser.TypeDeducer (runDeducer)
-  import Core.Compiler.CLang (runCompiler, outputC)
+  -- import Core.Parser.Utils.ClosureConversion -- (runConverter, closures)
+  import Core.Parser.TypeDeducer
+  --import Core.Compiler.CLang (runCompiler, outputC)
 
   import System.IO
   import System.Environment
@@ -22,14 +22,15 @@ module Main where
     case res of
       Nothing -> print "ERROR"
       Just ast -> do
-        m <- runMacroCompiler ast
+        --m <- runMacroCompiler ast
         -- removing useless scope related things
-        g <- runGarbageCollector m
+        --g <- runGarbageCollector m
         -- propagating constants and removing useless code
-        let r = runRemover $ propagate g
+        --let r = runRemover $ propagate g
         -- creating a typed AST
-        x <- runDeducer g
         -- converting closures
-        t <- runConverter x
-        c <- runCompiler $ closures t
-        writeFile (dir </> (file -<.> "c")) (outputC c)
+        print ast
+        t <- generate ast
+        print t
+        -- c <- runCompiler $ closures t
+        -- writeFile (dir </> (file -<.> "c")) (outputC c)
