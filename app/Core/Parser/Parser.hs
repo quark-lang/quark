@@ -2,7 +2,7 @@ module Core.Parser.Parser where
   import Core.Parser.Combinator
   import Core.Parser.AST     (AST(..))
   import Control.Applicative ((<|>))
-  import Data.Maybe          (isJust)
+  import Data.Maybe          (isJust, fromMaybe)
 
   {-
     Module: Quark parser
@@ -49,7 +49,7 @@ module Core.Parser.Parser where
     lexeme $ char '['
     expr <- many parse
     char ']'
-    return $ Node (Literal "list") expr
+    return $ List expr
 
   parseNumber :: Parser String AST
   parseNumber = do
@@ -75,9 +75,7 @@ module Core.Parser.Parser where
     char '\\'
     x <- oneOf codes
     let z = zip codes replacements
-    return $ case lookup x z of
-      Nothing -> x
-      Just x' -> x'
+    return $ fromMaybe x (lookup x z)
   codes        = ['b',  'n',  'f',  'r',  't',  '\\', '\"', '/']
   replacements = ['\b', '\n', '\f', '\r', '\t', '\\', '\"', '/']
 
