@@ -43,17 +43,8 @@ module Core.Parser.Utils.Module where
       Just ast -> return $ Node (Literal "spread") [ast]
 
   -- Converting list to their Cons/Nil representation
-  visitAST p (Node (Literal "list") xs) = do
-    xs' <- mapM (visitAST p) xs
-    return $ Node (Literal "list") xs'
-
-  visitAST p (Node (Literal "let") (name:value:rest:_))
-    = visitAST p $ 
-      Node (Literal "let") [
-        name,
-        Node (Node (Literal "fn") [
-          Node (Literal "list") [name], 
-          rest]) [value]]
+  visitAST p (List xs) = List <$> mapM (visitAST p) xs
+  visitAST p (Node (Literal "fn") (List args:body:_)) = buildClosure args <$> visitAST p body
 
   visitAST p a@(Node n z) = do
     -- building new children by folding
@@ -65,19 +56,29 @@ module Core.Parser.Utils.Module where
         Node (Literal "spread") [Node (Literal "begin") xs] -> return $ a ++ xs
         _ -> return $ a ++ [x]) [] z
     r <- visitAST p n
-    return $ Node (case r of
-      Node (Literal "spread") [xs] -> xs
-      _ -> r) xy
-
+    let r' = case r of
+          Node (Literal "spread") [xs] -> xs
+          _ -> r
+    return $ if r' `elem` reserved then Node r' xy else buildCall r' xy
+  
   -- Value visiting
   visitAST _ i@(Integer _) = return i
   -- Converting string to list of chars
-  visitAST p   (String s)  = visitAST p $ convertString s
+  visitAST p s@(String _)  = return s
   visitAST _ f@(Float _)   = return f
   visitAST _ s@(Literal _) = return s
   -- Converting char to integer
   visitAST _   (Char c)    = return . Node (Literal "chr") $ [Integer . toInteger . ord $ c]
 
+  reserved = map Literal ["begin", "fn", "spread", "chr", "let"]
+
   convertString :: String -> AST
   convertString s = Node (Literal "list") $ map Char s
-  
+
+  buildClosure :: [AST] -> AST -> AST
+  buildClosure [] b = b
+  buildClosure (x:xs) b = Node (Literal "fn") [x, buildClosure xs b]
+
+  buildCall :: AST -> [AST] -> AST
+  buildCall f [] = f
+  buildCall call (x:args) = buildCall (Node call [x]) args
