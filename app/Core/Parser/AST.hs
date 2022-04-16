@@ -6,4 +6,5 @@ module Core.Parser.AST where
     | Float Float
     | Literal String
     | Char Char
+    | List [AST]
     deriving (Show, Eq)
