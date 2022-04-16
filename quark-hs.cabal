@@ -37,12 +37,12 @@ executable quark-hs
         Core.Parser.Utils.Module
         Core.Parser.Utils.Pretty
         Core.Parser.Utils.Garbage
-        Core.Parser.Utils.ClosureConversion
+        --Core.Parser.Utils.ClosureConversion
 
         --Core.Compiler.Compiler
         Core.Compiler.Instruction
         Core.Compiler.Utils.Pretty
-        Core.Compiler.CLang
+        --Core.Compiler.CLang
     -- LANGUAGE extensions used by modules in this package.
     default-extensions:
       ConstraintKinds
@@ -53,5 +53,6 @@ executable quark-hs
       , directory
       , filepath
       , ansi-terminal
+      , containers
     hs-source-dirs:   app
     default-language: Haskell2010
