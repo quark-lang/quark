@@ -80,7 +80,7 @@ module Core.Parser.Macros where
     mapM_ (dropMacro . unliteral) args
     registerMacro $ Macro name (map unliteral args) body'
     return z
-
+  compileMacro (List xs) = List <$> mapM compileMacro xs
   compileMacro (Node (Literal "drop") [Literal name]) = 
     lookupMacro name >>= \case
       Nothing -> return $ Node (Literal "drop") [Literal name]
@@ -107,7 +107,7 @@ module Core.Parser.Macros where
     let n'  = replaceArgumentsWithValue n args
         xs' = map (`replaceArgumentsWithValue` args) xs
       in Node n' xs'
-
+  replaceArgumentsWithValue (List xs) args = List (map (`replaceArgumentsWithValue` args) xs)
   replaceArgumentsWithValue (Literal n) args =
     case lookup n args of
       Just x -> x
