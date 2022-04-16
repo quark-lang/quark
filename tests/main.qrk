@@ -1,21 +1,3 @@
-(defm define [name value]
-  (defm name value))
 
-(defm id [x] x)
 
-(defm defn [name args body]
-  (let name (fn args body)))
-
-(defm letin [name value body]
-  (define name ((fn [name] body) value)))
-
-(defn facto [n]
-    (if (= n 0)
-        1
-        (* n (facto (- n 1)))))
-
-(defn main [] {
-    (print (facto 5))
-})
-
-(main)
+(let add (fn [x y] (+ x 5)))

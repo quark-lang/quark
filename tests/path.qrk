@@ -42,3 +42,14 @@
 })
 
 (main)
+
+
+(defm define [name value]
+  (defm name value))
+
+(defm id [x] x)
+
+(defm defn [name args body]
+  (let name (fn args body)))
+
+(defm print [x] (printf "%s\n" x))
