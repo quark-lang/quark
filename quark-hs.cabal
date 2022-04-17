@@ -37,7 +37,7 @@ executable quark-hs
         Core.Parser.Utils.Module
         Core.Parser.Utils.Pretty
         Core.Parser.Utils.Garbage
-        --Core.Parser.Utils.ClosureConversion
+        Core.Parser.Utils.ClosureConversion
 
         --Core.Compiler.Compiler
         Core.Compiler.Instruction

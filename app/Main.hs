@@ -4,7 +4,7 @@ module Main where
   import Core.Parser.Utils.Garbage (runGarbageCollector)
   import Core.Parser.Utils.ConstantPropagation (propagate, runRemover)
   import Core.Parser.Macros (runMacroCompiler)
-  -- import Core.Parser.Utils.ClosureConversion -- (runConverter, closures)
+  import Core.Parser.Utils.ClosureConversion -- (runConverter, closures)
   import Core.Parser.TypeDeducer
   --import Core.Compiler.CLang (runCompiler, outputC)
 
@@ -12,6 +12,7 @@ module Main where
   import System.Environment
   import System.Directory
   import System.FilePath
+  import GHC.IO.Encoding
 
   main :: IO ()
   main = do
@@ -29,8 +30,8 @@ module Main where
         --let r = runRemover $ propagate g
         -- creating a typed AST
         -- converting closures
-        print ast
         t <- generate ast
-        print t
+        c <- convertClosures t
+        mapM_ print c
         -- c <- runCompiler $ closures t
         -- writeFile (dir </> (file -<.> "c")) (outputC c)
