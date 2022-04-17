@@ -6,7 +6,11 @@ module Core.Parser.Utils.ClosureConversion where
   import Control.Monad.State
   import Core.Parser.Macros (unliteral, common)
   import Data.List
-  import Core.Parser.TypeDeducer
+  import Core.Parser.TypeDeducer hiding (Environment, fresh)
+  import qualified Data.Map as M
+  import Data.Functor
+  import Control.Monad.RWS
+  import Debug.Trace
   
   {-
     Module: Closure Conversion
@@ -18,142 +22,92 @@ module Core.Parser.Utils.ClosureConversion where
     Closure conversion should not put closure environment at beginning of lambda arguments because it would break partial application (currying). So we're building a tuple in which first member is the closure environment and the second represents the lambda itself.
   -}
 
+  type Environment = M.Map String (String, Type)
+
   data Closure = Closure {
-    lambda :: Variable,
-    environment :: TypingEnvironment,
-    arguments :: TypingEnvironment,
+    name :: String,
+    environment :: M.Map String Type,
+    argument :: (String, Type),
     body :: TypedAST
-  } deriving Show
+  }
+  instance Show Closure where
+    show (Closure name env arg body) 
+      = "Closure:\n" ++ 
+          "  name => " ++ name ++ "\n" ++ 
+          "  env  => " ++ show (M.toList env) ++ "\n" ++ 
+          "  args => " ++ show arg ++ "\n" ++ 
+          "  body => " ++ show body
 
-  type Name = String
-  type Symbol = (Name, String)
-  data ClosureState = ClosureState {
-    closures :: [Closure],
-    tempEnvironment :: TypingEnvironment,
-    lambdaCount :: Int,
-    symbols :: [Symbol]
-  } deriving Show
+  type Converter a = (MonadRWS Environment [Closure] Int a, MonadIO a)
 
-  type Converter m = (MonadState ClosureState m, MonadIO m, MonadFail m)
+  fresh :: Converter m => m String
+  fresh = get
+    >>= \n -> put (n + 1) >> return ("lambda" ++ show n)
 
-  -- Environment related
-  addVariable :: Converter m => Variable -> m ()
-  addVariable v = modify $ \c -> c { tempEnvironment = v : tempEnvironment c }
-
-  shiftVariable :: Converter m => m Variable
-  shiftVariable =
-    gets tempEnvironment >>= \case
-      [] -> error "No variable to shift"
-      (x:xs) -> do
-        modify $ \c -> c { tempEnvironment = xs }
-        return x
-
-  changeEnvironment :: Converter m => TypingEnvironment -> m ()
-  changeEnvironment e = modify $ \c -> c { tempEnvironment = e }
-
-  -- Closure related
   addClosure :: Converter m => Closure -> m ()
-  addClosure f@(Closure (n, _) _ _ _) =
-    modify $ \c -> c { closures = f : closures c }
+  addClosure c = tell [c]
 
-  lambdaPrefix = "lambda"
+  makeClosure :: (String, Type, String) -> Environment -> TypedAST
+  makeClosure (n, t, old) env
+    = AppE (VarE "make-closure" (Arrow (List Void) t)) args t
+    where args = ListE (VarE n t : map (\(n, (n', t)) -> VarE n t) (M.toList env)) (List Void)
 
-  createClosureName :: Converter m => m String
-  createClosureName = do
-    i <- gets lambdaCount
-    modify $ \c -> c { lambdaCount = i + 1 }
-    return $ lambdaPrefix ++ show i
+  getSecond :: Ord a => M.Map k (a, b) ->M.Map a b
+  getSecond = M.fromList . map snd . M.toList
 
-  nextName :: Converter m => m String
-  nextName = (++) <$> pure lambdaPrefix <*> (show <$> (+1) <$> gets lambdaCount)
+  replaceNameWith :: TypedAST -> (String, String) -> TypedAST
+  replaceNameWith (AppE n a t) z = AppE (replaceNameWith n z) (replaceNameWith a z) t
+  replaceNameWith (AbsE n a) z = AbsE n (replaceNameWith a z)
+  replaceNameWith (LetE n a b) z = LetE n (replaceNameWith a z) (replaceNameWith b z)
+  replaceNameWith (VarE n t) z = if fst z == n then VarE (snd z) t else VarE n t
+  replaceNameWith (ListE a t) z = ListE (map (`replaceNameWith` z) a) t
+  replaceNameWith x _ = x
 
-  replaceClosureName :: TypedAST -> Symbol -> TypedAST
-  replaceClosureName z@(Literal n t) (name, replace) =
-    if n == name then Literal replace t else z
-  replaceClosureName (Node n xs t) i =
-    Node (replaceClosureName n i) (map (`replaceClosureName` i) xs) t
-  replaceClosureName x _ = x
-
-  searchClosure :: Converter m => Variable -> m (Maybe Closure)
-  searchClosure v = gets closures >>= return . find ((==v) . lambda)
-
-  -- Symbol related
-  addSymbol :: Converter m => Symbol -> m ()
-  addSymbol s = modify $ \c -> c { symbols = s : symbols c }
-
-  removeSymbol :: Converter m => Name -> m ()
-  removeSymbol x = modify $ \c -> c { symbols = filterOnce ((/=x) . fst) (symbols c) }
-
-  searchSymbol :: Converter m => Name -> m (Maybe String)
-  searchSymbol s = gets symbols >>= return . lookup s
-
-  -- Useful functions
-  filterOnce :: (a -> Bool) -> [a] -> [a]
-  filterOnce f xs = f' f xs 0
-    where f' :: (a -> Bool) -> [a] -> Int -> [a]
-          f' _ [] _ = []
-          f' f (x:xs) i = if f x && i == 0
-            then x : f' f xs (i + 1)
-            else f' f xs i
-
-  typedUnliteral (Literal n t) = (n, t)
-  typedUnliteral _ = error "test"
-
-  -- Closure conversion
   convert :: Converter m => TypedAST -> m TypedAST
-  convert (Node (Literal "let" _) [Literal name t, Node (Literal "fn" _) [Node (Literal "list" _) args _, body] _] t1) = do
-    next <- case name of
-      "main" -> return "main"
-      _ -> createClosureName
-    env <- gets tempEnvironment
+  convert (AbsE (n, t) body) = do
+    -- creating a new lambda name
+    n' <- fresh
+    -- building the environment based on self and argument
+    let env = M.fromList [(n, (n, t))]
+    -- converting also body using the new environment
+    b' <- local (`M.union` env) $ convert body
+    -- adding the closure to the environment
+    e <- ask
+    addClosure $ Closure n' (getSecond e) (n, t) b'
+    -- replacing lambda with closure maker
+    return $ makeClosure (n', Arrow t (getType b'), "") e
 
-    let args' = map typedUnliteral args
-    mapM addVariable args'
+  -- Special case for let-defined functions
+  convert (LetE (n, t1) (AbsE (a, t2) body) value) = do
+    -- creating a new lambda name
+    n' <- fresh
+    -- building the environment based on self and argument
+    let env = M.fromList [(a, (a, t2))]
+    -- converting also body using the new environment
+    e <- ask
+    b' <- local (`M.union` env) $ convert (replaceNameWith body (n, n'))
+    -- adding the closure to the environment
+    addClosure $ Closure n' (getSecond e) (a, t2) b'
+    -- building the let expression
+    v' <- local (`M.union` M.fromList [(a, (a, t2))]) $ convert value
+    -- building lambda with closure maker
+    let c = makeClosure (n', Arrow t2 (getType b'), n) e
+    -- replacing lambda with closure maker
+    return $ LetE (n, t1) c v'
 
-    addSymbol (name, next)
-    body' <- convert body
+  convert (LetE (n, t) value body) = do
+    v' <- local (`M.union` M.fromList [(n, (n, t))]) $ convert value
+    b' <- local (`M.union` M.fromList [(n, (n, t))]) $ convert body
+    return $ LetE (n, t) v' b'
 
-    current <- common env <$> gets tempEnvironment
-    changeEnvironment env
+  convert (AppE n arg t) = AppE <$> convert n <*> convert arg <*> pure t
+  convert (ListE l t) = ListE <$> mapM convert l <*> pure t
+  convert (VarE n t) = ask >>= \e -> case M.lookup n e of
+    Just (n', t') -> return $ VarE n' t'
+    Nothing -> return $ VarE n t
+  convert (LitE l t) = return $ LitE l t
 
-    let closure = Closure (next, t) current args' body'
-    addClosure closure
-    return $ Node (Literal "make-closure" None) (Literal next t : map (\(n, t) -> Literal n t) current) None
-
-  convert (Node (Literal "fn" _) [Node (Literal "list" _) args _, body] t) = do
-    env <- gets tempEnvironment
-    next <- createClosureName
-    let args' = map typedUnliteral args
-    mapM addVariable args'
-
-    body' <- convert body
-
-    current <- common env <$> gets tempEnvironment
-    changeEnvironment env
-    let closure = Closure (next, t)  current args' body'
-    addClosure closure
-    return $ Node (Literal "make-closure" None) (Literal next t : map (\(n, t) -> Literal n t) current) None
-
-  convert (Node (Literal "let" _) [Literal name t, value] t1) = do
-    addVariable (name, t)
-    value' <- convert value
-    return $ Node (Literal "let" None) [Literal name t, value'] t1
-
-  convert (Node (Literal "begin" t1) xs t2) = do
-    env <- gets tempEnvironment
-    xs' <- mapM convert xs
-    changeEnvironment env
-    return $ Node (Literal "begin" t1) xs' t2
-
-  convert (Node (Literal "drop" t) [x] t') = do
-    Literal name t1 <- convert x
-    removeSymbol name
-    return $ Node (Literal "drop" t) [Literal name t1] t'
-
-  convert (Node n xs t) = Node <$> convert n <*> mapM convert xs <*> pure t
-  convert (Literal name t) = Literal <$> (searchSymbol name >>= return . \case
-    Nothing -> name
-    Just x -> x) <*> pure t
-  convert x = return x
-
-  runConverter x = execStateT (convert x) (ClosureState [] [] 0 [])
+  convertClosures :: (Monad m, MonadIO m) => TypedAST -> m [Closure]
+  convertClosures a
+    = runRWST (convert a) M.empty 0
+        >>= \(_, _, x) -> return x
