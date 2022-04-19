@@ -1,3 +1,6 @@
-
-(let add (fn [a b] (+ a b))
-  (add 4 5))
+(data (Maybe a) [
+  (Just a)
+  (Nothing)
+] (data (F f a) [
+  (F (f a) a)
+] (F Nothing 5)))
