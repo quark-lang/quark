@@ -212,18 +212,21 @@ module Core.Inference.Type where
     Env env _ _ <- ask
 
     -- Typechecking variable type
-    case M.lookup name env of
-      Just t' -> do
-        t'' <- tyInstantiate t'
-        unless (t'' == t1) $ error $ "Type " ++ show t1 ++ " does not match type " ++ show t''
-      Nothing -> return ()
+    (s3, t2) <- case M.lookup name env of
+          Just t' -> do
+            t'' <- tyInstantiate t'
+            let s = tyUnify t1 t''
+                r = tyApply s t1
+            unless (r == t'') $ error $ "Type " ++ show r ++ " does not match type " ++ show t''
+            return (s `tyCompose` s1, r)
+          Nothing -> return (s1, t1)
 
     let env'  = M.delete name env
-        t'    = generalize (tyApply s1 env) t1
+        t'    = generalize (tyApply s3 env) t2
         env'' = M.insert name t' env'
 
     (b', s2, t2) <- local (applyTypes . const $ tyApply s1 env'') $ tyInfer body
-    return (LetInE (name, t1) (tyApply s1 v') b', s1 `tyCompose` s2, t2)
+    return (LetInE (name, t1) (tyApply s3 v') b', s3 `tyCompose` s2, t2)
 
   -- Data type inference
   tyInfer (A.Node (A.Literal "data") [dat, constructors, body]) = do
@@ -289,17 +292,20 @@ module Core.Inference.Type where
     Env env c k <- ask
 
     -- Typechecking variable type
-    case M.lookup name env of
-      Just t' -> do
-        t'' <- tyInstantiate t'
-        unless (t'' == t1) $ error $ "Type " ++ show t1 ++ " does not match type " ++ show t''
-      Nothing -> return ()
+    (s3, t2) <- case M.lookup name env of
+          Just t' -> do
+            t'' <- tyInstantiate t'
+            let s = tyUnify t1 t''
+                r = tyApply s t1
+            unless (r == t'') $ error $ "Type " ++ show r ++ " does not match type " ++ show t''
+            return (s `tyCompose` s1, r)
+          Nothing -> return (s1, t1)
 
     let env'  = M.delete name env
-        t'    = generalize (tyApply s1 env) t1
+        t'    = generalize (tyApply s3 env) t2
         env'' = M.insert name t' env'
         
-    return (Just $ TLetE (name, t1) (tyApply s1 v'), Env env'' c k)
+    return (Just $ TLetE (name, t2) (tyApply s3 v'), Env env'' c k)
   topLevel z@(A.Node (A.Literal "declare") [dat, def]) = do
     let (name, tyArgs) = case dat of
           A.Node (A.Literal name) args -> (name, map unliteral args)
