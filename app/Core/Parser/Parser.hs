@@ -42,7 +42,7 @@ module Core.Parser.Parser where
     lexeme $ char '{'
     expr <- many parse
     char '}'
-    return $ Node (Literal "begin") expr
+    return $ Node (Literal "begin") [List expr]
 
   parseListSugar :: Parser String AST
   parseListSugar = do
@@ -103,7 +103,10 @@ module Core.Parser.Parser where
   lexeme :: Monad m => ParserT String e m a -> ParserT String e m a
   lexeme p = p <* spaces
 
+  trim :: String -> String
+  trim = dropWhile (== ' ')
+
   -- remove eol from string
   format :: String -> String
-  format = concat . lines
+  format e = concat $ filter (\z -> not (null z) && (head z /= ';')) (lines e)
   

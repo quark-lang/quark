@@ -25,7 +25,7 @@ module Core.Parser.Utils.Module where
         case res of
           Left err -> print err >> return Nothing
           Right ast ->
-            let ast' = if length ast > 1 then Node (Literal "begin") ast else head ast
+            let ast' = if length ast > 1 then Node (Literal "begin") [List ast] else head ast
               in Just <$> visitAST (dropFileName file) ast'
       else print ("File " ++ file ++ " does not exist") >> return Nothing
 
@@ -45,6 +45,11 @@ module Core.Parser.Utils.Module where
   -- Converting list to their Cons/Nil representation
   visitAST p (List xs) = List <$> mapM (visitAST p) xs
   visitAST p (Node (Literal "fn") (List args:body:_)) = buildClosure args <$> visitAST p body
+
+  visitAST _ z@(Node (Literal "declare") _) = return z
+  visitAST p z@(Node (Literal "data") [n, c, expr]) = do
+    expr' <- visitAST p expr
+    return $ Node (Literal "data") [n, c, expr']
 
   visitAST p a@(Node n z) = do
     -- building new children by folding
@@ -70,7 +75,7 @@ module Core.Parser.Utils.Module where
   -- Converting char to integer
   visitAST _   (Char c)    = return . Node (Literal "chr") $ [Integer . toInteger . ord $ c]
 
-  reserved = map Literal ["begin", "fn", "spread", "chr", "let"]
+  reserved = map Literal ["begin", "fn", "spread", "chr", "let", "declare", "->", "match"]
 
   convertString :: String -> AST
   convertString s = Node (Literal "list") $ map Char s
