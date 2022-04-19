@@ -168,7 +168,7 @@ module Core.Inference.Type where
         in foldr (:->) d xs'
     where helper :: A.AST -> Type
           helper (A.Node (A.Literal "->") [t1, t2]) = helper t1 :-> helper t2
-          helper (A.Node n x)  = TApp (helper n) (parseConstructor d m x)
+          helper (A.Node n xs) = foldl TApp (helper n) (map helper xs)
           helper (A.Literal "str") = String
           helper (A.Literal "int") = Int
           helper (A.Literal n) = case M.lookup n m of
