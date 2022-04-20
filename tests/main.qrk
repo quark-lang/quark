@@ -1,17 +1,14 @@
-(data (Maybe a) [
-  (Just a)
-  Nothing
-])
+(data (Maybe a))
+(declare (Just a) (-> a (Maybe a)))
+(declare (Nothing a) (Maybe a))
 
-(data (List a) [
-  (Cons a (List a))
-  Nil
-])
+(data (List a))
+(declare (Cons a) (-> a (List a) (List a)))
+(declare (Nil a) (List a))
 
 (data (IO a))
 
 (declare (print a) (-> a (IO a)))
-(declare (fromMaybe a) (-> a (Maybe a) a))
-(declare (main a) (-> [str] (IO a)))
+(declare (main a) (-> (List str) (IO a)))
 
-(let main (fn [args] (print 8)))
+(let main (fn [args] (print (Cons 5 Nil))))
