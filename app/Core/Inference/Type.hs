@@ -280,6 +280,12 @@ module Core.Inference.Type where
   parseData _ _ = error "Invalid data type"
   
   topLevel :: MonadType m => A.AST -> m (Maybe TypedAST, Env)
+  -- Empty data constructor (just a phantom type)
+  topLevel (A.Node (A.Literal "data") [dat]) = do
+    constr' <- parseData (parseTypeHeader dat) (A.List [])
+    e <- ask
+    return (Nothing, applyCons (`M.union` constr') e)
+  
   -- Top-level data with constructors
   topLevel (A.Node (A.Literal "data") [dat, constructors]) = do
     constr' <- parseData (parseTypeHeader dat) constructors
