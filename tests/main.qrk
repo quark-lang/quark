@@ -1,14 +1,34 @@
+; Maybe is like Rust's Option<T>
 (data (Maybe a))
 (declare (Just a) (-> a (Maybe a)))
 (declare (Nothing a) (Maybe a))
 
+; Linked list implementation
 (data (List a))
 (declare (Cons a) (-> a (List a) (List a)))
 (declare (Nil a) (List a))
 
-(data (IO a))
+; Defining some primitives types
+(data Void [ Void ])
+(data Bool [ True False ])
 
-(declare (print a) (-> a (IO a)))
+; IO type and some basic IO functions
+(data (IO a))
+(declare (print a) (-> a (IO Void)))
 (declare (main a) (-> (List str) (IO a)))
 
-(let main (fn [args] (print (Cons 5 Nil))))
+; Some monadic functions
+(declare (>>= m a b) (-> (m a) (-> a (m b)) (m b)))
+(declare (return m a) (-> a (m a)))
+(declare (fmap f a b) (-> (-> a b) (f a) (f b)))
+
+; Arithmetic operations
+(declare (+ a) (-> a a a))
+(declare (- a) (-> a a a))
+(declare (* a) (-> a a a))
+(declare (/ a) (-> a a a))
+
+; main :: [String] -> IO Bool
+(let main (fn [args] (print "test")))
+
+(let test (fmap (+ 5) (Cons 7 Nil)))
