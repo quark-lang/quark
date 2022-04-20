@@ -16,6 +16,7 @@ module Core.Inference.Type where
   import Core.Parser.Macros
   import Data.Foldable
   import Control.Monad (forM, unless)
+  import Debug.Trace
   
   type Argument = (String, Type)
   data TypedAST
@@ -83,7 +84,9 @@ module Core.Inference.Type where
     tyFree (TApp t1 t2) = tyFree t1 ++ tyFree t2
     tyFree _ = []
 
-    tyApply s (TVar i) = fromMaybe (TVar i) (M.lookup i s)
+    tyApply s (TVar i) = case M.lookup i s of
+      Just t -> tyApply s t
+      Nothing -> TVar i
     tyApply s (t1 :-> t2) = tyApply s t1 :-> tyApply s t2
     tyApply s (TApp t1 t2) = TApp (tyApply s t1) (tyApply s t2)
     tyApply _ s = s
@@ -123,7 +126,7 @@ module Core.Inference.Type where
     tyFree (LitE ast t) = tyFree t
 
     tyApply s (AppE f arg t) = AppE (tyApply s f) (tyApply s arg) (tyApply s t)
-    tyApply s (AbsE (n, t) body) = AbsE (n, tyApply s t) (tyApply s body)
+    tyApply s (AbsE (n, t) body) = traceShow (s, t, tyApply s t) $ AbsE (n, tyApply s t) (tyApply s body)
     tyApply s (VarE name t) = VarE name (tyApply s t)
     tyApply s (LetInE (name, t) body t') = LetInE (name, tyApply s t) (tyApply s body) (tyApply s t')
     tyApply s (ListE args t) = ListE (map (tyApply s) args) (tyApply s t)
@@ -171,9 +174,15 @@ module Core.Inference.Type where
     = let xs' = map (parseType m) xs
         in foldr (:->) d xs'
   
+  buildFun :: [Type] -> Type
+  buildFun [] = error "Cannot build function type"
+  buildFun [t] = t
+  buildFun (t:ts) = t :-> buildFun ts
+
   parseType :: M.Map String Type -> A.AST -> Type
-  parseType e (A.Node (A.Literal "->") [t1, t2]) = parseType e t1 :-> parseType e t2
+  parseType e (A.Node (A.Literal "->") xs) = buildFun (map (parseType e) xs)
   parseType e (A.Node n xs) = foldl TApp (parseType e n) (map (parseType e) xs)
+  parseType e (A.List [x]) = TApp (TId "List") (parseType e x)
   parseType e (A.Literal "str") = String
   parseType e (A.Literal "int") = Int
   parseType e (A.Literal n) = case M.lookup n e of
@@ -230,11 +239,7 @@ module Core.Inference.Type where
 
   -- Data type inference
   tyInfer (A.Node (A.Literal "data") [dat, constructors, body]) = do
-    let z = case dat of
-          A.Node (A.Literal name) args -> (name, map unliteral args)
-          A.Literal name -> (name, [])
-          _ -> error "Invalid data type"
-    constr' <- parseData z constructors
+    constr' <- parseData (parseTypeHeader dat) constructors
     local (applyCons (`M.union` constr')) $ tyInfer body
 
   -- Type inference for applications
@@ -275,14 +280,13 @@ module Core.Inference.Type where
   parseData _ _ = error "Invalid data type"
   
   topLevel :: MonadType m => A.AST -> m (Maybe TypedAST, Env)
+  -- Top-level data with constructors
   topLevel (A.Node (A.Literal "data") [dat, constructors]) = do
-    let z = case dat of
-          A.Node (A.Literal name) args -> (name, map unliteral args)
-          A.Literal name -> (name, [])
-          _ -> error "Invalid data type"
-    constr' <- parseData z constructors
+    constr' <- parseData (parseTypeHeader dat) constructors
     e <- ask
     return (Nothing, applyCons (`M.union` constr') e)
+
+  -- Top-level let expression (let-in shouldn't be used in top-level)
   topLevel z@(A.Node (A.Literal "let") [A.Literal name, value]) = do
     -- Fresh type for recursive definitions
     tv <- tyFresh
@@ -296,8 +300,7 @@ module Core.Inference.Type where
           Just t' -> do
             t'' <- tyInstantiate t'
             let s = tyUnify t1 t''
-                r = tyApply s t1
-            unless (r == t'') $ error $ "Type " ++ show r ++ " does not match type " ++ show t''
+                r = tyApply s t''
             return (s `tyCompose` s1, r)
           Nothing -> return (s1, t1)
 
@@ -306,11 +309,10 @@ module Core.Inference.Type where
         env'' = M.insert name t' env'
         
     return (Just $ TLetE (name, t2) (tyApply s3 v'), Env env'' c k)
+  
+  -- Top-level declare used to define function type
   topLevel z@(A.Node (A.Literal "declare") [dat, def]) = do
-    let (name, tyArgs) = case dat of
-          A.Node (A.Literal name) args -> (name, map unliteral args)
-          A.Literal name -> (name, [])
-          _ -> error "Invalid declaration header"
+    let (name, tyArgs) = parseTypeHeader dat
     
     argsMap <- M.fromList <$> mapM ((`fmap` tyFresh) . (,)) tyArgs
   
@@ -319,6 +321,11 @@ module Core.Inference.Type where
     let ty' = generalize t ty
     return (Nothing, applyTypes (`M.union` M.singleton name ty') e)
   topLevel x = error $ "Invalid top level expression, received: " ++ show x
+
+  parseTypeHeader :: A.AST -> (String, [String])
+  parseTypeHeader (A.Node (A.Literal name) args) = (name, map unliteral args)
+  parseTypeHeader (A.Literal name) = (name, [])
+  parseTypeHeader _ = error "Invalid type header"
 
   emptyEnv :: Env
   emptyEnv = Env M.empty M.empty M.empty
