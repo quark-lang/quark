@@ -10,14 +10,13 @@ module Core.Inference.Type where
       MonadState(get),
       RWST(runRWST),
       MonadRWS,
-      MonadReader(local, ask), zipWithM )
+      MonadReader(local, ask), zipWithM, MonadTrans (lift) )
   import qualified Core.Parser.AST as A
   import Core.Inference.Kind
   import Core.Parser.Macros
   import Data.Foldable
   import Control.Monad (forM, unless)
-  import Debug.Trace
-  
+
   type Argument = (String, Type)
   data TypedAST
     = AppE TypedAST TypedAST Type
@@ -126,7 +125,7 @@ module Core.Inference.Type where
     tyFree (LitE ast t) = tyFree t
 
     tyApply s (AppE f arg t) = AppE (tyApply s f) (tyApply s arg) (tyApply s t)
-    tyApply s (AbsE (n, t) body) = traceShow (s, t, tyApply s t) $ AbsE (n, tyApply s t) (tyApply s body)
+    tyApply s (AbsE (n, t) body) = AbsE (n, tyApply s t) (tyApply s body)
     tyApply s (VarE name t) = VarE name (tyApply s t)
     tyApply s (LetInE (name, t) body t') = LetInE (name, tyApply s t) (tyApply s body) (tyApply s t')
     tyApply s (ListE args t) = ListE (map (tyApply s) args) (tyApply s t)
@@ -169,25 +168,44 @@ module Core.Inference.Type where
   buildDataType name [] = TId name
   buildDataType name (a:rgs) = foldl TApp (TApp (TId name) a) rgs
 
+  isRight :: Either a b -> Bool
+  isRight (Right _) = True
+  isRight _ = False
+
+  right :: Either a b -> b
+  right (Right x) = x
+  right (Left _) = error "Not a right"
+
   parseConstructor :: Type -> M.Map String Type -> [A.AST] -> Type
   parseConstructor d m xs
     = let xs' = map (parseType m) xs
-        in foldr (:->) d xs'
-  
-  buildFun :: [Type] -> Type
+        in case head xs' of
+          Right _ -> foldr ((:->) . right) d (filter isRight xs')
+          Left _ -> error "Constructor type mismatch"
+
+  buildFun :: [Either Kind Type] -> Either Kind Type
   buildFun [] = error "Cannot build function type"
   buildFun [t] = t
-  buildFun (t:ts) = t :-> buildFun ts
+  buildFun (Left k:ts) = case buildFun ts of
+    Left k' -> Left (k :~> k')
+    Right _ -> error "Cannot mix kinds and types"
+  buildFun (Right t:ts) = case buildFun ts of
+    Left _ -> error "Cannot mix kinds and types"
+    Right t' -> Right (t :-> t')
 
-  parseType :: M.Map String Type -> A.AST -> Type
+  parseType :: M.Map String Type -> A.AST -> Either Kind Type
   parseType e (A.Node (A.Literal "->") xs) = buildFun (map (parseType e) xs)
-  parseType e (A.Node n xs) = foldl TApp (parseType e n) (map (parseType e) xs)
-  parseType e (A.List [x]) = TApp (TId "List") (parseType e x)
-  parseType e (A.Literal "str") = String
-  parseType e (A.Literal "int") = Int
+  parseType e (A.Node n xs) =
+    let xs' = map (parseType e) xs
+        n'  = parseType e n
+      in foldl (\acc x -> TApp <$> acc <*> x) n' xs'
+  parseType e (A.List [x]) = TApp (TId "List") <$> parseType e x
+  parseType e (A.Literal "str") = Right String
+  parseType e (A.Literal "int") = Right Int
+  parseType e (A.Literal "*") = Left Star
   parseType e (A.Literal n) = case M.lookup n e of
-    Nothing -> TId n
-    Just i  -> i
+    Nothing -> Right $ TId n
+    Just i  -> Right i
   parseType _ _ = error "Invalid constructor"
 
   -- Main type inference function
@@ -217,7 +235,7 @@ module Core.Inference.Type where
     tv <- tyFresh
     let e =  M.singleton name (Forall [] tv)
     (v', s1, t1) <- local (applyTypes (`M.union` e)) $ tyInfer value
-  
+
     Env env _ _ <- ask
 
     -- Typechecking variable type
@@ -275,17 +293,17 @@ module Core.Inference.Type where
           in return (name, schemeCt consTy)
       A.Literal name -> return (name, schemeCt dataType)
       _ -> error "Invalid constructor"
-    
+
     return $ M.fromList constr'
   parseData _ _ = error "Invalid data type"
-  
+
   topLevel :: MonadType m => A.AST -> m (Maybe TypedAST, Env)
   -- Empty data constructor (just a phantom type)
   topLevel (A.Node (A.Literal "data") [dat]) = do
     constr' <- parseData (parseTypeHeader dat) (A.List [])
     e <- ask
     return (Nothing, applyCons (`M.union` constr') e)
-  
+
   -- Top-level data with constructors
   topLevel (A.Node (A.Literal "data") [dat, constructors]) = do
     constr' <- parseData (parseTypeHeader dat) constructors
@@ -313,19 +331,25 @@ module Core.Inference.Type where
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) t2
         env'' = M.insert name t' env'
-        
+
     return (Just $ TLetE (name, t2) (tyApply s3 v'), Env env'' c k)
-  
+
   -- Top-level declare used to define function type
   topLevel z@(A.Node (A.Literal "declare") [dat, def]) = do
     let (name, tyArgs) = parseTypeHeader dat
-    
+
     argsMap <- M.fromList <$> mapM ((`fmap` tyFresh) . (,)) tyArgs
-  
+
     let ty = parseType argsMap def
-    e@(Env t _ _) <- ask
-    let ty' = generalize t ty
-    return (Nothing, applyTypes (`M.union` M.singleton name ty') e)
+
+    e@(Env t _ k) <- ask
+    --kindsMap <- M.fromList <$> mapM ((`fmap` tyFresh) . (,)) tyArgs
+    --((_, b), _, _) <- runRWST (kyCheck def) (k `M.union` M.map (\(TVar k) ---> KVar k) kindsMap) 0
+
+    --liftIO $ print (b, name)
+    case ty of
+      Left k -> return (Nothing, applyKinds (`M.union` M.singleton name k) e)
+      Right t' -> return (Nothing, applyTypes (`M.union` M.singleton name (generalize t t')) e)
   topLevel x = error $ "Invalid top level expression, received: " ++ show x
 
   parseTypeHeader :: A.AST -> (String, [String])
@@ -341,8 +365,8 @@ module Core.Inference.Type where
 
   runInfer :: MonadIO m => A.AST -> m ()
   runInfer a = do
-    (a', env) <- case a of 
-      A.Node (A.Literal "begin") [A.List xs] -> 
+    (a', env) <- case a of
+      A.Node (A.Literal "begin") [A.List xs] ->
         foldlM (\(a, e) x -> do
           ((a', e'), _, _) <- runRWST (topLevel x) e 0
           return (case a' of
