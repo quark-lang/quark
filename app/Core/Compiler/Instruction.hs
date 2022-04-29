@@ -1,6 +1,5 @@
 module Core.Compiler.Instruction where
-  import Core.Compiler.Utils.Pretty (instruction, argument)
-  import System.Console.ANSI (Color(..), ColorIntensity (..))
+  import Core.Color
   data Instruction
     -- value related
     = PUSH Int
@@ -36,10 +35,10 @@ module Core.Compiler.Instruction where
   data Section = Section Int [Instruction]
 
   ic :: String -> String
-  ic = instruction (Dull, Green)
+  ic = bGreen
   
   section :: String -> String
-  section = argument (Vivid, Black)
+  section = bBlack
 
   instance Show Instruction where
     show (PUSH n) = ic "PUSH" ++ show n

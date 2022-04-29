@@ -5,7 +5,6 @@ module Core.Parser.Utils.Garbage where
   import Core.Parser.Macros (common)
   import Data.List ((\\))
   import Data.Functor ((<&>))
-  import Core.Parser.Utils.Pretty (showAST)
   
   {-
     Module: Garbage collection
