@@ -43,7 +43,7 @@ module Core.Parser.Utils.Module where
       Just ast -> return $ Node (Literal "spread") [ast]
 
   -- Converting list to their Cons/Nil representation
-  visitAST p (List xs) = List <$> mapM (visitAST p) xs
+  visitAST p (List xs) = visitAST p . buildList =<< mapM (visitAST p) xs
   visitAST p (Node (Literal "fn") (List args:body:_)) = buildClosure args <$> visitAST p body
 
   visitAST _ z@(Node (Literal "declare") [n, c]) = return z
@@ -54,6 +54,10 @@ module Core.Parser.Utils.Module where
   visitAST p z@(Node (Literal "declare") [n, c, expr]) = do
     expr' <- visitAST p expr
     return $ Node (Literal "declare") [n, c, expr']
+
+  visitAST p z@(Node (Literal "begin") [List xs]) = do
+    xs' <- mapM (visitAST p) xs
+    return $ Node (Literal "begin") [List xs']
 
   visitAST p a@(Node n z) = do
     -- building new children by folding
@@ -69,7 +73,7 @@ module Core.Parser.Utils.Module where
           Node (Literal "spread") [xs] -> xs
           _ -> r
     return $ if r' `elem` reserved then Node r' xy else buildCall r' xy
-  
+
   -- Value visiting
   visitAST _ i@(Integer _) = return i
   -- Converting string to list of chars
@@ -87,6 +91,10 @@ module Core.Parser.Utils.Module where
   buildClosure :: [AST] -> AST -> AST
   buildClosure [] b = b
   buildClosure (x:xs) b = Node (Literal "fn") [x, buildClosure xs b]
+
+  buildList :: [AST] -> AST
+  buildList [] = Node (Literal "Nil") []
+  buildList (x:xs) = Node (Literal "Cons") [x, buildList xs]
 
   buildCall :: AST -> [AST] -> AST
   buildCall f [] = f
