@@ -1,6 +1,5 @@
 module Main where
   import Core.Parser.Utils.Module (parse)
-  import Core.Parser.Utils.Pretty (showAST)
   import Core.Parser.Utils.Garbage (runGarbageCollector)
   import Core.Parser.Utils.ConstantPropagation (propagate, runRemover)
   import Core.Parser.Macros (runMacroCompiler)
@@ -28,7 +27,7 @@ module Main where
         --let r = runRemover $ propagate g
         -- creating a typed AST
         -- converting closures
-        print ast
+        -- print ast
         t <- runInfer ast
         print t
         --c <- convertClosures t
