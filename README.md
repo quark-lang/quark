@@ -17,7 +17,7 @@
 ---
 
 <p align="center"> 
-    Quark is an interpreted programming language written in Typescript.
+    Quark is a compiled lisp-like functional language influenced by and written in Haskell.
     <br> 
 </p>
 
@@ -36,8 +36,7 @@
 
 ## 🧐 About <a name = "about"></a>
 
-The main goal of Quark is to offer a language that combines simplicity and
-productivity in addition to its cool and easy syntax.
+The main goal of Quark is to offer a language that combines simplicity and productivity in addition to its cool and easy syntax as it provides a easy and powerful functional approach.
 
 ## 🏁 Getting Started <a name = "getting_started"></a>
 
@@ -69,14 +68,14 @@ To run the tests:
  $ cabal test --test-show-details=direct
 ```
 
-### And coding style tests
+<!-- ### And coding style tests
 
 The linter is present in order to allow anyone to be able to contribute while
 being in the main coherence of the code.
 
 ```
  deno lint
-```
+``` -->
 
 ## 🎈 Usage <a name="usage"></a>
 
@@ -124,7 +123,7 @@ To build the project, do:
 - [@SuperFola](https://github.com/SuperFola) - Helping about ASTs and compilers...
 - [@Mesabloo](https://github.com/Mesabloo) - Helping about variable scoping, module importing...
 - [@Uriopass](https://github.com/Uriopass) - Helping about function and variable scoping...
-- [@kwak]() - Helping about module importing...
+- [@felko](https://github.com/felko) - Helping about module importing...
 
 See also the list of
 [contributors](https://github.com/quark-lang/quark/contributors) who
