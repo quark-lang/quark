@@ -136,7 +136,7 @@ module Core.Inference.Type where
       Right t' -> return (Nothing, applyTypes (`M.union` M.singleton name (generalize t t')) e)
   topLevel x = error $ "Invalid top level expression, received: " ++ show x
 
-  runInfer :: MonadIO m => A.AST -> m ()
+  runInfer :: MonadIO m => A.AST -> m [TypedAST]
   runInfer a = do
     (a', env) <- case a of
       A.Node (A.Literal "begin") [A.List xs] ->
@@ -150,4 +150,4 @@ module Core.Inference.Type where
         return (case a' of
           Nothing -> []
           Just ast -> [ast], e)
-    mapM_ (liftIO . print) a'
+    return a'
