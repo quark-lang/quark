@@ -10,10 +10,12 @@ module Main where
   import System.Environment (getArgs)
   import System.Directory (getCurrentDirectory)
   import System.FilePath ((</>))
-
+  import Data.Bifunctor (Bifunctor(first))
+  import Data.Foldable (foldlM)
+  
   main :: IO ()
   main = do
-    (file:_) <- getArgs
+    file:_ <- getArgs
     dir <- getCurrentDirectory
     let src = dir </> file
     res <- parse src
@@ -25,9 +27,12 @@ module Main where
         let r = runRemover $ propagate m
         -- creating a typed AST
         t <- runInfer r
-        print t
-        (closures, ast) <- unzip <$> mapM convertClosures t
+
+        (closures, ast, _) <- foldlM (\(cls, acc, i) x -> do
+          (cls', acc', i') <- convertClosures x i
+          return (cls' ++ cls, acc' : acc, i')) ([], [], 0) t
 
         print ast
+        print closures
         -- c <- runCompiler $ closures t
         -- writeFile (dir </> (file -<.> "c")) (outputC c)

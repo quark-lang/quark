@@ -55,7 +55,7 @@ module Core.Parser.Utils.ClosureConversion where
 
   makeClosure :: (String, Type, String) -> Environment -> TypedAST
   makeClosure (n, t, old) env
-    = AppE (VarE "make-closure" (t :-> t)) args t
+    = AppE (VarE "make-closure" t) args t
     where args = ListE (VarE n t : map (\(n, (n', t)) -> VarE n t) (M.toList env)) t
 
   getSecond :: Ord a => M.Map k (a, b) ->M.Map a b
@@ -123,7 +123,7 @@ module Core.Parser.Utils.ClosureConversion where
     return $ LetInE (n, t1) c v'
   convert x = return x
 
-  convertClosures :: (Monad m, MonadIO m) => TypedAST -> m ([Closure], TypedAST )
-  convertClosures a
-    = runRWST (convert a) M.empty 0
-        >>= \(t, _, x) -> return (x, t)
+  convertClosures :: (Monad m, MonadIO m) => TypedAST -> Int -> m ([Closure], TypedAST, Int)
+  convertClosures a i
+    = runRWST (convert a) M.empty i
+        >>= \(t, i', x) -> return (x, t, i')
