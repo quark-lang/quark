@@ -47,6 +47,9 @@ module Core.Parser.Utils.Module where
   visitAST p (Node (Literal "fn") (List args:body:_)) = buildClosure args <$> visitAST p body
 
   visitAST _ z@(Node (Literal "declare") [n, c]) = return z
+  visitAST p (Node (Literal "defm") [n, c]) = do
+    c' <- visitAST p c
+    return $ Node (Literal "defm") [n, c']
   visitAST _ z@(Node (Literal "data") [n, c]) = return z
   visitAST p z@(Node (Literal "data") [n, c, expr]) = do
     expr' <- visitAST p expr

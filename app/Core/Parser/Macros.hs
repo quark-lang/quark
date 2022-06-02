@@ -45,6 +45,10 @@ module Core.Parser.Macros where
     let n'  = removeMacroDefinition n
         xs' = filter (not . isMacroDefinition) xs
       in Node n' $ map removeMacroDefinition xs'
+  removeMacroDefinition (List xs) =
+    let b = Node (Literal "list") xs
+        Node (Literal "list") xs' = removeMacroDefinition b
+      in List xs'
   removeMacroDefinition z = z
 
   common :: Eq a => [a] -> [a] -> [a]
