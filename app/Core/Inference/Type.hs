@@ -32,6 +32,7 @@ module Core.Inference.Type where
 
     (b', s1, t1) <- local (applyTypes (const env'')) $ tyInfer body
     let argTy = tyApply s1 tv
+        
     return (AbsE (arg, argTy) b', s1, argTy :-> t1)
 
   -- Type inference for let-polymorphic expressions
@@ -70,19 +71,15 @@ module Core.Inference.Type where
     tv <- tyFresh
     (n', s1, t1) <- tyInfer n
     (x', s2, t2) <- local (applyTypes (tyApply s1)) $ tyInfer x
-    let s3 = tyUnify (tyApply s2 t1) (t2 :-> tv)
-    let appTy = tyApply s3 tv
-    return (AppE n' x' appTy, s3 `tyCompose` s2 `tyCompose` s1, appTy)
+    let s3   = tyUnify (tyApply s2 t1) (t2 :-> tv)
+        x'' = tyApply s3 tv
+    return (AppE n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
 
   -- Value related inference
   tyInfer s@(A.String _) = return (LitE s String, M.empty, String)
   tyInfer i@(A.Integer _) = return (LitE i Int, M.empty, Int)
   tyInfer f@(A.Float _) = return (LitE f Float, M.empty, Float)
   tyInfer a = error $ "AST node not supported: " ++ show a
-
-  functions = [
-      ("+", Forall [] (Int :-> (Int :-> Int)))
-    ]
 
   topLevel :: MonadType m => A.AST -> m (Maybe TypedAST, Env)
   -- Empty data constructor (just a phantom type)
