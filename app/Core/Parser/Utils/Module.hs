@@ -83,7 +83,10 @@ module Core.Parser.Utils.Module where
   -- Converting char to integer
   visitAST _   (Char c)    = return . Node (Literal "chr") $ [Integer . toInteger . ord $ c]
 
-  reserved = map Literal ["begin", "fn", "spread", "chr", "let", "declare", "->", "match", "data"]
+  reserved = map Literal [
+    "begin", "fn", "spread", "chr", "let", 
+    "declare", "->", "match", "data", "class"
+    ]
 
   convertString :: String -> AST
   convertString s = Node (Literal "list") $ map Char s
