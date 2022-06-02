@@ -2,9 +2,10 @@
 module Core.Inference.Type.Pretty where
   import Core.Color (bold, bBlack, bGreen, bYellow, bBlue, bCyan)
   import Core.Inference.Type.AST
-    (Scheme(..), Type(..), TypedAST(LitE, LetE, AbsE, AppE, VarE, LetInE))
+    (Scheme(..), Type(..), TypedAST(LitE, LetE, AbsE, AppE, VarE, LetInE, ListE))
   import qualified Core.Parser.AST as A
-  
+  import Data.List (intercalate)
+
   instance Show TypedAST where
     show = flip showAST 0
 
@@ -21,7 +22,7 @@ module Core.Inference.Type.Pretty where
       in lmbd ++ body'
   showAST (AppE n arg t) i =
     bBlack "[" ++ showAST n 0 ++ bBlack "] " ++ showAST arg 0
-  showAST (VarE n t) _ 
+  showAST (VarE n t) _
     = n ++ " : " ++ show t
   showAST (LitE (A.String s) _) _
     = bGreen (show s)
@@ -29,6 +30,8 @@ module Core.Inference.Type.Pretty where
     = bYellow (show i)
   showAST (LitE (A.Float f) _) _
     = bYellow (show f)
+  showAST (ListE xs _) _
+    = bBlack "[" ++ intercalate "," (map (`showAST` 0) xs) ++ bBlack "]"
   showAST (LetInE (name, t) body e) i
     = bBlue "let " ++ name ++ " = " ++ showAST body i ++ "\n" ++
       createIndent (i + 2) ++ bBlue "in " ++ showAST e 0
