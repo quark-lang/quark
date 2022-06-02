@@ -30,5 +30,5 @@
 
 ; main :: [String] -> IO Bool
 (let main (fn [args] (print "test")))
-
+(let add (fn [x y z] (+ x y)))
 (let test (fmap (+ 5) (Cons 7 Nil)))
