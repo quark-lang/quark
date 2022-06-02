@@ -6,11 +6,12 @@ module Core.Parser.Utils.ClosureConversion where
   import Control.Monad.State
   import Core.Parser.Macros (unliteral, common)
   import Data.List
-  import Core.Parser.TypeDeducer hiding (Environment, fresh)
   import qualified Data.Map as M
   import Data.Functor
   import Control.Monad.RWS
   import Debug.Trace
+  import Core.Inference.Type.AST
+  import Core.Inference.Type.Methods
   
   {-
     Module: Closure Conversion
@@ -24,6 +25,11 @@ module Core.Parser.Utils.ClosureConversion where
 
   type Environment = M.Map String (String, Type)
 
+  data ClosureAST
+    = Close Closure
+    | Leaf TypedAST
+    deriving Show
+
   data Closure = Closure {
     name :: String,
     environment :: M.Map String Type,
@@ -35,7 +41,7 @@ module Core.Parser.Utils.ClosureConversion where
       = "Closure:\n" ++ 
           "  name => " ++ name ++ "\n" ++ 
           "  env  => " ++ show (M.toList env) ++ "\n" ++ 
-          "  args => " ++ show arg ++ "\n" ++ 
+          "  arg => " ++ show arg ++ "\n" ++ 
           "  body => " ++ show body
 
   type Converter a = (MonadRWS Environment [Closure] Int a, MonadIO a)
@@ -49,8 +55,8 @@ module Core.Parser.Utils.ClosureConversion where
 
   makeClosure :: (String, Type, String) -> Environment -> TypedAST
   makeClosure (n, t, old) env
-    = AppE (VarE "make-closure" (Arrow (List Void) t)) args t
-    where args = ListE (VarE n t : map (\(n, (n', t)) -> VarE n t) (M.toList env)) (List Void)
+    = AppE (VarE "make-closure" (t :-> t)) args t
+    where args = ListE (VarE n t : map (\(n, (n', t)) -> VarE n t) (M.toList env)) t
 
   getSecond :: Ord a => M.Map k (a, b) ->M.Map a b
   getSecond = M.fromList . map snd . M.toList
@@ -58,10 +64,18 @@ module Core.Parser.Utils.ClosureConversion where
   replaceNameWith :: TypedAST -> (String, String) -> TypedAST
   replaceNameWith (AppE n a t) z = AppE (replaceNameWith n z) (replaceNameWith a z) t
   replaceNameWith (AbsE n a) z = AbsE n (replaceNameWith a z)
-  replaceNameWith (LetE n a b) z = LetE n (replaceNameWith a z) (replaceNameWith b z)
+  replaceNameWith (LetE n a) z = LetE n (replaceNameWith a z)
   replaceNameWith (VarE n t) z = if fst z == n then VarE (snd z) t else VarE n t
   replaceNameWith (ListE a t) z = ListE (map (`replaceNameWith` z) a) t
   replaceNameWith x _ = x
+
+  getType :: TypedAST -> Type
+  getType (AppE _ _ t) = t
+  getType (AbsE (_, t) b) = t :-> getType b
+  getType (LetE (n, a) _) = a
+  getType (VarE _ t) = t
+  getType (ListE a t) = t
+  getType x = error $ "getType: " ++ show x
 
   convert :: Converter m => TypedAST -> m TypedAST
   convert (AbsE (n, t) body) = do
@@ -75,10 +89,23 @@ module Core.Parser.Utils.ClosureConversion where
     e <- ask
     addClosure $ Closure n' (getSecond e) (n, t) b'
     -- replacing lambda with closure maker
-    return $ makeClosure (n', Arrow t (getType b'), "") e
-
-  -- Special case for let-defined functions
-  convert (LetE (n, t1) (AbsE (a, t2) body) value) = do
+    return $ makeClosure (n', t :-> getType b', "") e
+  convert (LetE (n, t1) (AbsE (a, t2) body)) = do
+    -- creating a new lambda name
+    n' <- fresh
+    -- building the environment based on self and argument
+    let env = M.fromList [(a, (a, t2))]
+    -- converting also body using the new environment
+    e <- ask
+    b' <- local (`M.union` env) $ convert (replaceNameWith body (n, n'))
+    -- adding the closure to the environment
+    addClosure $ Closure n' (getSecond e) (a, t2) b'
+    -- building the let expression
+    -- building lambda with closure maker
+    let c = makeClosure (n', t2 :-> getType b', n) e
+    -- replacing lambda with closure maker
+    return $ LetE (n, t1) c
+  convert (LetInE (n, t1) (AbsE (a, t2) body) value) = do
     -- creating a new lambda name
     n' <- fresh
     -- building the environment based on self and argument
@@ -91,23 +118,12 @@ module Core.Parser.Utils.ClosureConversion where
     -- building the let expression
     v' <- local (`M.union` M.fromList [(a, (a, t2))]) $ convert value
     -- building lambda with closure maker
-    let c = makeClosure (n', Arrow t2 (getType b'), n) e
+    let c = makeClosure (n', t2 :-> getType b', n) e
     -- replacing lambda with closure maker
-    return $ LetE (n, t1) c v'
+    return $ LetInE (n, t1) c v'
+  convert x = return x
 
-  convert (LetE (n, t) value body) = do
-    v' <- local (`M.union` M.fromList [(n, (n, t))]) $ convert value
-    b' <- local (`M.union` M.fromList [(n, (n, t))]) $ convert body
-    return $ LetE (n, t) v' b'
-
-  convert (AppE n arg t) = AppE <$> convert n <*> convert arg <*> pure t
-  convert (ListE l t) = ListE <$> mapM convert l <*> pure t
-  convert (VarE n t) = ask >>= \e -> case M.lookup n e of
-    Just (n', t') -> return $ VarE n' t'
-    Nothing -> return $ VarE n t
-  convert (LitE l t) = return $ LitE l t
-
-  convertClosures :: (Monad m, MonadIO m) => TypedAST -> m [Closure]
+  convertClosures :: (Monad m, MonadIO m) => TypedAST -> m ([Closure], TypedAST )
   convertClosures a
     = runRWST (convert a) M.empty 0
-        >>= \(_, _, x) -> return x
+        >>= \(t, _, x) -> return (x, t)
