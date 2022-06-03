@@ -30,9 +30,9 @@ module Main where
 
         (closures, ast, _) <- foldlM (\(cls, acc, i) x -> do
           (cls', acc', i') <- convertClosures x i
-          return (cls' ++ cls, acc' : acc, i')) ([], [], 0) t
+          return (cls ++ cls', acc ++ [acc'], i')) ([], [], 0) t
 
-        print ast
-        print closures
+        mapM_ print ast
+        --print closures
         -- c <- runCompiler $ closures t
         -- writeFile (dir </> (file -<.> "c")) (outputC c)
