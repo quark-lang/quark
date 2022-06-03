@@ -63,7 +63,7 @@ module Core.Inference.Type where
 
   -- Data type inference
   tyInfer (A.Node (A.Literal "data") [dat, constructors, body]) = do
-    constr' <- parseData (parseTypeHeader dat) constructors
+    (constr', _) <- parseData (parseTypeHeader dat) constructors
     local (applyCons (`M.union` constr')) $ tyInfer body
 
   -- Type inference for applications
@@ -84,15 +84,15 @@ module Core.Inference.Type where
   topLevel :: MonadType m => A.AST -> m (Maybe TypedAST, Env)
   -- Empty data constructor (just a phantom type)
   topLevel (A.Node (A.Literal "data") [dat]) = do
-    constr' <- parseData (parseTypeHeader dat) (A.List [])
+    (constr', ast) <- parseData (parseTypeHeader dat) (A.List [])
     e <- ask
-    return (Nothing, applyCons (`M.union` constr') e)
+    return (Just ast, applyCons (`M.union` constr') e)
 
   -- Top-level data with constructors
   topLevel (A.Node (A.Literal "data") [dat, constructors]) = do
-    constr' <- parseData (parseTypeHeader dat) constructors
+    (constr', ast) <- parseData (parseTypeHeader dat) constructors
     e <- ask
-    return (Nothing, applyCons (`M.union` constr') e)
+    return (Just ast, applyCons (`M.union` constr') e)
 
   -- Top-level let expression (let-in shouldn't be used in top-level)
   topLevel z@(A.Node (A.Literal "let") [A.Literal name, value]) = do

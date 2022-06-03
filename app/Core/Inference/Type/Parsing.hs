@@ -6,7 +6,7 @@ module Core.Inference.Type.Parsing where
     ( MonadType,
       Scheme(Forall),
       TypeEnv,
-      Type(TVar, (:->), TApp, String, Int, TId) )
+      Type(TVar, (:->), TApp, String, Int, TId), TypedAST (DataE) )
   import Core.Inference.Kind (Kind(Star, (:~>)))
   import Control.Monad (forM, unless)
   import Core.Inference.Type.Methods (tyFresh)
@@ -61,7 +61,7 @@ module Core.Inference.Type.Parsing where
   parseTypeHeader (A.Literal name) = (name, [])
   parseTypeHeader _ = error "Invalid type header"
 
-  parseData :: MonadType m => (String, [String]) -> A.AST -> m TypeEnv
+  parseData :: MonadType m => (String, [String]) -> A.AST -> m (TypeEnv, TypedAST)
   parseData (name, tyArgs) (A.List constructors) = do
     argsMap <- M.fromList <$> mapM ((`fmap` tyFresh) . (,)) tyArgs
     let tyVars   = map (argsMap M.!) tyArgs
@@ -72,9 +72,9 @@ module Core.Inference.Type.Parsing where
     constr' <- forM constructors $ \case
       A.Node (A.Literal name) args -> do
         let consTy = parseConstructor dataType argsMap args
-          in return (name, schemeCt consTy)
-      A.Literal name -> return (name, schemeCt dataType)
+          in return (name, consTy)
+      A.Literal name -> return (name, dataType)
       _ -> error "Invalid constructor"
 
-    return $ M.fromList constr'
+    return $ (M.map schemeCt (M.fromList constr'), DataE (name, tyVars) constr')
   parseData _ _ = error "Invalid data type"
