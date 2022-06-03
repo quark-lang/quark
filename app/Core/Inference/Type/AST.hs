@@ -13,6 +13,8 @@ module Core.Inference.Type.AST where
     | ListE [TypedAST] Type
     | LetE Argument TypedAST
     | LitE AST Type
+    -- (Name, [Generics])
+    | DataE (String, [Type]) [(String, Type)]
     deriving Eq
 
   data Type
