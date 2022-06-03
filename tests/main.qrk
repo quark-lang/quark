@@ -1,12 +1,14 @@
 ; Maybe is like Rust's Option<T>
-(data (Maybe a))
-(declare (Just a) (-> a (Maybe a)))
-(declare (Nothing a) (Maybe a))
+(data (Maybe a) [
+  Nothing
+  (Just a)
+])
 
 ; Linked list implementation
-(data (List a))
-(declare (Cons a) (-> a (List a) (List a)))
-(declare (Nil a) (List a))
+(data (List a) [
+  Nil
+  (Cons a (List a))
+])
 
 ; Defining some primitives types
 (data Void [ Void ])
@@ -29,6 +31,6 @@
 (declare (/ a) (-> a a a))
 
 ; main :: [String] -> IO Bool
-(let main (fn [args] (print "test")))
+(let main (fn [args] (print (Just "test"))))
 (let add (fn [x y z] (+ x y)))
 (let test (fmap (+ 5) (Cons 7 Nil)))
