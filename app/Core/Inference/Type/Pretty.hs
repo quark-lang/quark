@@ -2,7 +2,7 @@
 module Core.Inference.Type.Pretty where
   import Core.Color (bold, bBlack, bGreen, bYellow, bBlue, bCyan)
   import Core.Inference.Type.AST
-    (Scheme(..), Type(..), TypedAST(LitE, LetE, AbsE, AppE, VarE, LetInE, ListE))
+    (Scheme(..), Type(..), TypedAST(LitE, LetE, AbsE, AppE, VarE, LetInE, ListE, DataE))
   import qualified Core.Parser.AST as A
   import Data.List (intercalate)
 
@@ -35,6 +35,12 @@ module Core.Inference.Type.Pretty where
   showAST (LetInE (name, t) body e) i
     = bBlue "let " ++ name ++ " = " ++ showAST body i ++ "\n" ++
       createIndent (i + 2) ++ bBlue "in " ++ showAST e 0
+  showAST (DataE (name, generics) []) i
+    = bBlue "data " ++ bold name ++ " " ++ unwords (map show generics)
+  showAST (DataE (name, generics) ((consName, ty):xs)) i =
+    bBlue "data " ++ bold name ++ " " ++ unwords (map show generics) ++ "\n" ++
+      createIndent (i + 2) ++ "= " ++ consName ++ " :: " ++ show ty ++ "\n" ++
+      concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ n ++ " :: " ++ show t ++ "\n") xs
   showAST x _ = error "Pattern not recognized in showAST"
 
   parens :: String -> String
@@ -42,7 +48,7 @@ module Core.Inference.Type.Pretty where
 
   showTy :: Type -> (Bool, Bool) -> String
   showTy (TApp (TId "List") a) b = bBlack "[" ++ showTy a b ++ bBlack "]"
-  showTy (TVar n) _ = bBlack $ "t" ++ show n
+  showTy (TVar n) _ = bBlack $ "a" ++ show n
   showTy (TId s) _ = bold s
   showTy (t1 :-> t2) (b1, b2) =
     let s = showTy t1 (not b1 || b1, b2) ++ bBlack " -> " ++ showTy t2 (not b1 || b1, b2)
