@@ -13,6 +13,42 @@ module Core.Inference.Type where
   import Core.Inference.Type.Methods
   import Core.Inference.Type.Parsing
 
+  -- Import related
+  import Core.Parser.Utils.Module (parse)
+  import Core.Parser.Utils.Garbage (runGarbageCollector)
+  import Core.Parser.Utils.ConstantPropagation (propagate, runRemover)
+  import Core.Parser.Macros (runMacroCompiler)
+
+  -- Pattern matching inference
+  tyPattern :: MonadType m => (A.AST, [A.AST]) -> m (TypedAST, SubTy, Type)
+  tyPattern (pat, cases) = do
+    (pat', subTy, patType) <- tyInfer pat
+    cases' <- mapM (`tyCase` patType) cases
+    let s = foldl (\s (_, s', _) -> s `tyCompose` s') M.empty cases'
+        c = map (\(pat, subTy, _) -> pat) cases'
+        t = head $ map (\(_, _, t) -> t) cases'
+
+    let cases'' = map (\(p, t) -> (tyApply s p, tyApply s t)) c
+    return $ (PatternE (tyApply s pat') cases'', s, snd t)
+
+  tyCase :: MonadType m => A.AST -> Type -> m ((TypedAST, TypedAST), SubTy, (Type, Type))
+  tyCase (A.List [case', body]) t =
+    case case' of
+       A.Literal "_" -> do
+         tv <- tyFresh
+         (body, s1, t1) <- tyInfer body
+         return ((VarE "_" t, body), s1, (tv, t1))
+       A.Literal n -> do
+         tv <- tyFresh
+         let e = M.singleton n (Forall [] tv)
+         (body, s1, t1) <- local (applyTypes (`M.union` e)) $ tyInfer body
+         let s2 = tyUnify t (tyApply s1 tv)
+         return ((VarE n t, body), s1 `tyCompose` s2, (tyApply s1 tv, t1))
+       A.Integer n -> do
+         (body, s1, t1) <- tyInfer body
+         return ((LitE (A.Integer n) t, body), s1, (Int, t1))
+       _ -> error . show $ case'
+
   -- Main type inference function
   tyInfer :: MonadType m => A.AST -> m (TypedAST, SubTy, Type)
   -- Type inference for variables
@@ -21,6 +57,16 @@ module Core.Inference.Type where
       t' <- tyInstantiate t
       return (VarE n t', M.empty, t')
     Nothing -> error $ "Variable " ++ show n ++ " is not defined."
+
+  tyInfer (A.Node (A.Literal "if") [cond, then_, else_]) = do
+    (cond', s1, cond_t) <- tyInfer cond
+    (then_', s2, then_t) <- local (applyTypes (tyApply s1)) $ tyInfer then_
+    (else_', s3, else_t) <- local (applyTypes (tyApply s2)) $ tyInfer else_
+    let s4 = s3 `tyCompose` s2 `tyCompose` s3
+    return (tyApply s4 $ IfE cond' then_' else_', s4, then_t)
+
+  tyInfer (A.Node (A.Literal "match") (pat:cases))
+    = tyPattern (pat, cases)
 
   -- Type inference for abstractions
   tyInfer (A.Node (A.Literal "fn") [A.Literal arg, body]) = do
@@ -66,6 +112,12 @@ module Core.Inference.Type where
     (constr', _) <- parseData (parseTypeHeader dat) constructors
     local (applyCons (`M.union` constr')) $ tyInfer body
 
+  tyInfer (A.List elems) = do
+    (elems', s, t) <- foldlM (\(es, s, t) e -> do
+      (e', s', t') <- tyInfer e
+      return (e' : es, s `tyCompose` s', t' : t)) ([], M.empty, []) elems
+    return (ListE elems' (head t), s, ListT (head t))
+
   -- Type inference for applications
   tyInfer (A.Node n [x]) = do
     tv <- tyFresh
@@ -81,18 +133,18 @@ module Core.Inference.Type where
   tyInfer f@(A.Float _) = return (LitE f Float, M.empty, Float)
   tyInfer a = error $ "AST node not supported: " ++ show a
 
-  topLevel :: MonadType m => A.AST -> m (Maybe TypedAST, Env)
+  topLevel :: MonadType m => A.AST -> m (Maybe [TypedAST], Env)
   -- Empty data constructor (just a phantom type)
   topLevel (A.Node (A.Literal "data") [dat]) = do
     (constr', ast) <- parseData (parseTypeHeader dat) (A.List [])
     e <- ask
-    return (Just ast, applyCons (`M.union` constr') e)
+    return (Just [ast], applyCons (`M.union` constr') e)
 
   -- Top-level data with constructors
   topLevel (A.Node (A.Literal "data") [dat, constructors]) = do
     (constr', ast) <- parseData (parseTypeHeader dat) constructors
     e <- ask
-    return (Just ast, applyCons (`M.union` constr') e)
+    return (Just [ast], applyCons (`M.union` constr') e)
 
   -- Top-level let expression (let-in shouldn't be used in top-level)
   topLevel z@(A.Node (A.Literal "let") [A.Literal name, value]) = do
@@ -116,7 +168,7 @@ module Core.Inference.Type where
         t'    = generalize (tyApply s3 env) t2
         env'' = M.insert name t' env'
 
-    return (Just $ LetE (name, t2) (tyApply s3 v'), Env env'' c k)
+    return (Just [LetE (name, t2) (tyApply s3 v')], Env env'' c k)
 
   -- Top-level declare used to define function type
   topLevel z@(A.Node (A.Literal "declare") [dat, def]) = do
@@ -138,16 +190,17 @@ module Core.Inference.Type where
 
   runInfer :: MonadIO m => A.AST -> m [TypedAST]
   runInfer a = do
+    let e = emptyEnv
     (a', env) <- case a of
       A.Node (A.Literal "begin") [A.List xs] ->
         foldlM (\(a, e) x -> do
           ((a', e'), _, _) <- runRWST (topLevel x) e 0
           return (case a' of
             Nothing -> a
-            Just ast -> a ++ [ast], mergeEnv e e')) ([], emptyEnv) xs
+            Just ast -> a ++ ast, mergeEnv e e')) ([], e) xs
       x -> do
-        ((a', e), _, _) <- runRWST (topLevel x) emptyEnv 0
+        ((a', e), _, _) <- runRWST (topLevel x) e 0
         return (case a' of
           Nothing -> []
-          Just ast -> [ast], e)
+          Just ast -> ast, e)
     return a'
