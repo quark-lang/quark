@@ -8,6 +8,10 @@ module Core.Parser.Utils.Module where
   import Data.Functor           ((<&>))
   import Data.Foldable          (foldlM)
   import Data.Char              (ord)
+  import System.Directory
+  import System.Process
+  import System.FilePath ((</>), (-<.>))
+  import Core.Color
 
   {-
     Module: Parser utils
@@ -29,22 +33,15 @@ module Core.Parser.Utils.Module where
               in Just <$> visitAST (dropFileName file) ast'
       else print ("File " ++ file ++ " does not exist") >> return Nothing
 
-  -- take a source path and may return AST module
-  resolveImport :: (String, String) -> IO (Maybe AST)
-  resolveImport (base, path) = parse $ base </> path
-
   visitAST :: String -> AST -> IO AST
   -- resolving import
   visitAST p z@(Node (Literal "import") [String path]) =
-    resolveImport (p, path) >>= \case
-      -- if importing does not work, return the original node
-      Nothing -> return z
-      -- return a node which gonna be spread
-      Just ast -> return $ Node (Literal "spread") [ast]
+    return $ Node (Literal "import") [String $ p </> path]
 
   -- Converting list to their Cons/Nil representation
-  visitAST p (List xs) = visitAST p . buildList =<< mapM (visitAST p) xs
-  visitAST p (Node (Literal "fn") (List args:body:_)) = buildClosure args <$> visitAST p body
+  visitAST p (List xs) = List <$> mapM (visitAST p) xs
+  visitAST p (Node (Literal "fn") (List args:body:_))
+    = buildClosure args <$> visitAST p body
 
   visitAST _ z@(Node (Literal "declare") [n, c]) = return z
   visitAST p (Node (Literal "defm") [n, c]) = do
@@ -54,28 +51,24 @@ module Core.Parser.Utils.Module where
   visitAST p z@(Node (Literal "data") [n, c, expr]) = do
     expr' <- visitAST p expr
     return $ Node (Literal "data") [n, c, expr']
+  visitAST p (Node (Literal "if") [cond, then_, else_]) = do
+    cond' <- visitAST p cond
+    then_' <- visitAST p then_
+    else_' <- visitAST p else_
+    return $ Node (Literal "if") [cond', then_', else_']
   visitAST p z@(Node (Literal "declare") [n, c, expr]) = do
     expr' <- visitAST p expr
     return $ Node (Literal "declare") [n, c, expr']
 
   visitAST p z@(Node (Literal "begin") [List xs]) = do
-    xs' <- mapM (visitAST p) xs
-    return $ Node (Literal "begin") [List xs']
+    xs <- mapM (visitAST p) xs
+    return $ Node (Literal "begin") [List xs]
 
   visitAST p a@(Node n z) = do
     -- building new children by folding
-    xy <- foldlM (\a x -> do
-      x <- visitAST p x
-      case x of
-        -- spreading function just put 
-        -- children content in the current built
-        Node (Literal "spread") [Node (Literal "begin") xs] -> return $ a ++ xs
-        _ -> return $ a ++ [x]) [] z
+    xs' <- mapM (visitAST p) z
     r <- visitAST p n
-    let r' = case r of
-          Node (Literal "spread") [xs] -> xs
-          _ -> r
-    return $ if r' `elem` reserved then Node r' xy else buildCall r' xy
+    return $ if r `elem` reserved then Node r xs' else buildCall r xs'
 
   -- Value visiting
   visitAST _ i@(Integer _) = return i
