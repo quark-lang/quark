@@ -56,7 +56,7 @@ module Core.Parser.Utils.ClosureConversion where
   makeClosure :: (String, Type, String) -> Environment -> TypedAST
   makeClosure (n, t, old) env
     = AppE (VarE "make-closure" t) args t
-    where args = ListE (VarE n t : map (\(n, (n', t)) -> VarE n t) (M.toList env)) t
+    where args = ListE [VarE n t] t
 
   getSecond :: Ord a => M.Map k (a, b) ->M.Map a b
   getSecond = M.fromList . map snd . M.toList
