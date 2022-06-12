@@ -38,16 +38,19 @@ executable quark-hs
         Core.Inference.Type.Pretty
         Core.Inference.Type.Methods
         Core.Inference.Type.Parsing
-        Core.Color
         
         Core.Parser.Utils.ConstantPropagation
         Core.Parser.Utils.Module
         Core.Parser.Utils.Garbage
         Core.Parser.Utils.ClosureConversion
+        Core.Parser.Utils.Imports
 
         --Core.Compiler.Compiler
         Core.Compiler.Instruction
-        --Core.Compiler.CLang
+        Core.Compiler.CLang
+        
+        Core.Entry
+        Core.Color
     -- LANGUAGE extensions used by modules in this package.
     default-extensions:
       ConstraintKinds
@@ -57,6 +60,7 @@ executable quark-hs
         base
       , mtl
       , directory
+      , process
       , filepath
       , containers
     hs-source-dirs:   app
