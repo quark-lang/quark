@@ -1,14 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Core.Inference.Type.Methods where
   import Core.Inference.Type.AST
-    ( MonadType,
-      Scheme(..),
-      ConsEnv,
-      TypeEnv,
-      SubTy,
-      Env(..),
-      Type((:->), TId, Int, String, TApp, TVar),
-      TypedAST(..) )
   import Core.Inference.Type.Pretty ()
   import Core.Inference.Kind (KindEnv)
   import qualified Data.Map as M
@@ -53,6 +45,7 @@ module Core.Inference.Type.Methods where
     tyFree (t1 :-> t2) = tyFree t1 ++ tyFree t2
     tyFree Int = []
     tyFree String = []
+    tyFree (ListT t) = tyFree t
     tyFree (TApp t1 t2) = tyFree t1 ++ tyFree t2
     tyFree _ = []
 
@@ -60,6 +53,7 @@ module Core.Inference.Type.Methods where
       Just t -> tyApply s t
       Nothing -> TVar i
     tyApply s (t1 :-> t2) = tyApply s t1 :-> tyApply s t2
+    tyApply s (ListT t) = ListT $ tyApply s t
     tyApply s (TApp t1 t2) = TApp (tyApply s t1) (tyApply s t2)
     tyApply _ s = s
 
@@ -72,8 +66,10 @@ module Core.Inference.Type.Methods where
     tyUnify (TId s) (TId s') = if s == s'
       then M.empty
       else error $ "Type " ++ s ++ " mismatches with type " ++ s'
+    tyUnify (ListT t) (ListT t') = tyUnify t t'
     tyUnify Int Int = M.empty
     tyUnify String String = M.empty
+    tyUnify Bool Bool = M.empty
     tyUnify (TApp t1 t2) (TApp t3 t4) = tyUnify t1 t3 `M.union` tyUnify t2 t4
     tyUnify s1 s2 = error $ "Type " ++ show s1 ++ " mismatches with type " ++ show s2
   instance Types Scheme where
@@ -95,7 +91,9 @@ module Core.Inference.Type.Methods where
     tyFree (LetInE (name, t) body t') = (tyFree t \\ tyFree t) ++ tyFree body ++ tyFree t'
     tyFree (LetE (name, t) body) = (tyFree t \\ tyFree t) ++ tyFree body
     tyFree (ListE args t) = tyFree t ++ concatMap tyFree args
+    tyFree (IfE cond t1 t2) = tyFree cond ++ tyFree t1 ++ tyFree t2
     tyFree (LitE ast t) = tyFree t
+    tyFree _ = []
 
     tyApply s (AppE f arg t) = AppE (tyApply s f) (tyApply s arg) (tyApply s t)
     tyApply s (AbsE (n, t) body) = AbsE (n, tyApply s t) (tyApply s body)
@@ -104,6 +102,8 @@ module Core.Inference.Type.Methods where
     tyApply s (ListE args t) = ListE (map (tyApply s) args) (tyApply s t)
     tyApply s (LetE (name, t) body) = LetE (name, tyApply s t) (tyApply s body)
     tyApply s (LitE ast t) = LitE ast (tyApply s t)
+    tyApply s (IfE cond t1 t2) = IfE (tyApply s cond) (tyApply s t1) (tyApply s t2)
+    tyApply s (PatternE pat t) = PatternE pat (map (\(n, t) -> (tyApply s n, tyApply s t)) t)
 
     tyUnify _ _ = error "Cannot unify AST"
 
