@@ -3,260 +3,228 @@ module Core.Compiler.CLang where
   import Data.List
   import Data.Char
   import Control.Monad.State
-  import Core.Parser.TypeDeducer hiding (isChar)
   import Core.Parser.Utils.ClosureConversion hiding (lambdaCount, environment, Name)
+  import Core.Inference.Type.AST
+  import Data.Maybe (fromMaybe)
+  import qualified Data.Map as M
+  import qualified Core.Parser.AST as A
+  import Control.Arrow (Arrow(second))
+  import Data.Traversable (for)
+
   {-
     Module: CLang compilation
     Description: Output C from Quark AST
     Author: thomasvergne
   -}
 
-  type LambdaType = String
-  type EnvVariable = (String, String, String) -- (name, type, closure)
-
-  data C = C {
-    lambdaTypes :: [LambdaType],
-    functions :: [CAST],
-    temporary :: [String],
-    lambdaCount :: Int,
-    environment :: [EnvVariable]
+  type MonadCompiler m = (MonadState CompilerState m, Monad m, MonadIO m)
+  data CompilerState = CompilerState {
+    types :: [String],
+    functions :: M.Map String Type,
+    counter :: Int,
+    environment :: [String]
   } deriving Show
 
-  libraries = ["stdio.h"]
+  -- State functions
+  addType :: MonadCompiler m => String -> m ()
+  addType t = modify $ \s -> s { types = t : types s }
 
-  loadLibrary n = "#include <" ++ n ++ ">"
+  addVar :: MonadCompiler m => String -> m ()
+  addVar v = modify $ \s -> s { environment = v : environment s }
 
-  outputC :: C -> String
-  outputC (C types functions _ _ _) =
-    let funcs' = reverse $ map fromAST functions
-        types' = map (++";") $ reverse types
-        libs   = map loadLibrary libraries
-      in concat $ intersperse "\n" (libs ++ [""] ++ types' ++ funcs')
+  setEnv :: MonadCompiler m => [String] -> m ()
+  setEnv e = modify $ \s -> s { environment = e }
 
-  type Argument = CAST
-  type Name = CAST
-  data CAST
-    = Block [CAST]
-    | Function Name [Argument] CAST
-    | Declaration Name CAST
-    | Assignment Name CAST
-    | BinaryOperation String CAST CAST
-    | FunctionCall Name [Argument] String
-    | Condition CAST CAST CAST
-    | Return CAST
+  addFun :: MonadCompiler m => (String, Type) -> m ()
+  addFun (f, t) = modify $ \s -> s { functions = M.insert f t (functions s) }
 
-    | Identifier String String
-    | Int Int
-    | Flt Float
-    | Array [CAST] String
-    | Char Int
+  incLambda :: MonadCompiler m => m Int
+  incLambda = gets counter <* modify (\s -> s { counter = counter s + 1 })
 
-    | Spread [CAST]
-    deriving Show
+  -- Type translation
+  numberToChar :: Int -> Char
+  numberToChar n = chr $ ord 'A' + n
 
-  fromAST :: CAST -> String
-  fromAST (Block xs) = "{" ++ (concat $ map ((++";") . fromAST) xs) ++ "}"
-  fromAST (Function (Identifier name ret) args body) =
-    ret ++ " " ++ name ++ "(" ++ (concat $ intersperse "," (map fromAST args)) ++ ")" ++ fromAST body
-  fromAST (Declaration (Identifier name t) value) =
-    t ++ " " ++ name ++ " = " ++ fromAST value
-  fromAST (Assignment (Identifier name _) value) =
-    name ++ " = " ++ fromAST value
-  fromAST (BinaryOperation op x y) = fromAST x ++ " " ++ op ++ " " ++ fromAST y
-  fromAST (FunctionCall fun args t) =
-    "((" ++ t ++ ")" ++ " " ++ fromAST fun ++ "(" ++ (concat $ intersperse "," (map fromAST args)) ++ "))"
-  fromAST (Identifier name _) = name
-  fromAST (Int i) = show i
-  fromAST (Flt f) = show f
-  fromAST (Return x) = "return " ++ fromAST x
-  fromAST (Array xs t) = "(" ++ t ++ ") {" ++ (concat $ intersperse "," (map fromAST xs)) ++ "}"
-  fromAST (Char c) = show c
-  fromAST (Condition c t e) = fromAST c ++ " ? " ++ fromAST t ++ " : " ++ fromAST e
-  fromAST x = show x
+  createTypeTable :: Type -> M.Map Int Char
+  createTypeTable (t1 :-> t2) = M.union (createTypeTable t1) (createTypeTable t2)
+  createTypeTable (TVar t) = M.singleton t (numberToChar t)
+  createTypeTable _ = M.empty
 
-  addTemporary :: Compiler m => String -> m String
-  addTemporary t = (modify $ \c -> c { temporary = temporary c ++ [t] }) >> return t
+  fromType :: MonadCompiler m => Type -> M.Map Int Char -> m String
+  fromType Int _ = return "int"
+  fromType String _ = return "char*"
+  fromType Float _ = return "float"
+  fromType (t1 :-> t2) _ = do
+    t1' <- fromType t1 $ createTypeTable t1
+    t2' <- fromType t2 $ createTypeTable t2
+    return $ "std::function<" ++ t1' ++ "(" ++ t2' ++ ")>"
+  fromType (TVar t) e = case M.lookup t e of
+    Just c -> return [c]
+    Nothing -> return "void*"
+  fromType _ _ = return "auto"
 
-  clearTemporary :: Compiler m => m ()
-  clearTemporary = modify $ \c -> c { temporary = [] }
+  {- MISC PART -}
 
-  addLambdaType :: Compiler m => LambdaType -> m ()
-  addLambdaType s = modify $ \c -> c { lambdaTypes = s : lambdaTypes c }
+  libraries = ["iostream"]
+  operators = ["+", "-", "/", "*", "==", "!=", ">", "<", ">=", "<="]
 
-  addFunction :: Compiler m => CAST -> m ()
-  addFunction s = modify $ \c -> c { functions = s : functions c }
+  loadLibrary :: String -> String
+  loadLibrary l = "#include <" ++ l ++ ">"
 
-  incCounter :: Compiler m => m String
-  incCounter = do
-    i <- gets lambdaCount
-    modify $ \c -> c { lambdaCount = i + 1 }
-    return $ lambdaPrefix ++ show i ++ "_t"
+  getReturnType :: Type -> Type
+  getReturnType (t1 :-> t2) = t2
+  getReturnType t = t
 
-  addEnv :: Compiler m => EnvVariable -> m ()
-  addEnv x = modify $ \c -> c { environment = x : environment c }
+  matchType :: Type -> Type -> M.Map Type Type
+  matchType (t1 :-> t2) (t1' :-> t2') = M.union (matchType t1 t1') (matchType t2 t2')
+  matchType (TVar t) (TVar t') = M.singleton (TVar t) (TVar t')
+  matchType (TVar t) t1 = M.singleton (TVar t) t1
+  matchType t1 (TVar t) = M.singleton (TVar t) t1
+  matchType _ _ = M.empty
 
-  searchEnv :: Compiler m => String -> m (Maybe EnvVariable)
-  searchEnv x = gets environment >>= return . find (\(n,_, _) -> n == x)
+  {- COMPILATION PHASE -}
 
-  cleanEnv :: Compiler m => m ()
-  cleanEnv = modify $ \c -> c { environment = [] }
-
-  changeEnv :: Compiler m => [EnvVariable] -> m ()
-  changeEnv e = modify $ \c -> c { environment = e }
-
-  capitalize (x:xs) = toUpper x : xs
-
-  type Compiler m = (MonadState C m, MonadIO m, MonadFail m)
-
-  compile :: Compiler m => TypedAST -> m CAST
-  compile (Node (Literal "begin" _) xs _) = do
+  compileLambda :: MonadCompiler m => TypedAST -> m (String, String)
+  compileLambda (AbsE (name, t) body) = do
     env <- gets environment
-    body <- foldl (\acc -> \case
-      Spread xs -> acc ++ xs
-      x -> acc ++ [x]) [] <$> mapM compile xs
-    changeEnv env
-    return $ Block (if length body == 1 then [head body] else body)
+    addVar name
 
-  compile (Node (Literal "let" _) [Literal name t, value] _) = do
-    t' <- createLambdaTypes t False
-    v <- compile value
-    addEnv (name, t', "")
-    return $ Declaration (Identifier name t') v
+    (body', t') <- compile body False
+    argTy       <- fromType t (createTypeTable t)
+    let captures = intercalate "," env
 
-  compile (Node (Literal "if" _) [cond, then', else'] _) = do
-    cond  <- compile cond
-    then' <- compile then'
-    else' <- compile else'
-    return $ Condition cond then' else'
+    setEnv env
+    return ("[" ++ captures ++ "](" ++ argTy ++ " " ++ name ++ ") { return " ++ body' ++ "; }", t')
 
-  compile (Node (Literal "make-closure" _) (Literal name t:xs) _) = do
-    t1 <- createLambdaTypes t True
-    struct <- mapM (\x@(Literal n t) -> do
-           value <- compile x
-           return $ Assignment (Identifier (name ++ "_s." ++ n) t1) value) xs
-    addEnv (name, t1, "")
-    return $ Spread $ struct ++ [Identifier name t1]
+  compileCase :: MonadCompiler m => (TypedAST, TypedAST) -> String -> m String
+  compileCase (pattern, body) v = case pattern of
+    (VarE name t) -> do
+      addVar name
+      (body', _) <- compile body False
+      t' <- fromType t (createTypeTable t)
+      return $ t' ++ " " ++ name ++ " = " ++ v ++ ";\n" ++ "return " ++ body' ++ ";"
+    (LitE l _) -> do
+      (body', _) <- compile body False
+      let lit = compileLiteral l
+      return $ "if(" ++ v ++ " == " ++ lit ++ ") { return " ++ body' ++ "; }"
 
-  compile (Node (Literal "+" _) [x, y] _) = do
-    x' <- compile x
-    y' <- compile y
-    return $ BinaryOperation "+" x' y'
+  compileBegin :: MonadCompiler m => [TypedAST] -> Bool -> m (String, String)
+  compileBegin xs b = do
+    xs' <- mapM ((fst <$>) . (`compile` b)) xs
+    return ("{" ++ concat (map (++";") xs') ++ "}", "void")
 
-  compile (Node (Literal "=" _) [x, y] _) = do
-    x' <- compile x
-    y' <- compile y
-    return $ BinaryOperation "==" x' y'
+  compile :: MonadCompiler m => TypedAST -> Bool -> m (String, String)
+  -- Main entry
+  compile (LetE ("main", _) (AbsE (arg, _) body)) b = do
+    (body', t') <- compile body b
+    return ("int main(int argc, char** " ++ arg ++ ") { " ++ body' ++ ";}", t')
 
-  compile (Node (Literal "-" _) [x, y] _) = do
-    x' <- compile x
-    y' <- compile y
-    return $ BinaryOperation "-" x' y'
-
-  compile (Node (Literal "*" _) [x, y] _) = do
-    x' <- compile x
-    y' <- compile y
-    return $ BinaryOperation "*" x' y'
-
-  compile (Node (Literal "printf" _) [format, x] _) = do
-    format <- compile format
-    x <- compile x
-    return $ FunctionCall (Identifier "printf" "int") [format, x] "int"
-
-  compile (Node (Literal "#print_int" _) [x] _) = do
-    x <- compile x
-    return $ FunctionCall (Identifier "printf" "int") [Identifier "\"%d\"" "int", x] "int"
-
-  compile (Node (Literal "#print_chr" _) [x] _) = do
-    x <- compile x
-    return $ FunctionCall (Identifier "printf" "int") [Identifier "\"%c\"" "int", x] "int"
-
-  compile (Node (Literal "#print_str" _) [x] _) = do
-    x <- compile x
-    return $ FunctionCall (Identifier "printf" "int") [Identifier "\"%s\"" "int", x] "int"
-
-  compile (Node (Literal "list" _) xs t) = do
-    xs <- mapM compile xs
-    t' <- createLambdaTypes (case t of
-      List x l -> if all isChar xs then List x (l + 1) else t
-      _ -> t) False
-    return $ Array (if all isChar xs then xs ++ [Char 0] else xs) t'
-
-  compile (Node (Literal "chr" _) [Integer f _] _) = return $ Char $ fromInteger f
-
-  -- function call
-  compile (Node n xs t) = do
-    n'  <- compile n
-    xs' <- mapM compile xs
-    t' <- createLambdaTypes t True
-    return $ FunctionCall n' xs' t'
-
-  compile (Literal name t) =
-    searchEnv name >>= return . \case
-      Nothing -> error $ "No variable named " ++ name ++ " found in environment"
-      Just (_, t', cl) -> Identifier (if not (null cl) then cl ++ "_s." ++ name else name) t'
-
-  compile (Float f _) = return $ Flt f
-  compile (Integer i _) = return $ Int $ fromInteger i
-  compile x = do
-    liftIO $ print x
-    return $ Identifier "t" ""
-
-  isChar (Char _) = True
-  isChar _ = False
-
-  toInt :: Float -> Int
-  toInt = round
-
-  -- bool arg indicates if it is function pointer
-  createLambdaTypes :: Compiler m => Type -> Bool -> m String
-  createLambdaTypes (Lambda args ret) _ = do
-    lambdaName <- incCounter
-    args' <- mapM (`createLambdaTypes` True) args
-    ret'  <- createLambdaTypes ret True
-
-    let start = "typedef " ++ ret' ++ " (*" ++ lambdaName ++ ")("
-    addLambdaType $ start ++ concat (intersperse "," args') ++ ")"
-
-    return lambdaName
-  createLambdaTypes (List xs length) p = do
-    x <- createLambdaTypes xs p
-    return $ x ++ (if p then "*" else "[" ++ show length ++ "]")
-  createLambdaTypes (Value "a") _ = return "void*"
-  createLambdaTypes (Value x) _ = return x
-  createLambdaTypes None _ = error "No support for variable without explicit type!"
-
-  createEnvironment :: Compiler m => [Variable] -> String -> m ()
-  createEnvironment env name = do
-    xs' <- mapM (\(n, t) -> (n,) <$> createLambdaTypes t False) env
-    mapM (\(n, t) -> addEnv (n, t, name)) xs'
-    addLambdaType $ "struct " ++ capitalize name ++ " {" ++ (concat $ map (\(n, t) -> t ++ " " ++ n ++ ";") xs') ++ "}"
-    addLambdaType $ "static struct " ++ capitalize name ++ " " ++ name ++ "_s"
-
-  createFunction :: Compiler m => Closure -> m ()
-  createFunction (Closure (name, t) env args body) = do
-    n <- case name of
-      "main" -> return "int"
-      _ -> createLambdaTypes t True
-    when (length env > 0) $ createEnvironment env name
-    addEnv (name, n, "")
-
+  -- Top-level functions
+  compile (LetE (name, t) a@(AbsE (arg, ty) body)) b = do
     env <- gets environment
-    args' <- mapM (\x -> createLambdaTypes (snd x) False) args
-    let a = replicate (length args) ""
+    addVar arg
 
-    mapM (addEnv) (zip3 (map fst args) args' a)
-    x <- compile body
-    changeEnv env
+    addFun (name, t)
 
-    let body' = case x of
-                  z@(Block xs) ->
-                    let (els, ret) = (init xs, last xs)
-                      in Block $ els ++ [Return ret]
-                  Spread xs ->
-                    let (els, ret) = (init xs, last xs)
-                      in Block $ els ++ [Return ret]
-                  _ -> Block [Return x]
-    addFunction $ Function (Identifier name n) (map (\(x, y) -> Identifier x y) (zip (map fst args) args')) body'
+    let t' = getReturnType t
+    let tt = createTypeTable t' `M.union` createTypeTable ty
+    t  <- fromType t' tt
+    ty <- fromType ty tt
+    (body', t') <- compile body b
 
-  runCompiler :: (Monad m, MonadIO m, MonadFail m) => [Closure] -> m C
-  runCompiler xs = execStateT (mapM createFunction (reverse xs)) (C [] [] [] 0 [])
+    setEnv env
+    let template
+          = if M.null tt
+              then ""
+              else let typenames = (M.elems (M.map (\x -> "typename " ++ [x]) tt))
+                in "template<" ++ intercalate "," typenames ++ ">\n"
+        header = template ++ t ++ " " ++ name ++ "(" ++ ty ++ " " ++ arg ++ ")"
+    case body of
+      PatternE _ _ -> return (header ++ "{" ++ body' ++ "}", t')
+      AppE (VarE "extern" _) _ _ -> return (header ++ "{" ++ body' ++ "}", t')
+      _ -> return (header ++ "{ return " ++ body' ++ " ;}", t')
+
+  compile (PatternE pattern cases) _ = do
+    (pattern, t) <- compile pattern False
+    xs <- mapM (`compileCase` pattern) cases
+    return (intercalate "\n" xs, t)
+
+  -- Variable definition
+  compile (LetE (name, t) value) b = do
+    t' <- fromType t (createTypeTable t)
+    (v, t2) <- compile value b
+
+    return ("auto " ++ name ++ " = " ++ v, t2)
+
+  compile (AppE (VarE "extern" _) (LitE (A.String s) _) _) _ =
+    return (s, "")
+
+  compile (LetInE (name, t) value body) _ = do
+    t' <- fromType t (createTypeTable t)
+    (v, t2) <- compile value False
+    (body', t3) <- compile body False
+    return ("([](" ++ t' ++ " " ++ name ++ "){" ++ body' ++ ";})(" ++ v ++ ")", t3)
+
+  -- Lambda definition
+  compile a@(AbsE _ _) _ = compileLambda a
+
+  compile (IfE cond then' else') b = do
+    (cond', t) <- compile cond b
+    (then', t2) <- compile then' b
+    (else', t3) <- compile else' b
+    return (cond' ++ " ? " ++ then' ++ " : " ++ else' ++ ";", t3)
+
+  -- Binary function call
+  compile (AppE (AppE (VarE op t) x _) y _) b = case find (== op) operators of
+    Just _ -> do
+      (x', t1) <- compile x b
+      (y', t2) <- compile y b
+      return ("(" ++ x' ++ " " ++ op ++ " " ++ y' ++ ")", t1)
+    Nothing -> gets functions
+      >>= \f -> case M.lookup op f of
+        Just t1 -> do
+          let types = M.elems (matchType t t1)
+          types <- mapM (`fromType` M.empty) types
+          (x', t1) <- compile x b
+          (y', t2) <- compile y b
+          return (op ++ (if b then "<" ++ intercalate "," types ++ ">" else "") ++ "(" ++ x' ++ ")(" ++ y' ++ ")", t1)
+        Nothing -> error $ "Unknown function: " ++ op
+
+  compile (AppE (VarE n t) x _) b = do
+    gets functions
+      >>= \f -> case M.lookup n f of
+        Just t1 -> do
+          let types = M.elems (matchType t t1)
+          types <- mapM (`fromType` M.empty) types
+          (x', t1) <- compile x b
+          return (n ++ (if b then "<" ++ intercalate "," types ++ ">" else "") ++ "(" ++ x' ++ ")", t1)
+        Nothing -> do
+          (x', t1) <- compile x b
+          return (n ++ "(" ++ x' ++ ")", t1)
+
+
+
+  -- Function call
+  compile (AppE n x _) b = do
+    (n, t) <- compile n b
+    (x, t') <- compile x (not b)
+    return (n ++ "(" ++ x ++ ")", t)
+
+  compile (VarE n t) _ = (n,) <$> fromType t (createTypeTable t)
+  compile (LitE l t) _ = (compileLiteral l,) <$> fromType t (createTypeTable t)
+  compile x _ = error $ "Pattern not supported: " ++ show x
+
+  compileLiteral :: A.AST -> String
+  compileLiteral (A.Char c) = show c
+  compileLiteral (A.Integer i) = show i
+  compileLiteral (A.Float f) = show f
+  compileLiteral (A.String s) = show s
+  compileLiteral _ = ""
+
+  formatProgram :: [String] -> String
+  formatProgram = unlines . ((map loadLibrary libraries) ++)
+
+  runCompiler :: (Monad m, MonadIO m) => TypedAST -> M.Map String Type -> m (String, M.Map String Type)
+  runCompiler a f = do
+    ((r, _), CompilerState _ f _ _) <- runStateT (compile a True) (CompilerState [] f 0 [])
+    return (r, f)
