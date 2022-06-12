@@ -3,10 +3,6 @@ module Core.Inference.Type.Parsing where
   import qualified Data.Map as M
   import qualified Core.Parser.AST as A
   import Core.Inference.Type.AST
-    ( MonadType,
-      Scheme(Forall),
-      TypeEnv,
-      Type(TVar, (:->), TApp, String, Int, TId), TypedAST (DataE) )
   import Core.Inference.Kind (Kind(Star, (:~>)))
   import Control.Monad (forM, unless)
   import Core.Inference.Type.Methods (tyFresh)
@@ -47,8 +43,9 @@ module Core.Inference.Type.Parsing where
     let xs' = map (parseType e) xs
         n'  = parseType e n
       in foldl (\acc x -> TApp <$> acc <*> x) n' xs'
-  parseType e (A.List [x]) = TApp (TId "List") <$> parseType e x
+  parseType e (A.List [x]) = ListT <$> parseType e x
   parseType e (A.Literal "str") = Right String
+  parseType e (A.Literal "bool") = Right Bool
   parseType e (A.Literal "int") = Right Int
   parseType e (A.Literal "*") = Left Star
   parseType e (A.Literal n) = case M.lookup n e of

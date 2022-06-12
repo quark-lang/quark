@@ -13,15 +13,19 @@ module Core.Inference.Type.AST where
     | ListE [TypedAST] Type
     | LetE Argument TypedAST
     | LitE AST Type
+    | IfE TypedAST TypedAST TypedAST
     -- (Name, [Generics])
     | DataE (String, [Type]) [(String, Type)]
+    -- Pattern | [(Case, AST)]
+    | PatternE TypedAST [(TypedAST, TypedAST)]
     deriving Eq
 
   data Type
     = TVar Int | TId String
     | Type :-> Type
-    | Int | String | Float
+    | Int | String | Float | Bool
     | TApp Type Type
+    | ListT Type
     deriving (Eq, Ord)
 
   data Env = Env TypeEnv ConsEnv KindEnv
