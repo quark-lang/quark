@@ -1,3 +1,6 @@
-(let facto (fn [n] 
-  (if (= n 0)
-    1 (* n (facto (- n 1))))))
+(import "types.qrk")
+
+(let facto (fn [x]
+  (match x
+    [0 1]
+    [n (* n (facto (- n 1)))])))

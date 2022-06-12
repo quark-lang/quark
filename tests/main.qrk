@@ -1,36 +1,5 @@
-; Maybe is like Rust's Option<T>
-(data (Maybe a) [
-  Nothing
-  (Just a)
-])
+(import "facto.qrk")
 
-; Linked list implementation
-(data (List a) [
-  Nil
-  (Cons a (List a))
-])
-
-; Defining some primitives types
-(data Void [ Void ])
-(data Bool [ True False ])
-
-; IO type and some basic IO functions
-(data (IO a))
-(declare (print a) (-> a (IO Void)))
-(declare (main a) (-> (List str) (IO a)))
-
-; Some monadic functions
-(declare (>>= m a b) (-> (m a) (-> a (m b)) (m b)))
-(declare (return m a) (-> a (m a)))
-(declare (fmap f a b) (-> (-> a b) (f a) (f b)))
-
-; Arithmetic operations
-(declare (+ a) (-> a a a))
-(declare (- a) (-> a a a))
-(declare (* a) (-> a a a))
-(declare (/ a) (-> a a a))
-
-; main :: [String] -> IO Bool
-(let main (fn [args] (print (Just "test"))))
-(let add (fn [x y z] (+ x y)))
-(let test (fmap (+ 5) (Cons 7 Nil)))
+(let add (fn [x] (+ x 5)))
+(let t (fn [f x] (f x)))
+(let main (fn [args] (let _ (print 7) (print 5)) ))

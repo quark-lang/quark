@@ -1,0 +1,14 @@
+; CORE DECLARATIONS
+(declare (print a) (-> a int))
+(declare (begin a) (-> [a] a))
+(declare (extern a) (-> str a))
+
+(let print (fn [x]
+  (extern "std::cout << x << std::endl;")))
+
+; ARITHMETIC OPERATORS
+(declare (+ a) (-> a a a))
+(declare (- a) (-> a a a))
+(declare (* a) (-> a a a))
+(declare (/ a) (-> a a a))
+
