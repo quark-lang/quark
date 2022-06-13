@@ -28,11 +28,11 @@ module Core.Entry where
     let cppOutput = dir </> src
     let exeOutput = cppOutput -<.> ""
 
-    putStrLn $ step (3, 5) ++  " Compiling " ++ bold source ++ " to " ++ bold src
+    putStrLn $ step (3, 5) ++  " Compiling " ++ bMagenta source ++ " to " ++ bMagenta src
     writeFile cppOutput c
     putStrLn $ step (4, 5) ++ " Outputing executable.."
     callCommand $ compiler ++ " -std=c++14 -O3 -Wno-all " ++ cppOutput ++ " -o" ++ exeOutput
-    putStrLn $ step (5, 5) ++ " " ++ bold source ++ " has been compiled to " ++ bold src -<.> ""
+    putStrLn $ step (5, 5) ++ " " ++ bMagenta source ++ " has been compiled to " ++ bMagenta src -<.> ""
 
   run :: (String, String) -> IO ()
   run (dir, file) = do
@@ -46,7 +46,7 @@ module Core.Entry where
         -- propagating constants and removing useless code
         let r = runRemover $ propagate ast
         -- creating a typed AST
-        putStrLn $ step (1, 5) ++ " Typechecking " ++ bold file ++ ".."
+        putStrLn $ step (1, 5) ++ " Typechecking " ++ bMagenta file ++ ".."
         t <- runInfer r
         --(closures, ast, _) <- foldlM (\(cls, acc, i) x -> do
         --  (cls', acc', i') <- convertClosures x i
