@@ -23,7 +23,7 @@ module Core.Inference.Type where
   tyPattern :: MonadType m => (A.AST, [A.AST]) -> m (TypedAST, SubTy, Type)
   tyPattern (pat, cases) = do
     (pat', subTy, patType) <- tyInfer pat
-    cases' <- mapM (`tyCase` patType) cases
+    cases' <- mapM (\(A.List [case', body]) -> (case', body) `tyCase` patType) cases
     let s = foldl (\s (_, s', _) -> s `tyCompose` s') M.empty cases'
         c = map (\(pat, subTy, _) -> pat) cases'
         t = head $ map (\(_, _, t) -> t) cases'
@@ -31,8 +31,8 @@ module Core.Inference.Type where
     let cases'' = map (\(p, t) -> (tyApply s p, tyApply s t)) c
     return $ (PatternE (tyApply s pat') cases'', s, snd t)
 
-  tyCase :: MonadType m => A.AST -> Type -> m ((TypedAST, TypedAST), SubTy, (Type, Type))
-  tyCase (A.List [case', body]) t =
+  tyCase :: MonadType m => (A.AST, A.AST) -> Type -> m ((TypedAST, TypedAST), SubTy, (Type, Type))
+  tyCase (case', body) t =
     case case' of
        A.Literal "_" -> do
          tv <- tyFresh
@@ -44,9 +44,15 @@ module Core.Inference.Type where
          (body, s1, t1) <- local (applyTypes (`M.union` e)) $ tyInfer body
          let s2 = tyUnify t (tyApply s1 tv)
          return ((VarE n t, body), s1 `tyCompose` s2, (tyApply s1 tv, t1))
+       A.String s -> do
+         (body, s1, t1) <- tyInfer body
+         return ((LitE (A.String s) t, body), s1, (String, t1))
        A.Integer n -> do
          (body, s1, t1) <- tyInfer body
          return ((LitE (A.Integer n) t, body), s1, (Int, t1))
+       A.Float f -> do
+         (body, s1, t1) <- tyInfer body
+         return ((LitE (A.Float f) t, body), s1, (Float, t1))
        _ -> error . show $ case'
 
   -- Main type inference function
