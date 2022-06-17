@@ -49,29 +49,35 @@ module Core.Inference.Type where
     (cond', s1, cond_t) <- tyInfer cond
     (then_', s2, then_t) <- local (applyTypes (tyApply s1)) $ tyInfer then_
     (else_', s3, else_t) <- local (applyTypes (tyApply s2)) $ tyInfer else_
-    let s4 = s3 `tyCompose` s2 `tyCompose` s3
+    let s4 = tyUnify cond_t Bool `tyCompose` s1 `tyCompose` s2 `tyCompose` s3
     return (tyApply s4 $ IfE cond' then_' else_', s4, then_t)
 
   tyInfer (A.Node (A.Literal "match") (pat:cases)) = do
     (pat', s1, pat_t) <- tyInfer pat
 
-    xs' <- mapM (\(A.List [pattern, body]) -> do
-              (pattern', s2, pattern_t, m2) <- local (applyTypes (tyApply s1)) $ tyPattern pattern
+    (xs', s2) <- foldlM (\(acc, s') (A.List [pattern, body]) -> do
+                  (pattern', s'', pattern_t, bound) <- local
+                                                        (applyTypes (tyApply s'))
+                                                        (tyPattern pattern)
+                  let s''' = tyUnify (tyApply s'' pat_t) pattern_t
+                  let s2 =  s''' `tyCompose` s''
+                  let pattern2   = tyApply s2 pattern'
+                  let bound' = M.map (Forall [] . tyApply s2) bound
 
-              let s' = tyUnify (tyApply s2 pat_t) pattern_t
-              Env t _ _ <- ask
-              let t' = (M.map (Forall [] . tyApply s' . tyApply s2) m2)
+                  (body', s3, body_t) <- local (applyTypes (\e -> tyApply s2 (e `M.union` bound'))) $ tyInfer body
 
-              (body', s3, body_t) <- local (applyTypes (\e -> tyApply s2 (e `M.union` t'))) $ tyInfer body
+                  let body2 = tyApply s3 body'
+                  let body_t2 = tyApply s3 body_t
 
-              let s4 = s3 `tyCompose` s2 `tyCompose` s3 `tyCompose` s'
-              return (tyApply s4 pattern', s4, tyApply s4 body')) cases
+                  let pattern3  = tyApply s3 pattern'
 
-    let cases' = map (\(p, _, t) -> (p, t)) xs'
-    let s2 = foldr (\(_, s, _) acc -> acc `tyCompose` s) M.empty xs'
-    let s3 = s1 `tyCompose` s2
+                  return (acc ++ [(pattern3, body2, body_t2)], s3 `tyCompose` s2)
+                  ) ([], s1) cases
 
-    return (tyApply s3 $ PatternE (tyApply s3 pat') cases', s1 `tyCompose` s2, Int)
+    let cases' = map (\(p, t, _) -> (p, t)) xs'
+    let t' = map (\(_, _, t) -> t) xs'
+    let s3 = s2 `tyCompose` s1
+    return $ (PatternE pat' cases', s3, last t')
 
   -- Type inference for abstractions
   tyInfer (A.Node (A.Literal "fn") [A.Literal arg, body]) = do
@@ -110,11 +116,6 @@ module Core.Inference.Type where
 
     (b', s2, t2) <- local (applyTypes . const $ tyApply s1 env'') $ tyInfer body
     return (LetInE (name, t1) (tyApply s3 v') b', s3 `tyCompose` s2, t2)
-
-  -- Data type inference
-  tyInfer (A.Node (A.Literal "data") [dat, constructors, body]) = do
-    (constr', _) <- parseData (parseTypeHeader dat) constructors
-    local (applyCons (`M.union` constr')) $ tyInfer body
 
   tyInfer (A.List elems) = do
     (elems', s, t) <- foldlM (\(es, s, t) e -> do
@@ -176,7 +177,6 @@ module Core.Inference.Type where
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) t2
         env'' = M.insert name t' env'
-
     return (Just [LetE (name, t2) (tyApply s3 v')], Env env'' c k)
 
   -- Top-level declare used to define function type
