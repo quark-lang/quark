@@ -1,0 +1,15 @@
+(data Natural [
+  Z
+  (S Natural)])
+
+(let to_int (fn [x] (match x
+  [Z 0]
+  [(S z) (+ 1 (to_int z))])))
+
+(let from_int (fn [x] (match x
+  [0 Z]
+  [n (S (from_int (- n 1)))])))
+
+(let show_nat (fn [x] (match x
+  [Z "Z"]
+  [(S n) (+ "(S " (+ (show_nat n) ")"))])))
