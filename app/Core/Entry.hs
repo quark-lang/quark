@@ -51,18 +51,21 @@ module Core.Entry where
         putStrLn $ step (1, 4) ++ " Typechecking " ++ bMagenta file ++ ".."
         t  <- runInfer curried
 
-        let t' = map U.uncurry t
-        --(closures, ast, _) <- foldlM (\(cls, acc, i) x -> do
-        --  (cls', acc', i') <- convertClosures x i
-        --  return (cls ++ cls', acc ++ [acc'], i')) ([], [], 0) t
+        (t', _) <- foldlM (\(acc, i) x -> do
+          (acc', i') <- U.runUncurry x i
+          return (acc ++ [acc'], i')) ([], M.empty) t
 
-        --mapM_ print ast
-        --print closures
         putStrLn $ step (2, 4) ++  " Building and compiling program.."
         (c, _) <- foldlM (\(res, c) x -> do
           (output, c') <- runCompiler x c
           return (res ++ [output], c')) ([], M.empty) t'
-        let c' = intercalate "\n" $ map from c ++ ["main();"]
+        let fromList = concat $ [
+                        "const fromList = (ls = []) => {",
+                          "if (ls.length === 0) return { type: 'Nil' };",
+                          "const [x, ...xs] = ls;",
+                          "return { type: 'Cons', v0: x, v1: fromList(xs) };",
+                        "}"]
+        let c' = intercalate "\n" $ map from c ++ [fromList, "main(fromList(process.argv));"]
         compile (dir, file) c'
 
 
