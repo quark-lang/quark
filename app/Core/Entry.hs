@@ -44,7 +44,6 @@ module Core.Entry where
       Just ast -> do
         ast <- resolve ast
         m <- runMacroCompiler ast
-        print m
         -- propagating constants and removing useless code
         let r = runRemover $ propagate m
         let curried = curry r
