@@ -76,7 +76,7 @@ module Core.Parser.Macros where
     registerMacro $ Macro name [] value
     return z
 
-  compileMacro z@(Node (Literal "defm") [Literal name, Node (Literal "list") args, body]) = do
+  compileMacro z@(Node (Literal "defm") [Literal name, List args, body]) = do
     -- saving arguments as macros
     mapM_ (\x -> registerMacro $ Macro (unliteral x) [] x) args
     body' <- compileMacro body
@@ -91,7 +91,6 @@ module Core.Parser.Macros where
       Just m -> do
         dropMacro name
         return $ Literal "nil"
-
   compileMacro z@(Node (Literal n) xs) = do
     lookupMacro n >>= \case
       Just (Macro _ args body) -> do
