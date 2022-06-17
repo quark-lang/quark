@@ -1,54 +1,12 @@
 (import "types.qrk")
-(let facto (fn [x]
-  (match x
-    [0 1]
-    [n (* n (facto (- n 1)))])))
+(import "path.qrk")
+(import "types/list.qrk")
 
 (let ack (fn [m n]
   (if (= m 0) (+ n 1)
     (if (= n 0) (ack (- m 1) 1)
       (ack (- m 1) (ack m (- n 1)))))))
 
-(data (Maybe a) [
-  Nothing
-  (Just a)
-])
-
-(data Natural [
-  Z
-  (S Natural)
-])
-
-(let to_int (fn [x] (match x
-  [Z 0]
-  [(S z) (+ 1 (to_int z))])))
-
-(let from_int (fn [x] (match x
-  [0 Z]
-  [n (S (from_int (- n 1)))])))
-
-(let show_nat (fn [x] (match x
-  [Z "Z"]
-  [(S n) (+ "(S " (+ (show_nat n) ")"))])))
-
-;(declare (print_maybe a) (-> (Maybe a) int))
-
-(let print_maybe (fn [x]
-  (match x
-    [Nothing (print "Nothing")]
-    [(Just a) (print a)])))
-
 (declare main (-> [str] int))
-
-(data (Either a b) [
-  (Left a)
-  (Right b)
-])
-
-(let print_either (fn [x]
-  (match x
-    [(Left a) (print a)]
-    [(Right a) (print a)])))
-
-(let main (fn [args]
-  (print ["test" "bruhy"])))
+(defn main [args]
+      (print_list (filter (fn [x] (= x "buh")) (Cons "buh" (Cons "test" Nil)))))
