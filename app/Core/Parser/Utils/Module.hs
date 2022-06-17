@@ -47,7 +47,3 @@ module Core.Parser.Utils.Module where
 
   convertString :: String -> AST
   convertString s = Node (Literal "list") $ map Char s
-
-  buildList :: [AST] -> AST
-  buildList [] = Node (Literal "Nil") []
-  buildList (x:xs) = Node (Literal "Cons") [x, buildList xs]
