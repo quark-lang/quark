@@ -50,7 +50,6 @@ module Core.Inference.Type.Parsing where
   parseType e (A.Literal "bool") = Right Bool
   parseType e (A.Literal "int") = Right Int
   parseType e (A.Literal "any") = Right Any
-  parseType e (A.Literal "expr") = Right Expr
   parseType e (A.Literal "*") = Left Star
   parseType e (A.Literal n) = case M.lookup n e of
     Nothing -> Right $ TId n

@@ -31,14 +31,14 @@ module Core.Inference.Type.Methods where
   class Types a where
     tyFree  :: a -> [Int]
     tyApply :: SubTy -> a -> a
-    tyUnify :: a -> a -> SubTy
+    tyUnify :: a -> a -> Either SubTy [String]
 
   -- Unification variable helper
-  variable :: Int -> Type -> SubTy
+  variable :: Int -> Type -> Either SubTy [String]
   variable n t
-    | t == TVar n = M.empty
-    | n `elem` tyFree t = error $ "Occurs check failed: " ++ show t
-    | otherwise = M.singleton n t
+    | t == TVar n = Left M.empty
+    | n `elem` tyFree t = Right $ ["Occurs check failed: " ++ show t]
+    | otherwise = Left $ M.singleton n t
 
   instance Types Type where
     tyFree (TVar i) = [i]
@@ -59,22 +59,33 @@ module Core.Inference.Type.Methods where
 
     tyUnify (TVar i) t = variable i t
     tyUnify t (TVar i) = variable i t
-    tyUnify (t1 :-> t2) (t3 :-> t4) =
-      let s1 = tyUnify t1 t3
-          s2 = tyUnify (tyApply s1 t2) (tyApply s1 t4)
-        in s1 `tyCompose` s2
+    tyUnify (t1 :-> t2) (t3 :-> t4)
+      = let s1 = tyUnify t1 t3
+          in case s1 of
+            Left s ->
+              let s2 = tyUnify (tyApply s t2) (tyApply s t4)
+                in case s2 of
+                  Left s' -> Left $ s' `tyCompose` s
+                  Right x -> Right x
+            Right x -> Right x
     tyUnify (TId s) (TId s') = if s == s'
-      then M.empty
-      else error $ "Type " ++ s ++ " mismatches with type " ++ s'
-    tyUnify _ Any = M.empty
-    tyUnify Any _ = M.empty
-    tyUnify Expr Expr = M.empty
+      then Left M.empty
+      else Right ["Type " ++ s ++ " mismatches with type " ++ s']
+    tyUnify _ Any = Left M.empty
+    tyUnify Any _ = Left M.empty
     tyUnify (ListT t) (ListT t') = tyUnify t t'
-    tyUnify Int Int = M.empty
-    tyUnify String String = M.empty
-    tyUnify Bool Bool = M.empty
-    tyUnify (TApp t1 t2) (TApp t3 t4) = tyUnify t1 t3 `M.union` tyUnify t2 t4
-    tyUnify s1 s2 = error $ "Type " ++ show s1 ++ " mismatches with type " ++ show s2
+    tyUnify Int Int = Left M.empty
+    tyUnify String String = Left M.empty
+    tyUnify Bool Bool = Left M.empty
+    tyUnify (TApp t1 t2) (TApp t3 t4) =
+      let s1 = tyUnify t1 t3
+          s2 = tyUnify t2 t4
+        in case (s1, s2) of
+          (Left s, Left s') -> Left $ M.union s s'
+          (Left _, Right e) -> Right e
+          (Right e, Left _) -> Right e
+          (Right e, Right e') -> Right $ e ++ e'
+    tyUnify s1 s2 = Right ["Type " ++ show s1 ++ " mismatches with type " ++ show s2]
   instance Types Scheme where
     tyFree (Forall v t) = tyFree t \\ v
     tyApply s (Forall v t) = Forall v (tyApply (foldr M.delete s v) t)
