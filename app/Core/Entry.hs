@@ -8,6 +8,8 @@ module Core.Entry where
   import Core.Compiler.Javascript (runCompiler, from)
   import Core.Inference.Type (runInfer)
   import Core.Parser.Utils.Imports
+  import Prelude hiding (curry)
+  import Core.Parser.Utils.Curry
 
   import System.Environment (getArgs)
   import System.Directory
@@ -42,11 +44,13 @@ module Core.Entry where
       Just ast -> do
         ast <- resolve ast
         m <- runMacroCompiler ast
+        print m
         -- propagating constants and removing useless code
-        let r = runRemover $ propagate ast
+        let r = runRemover $ propagate m
+        let curried = curry r
         -- creating a typed AST
         putStrLn $ step (1, 4) ++ " Typechecking " ++ bMagenta file ++ ".."
-        t  <- runInfer r
+        t  <- runInfer curried
 
         let t' = map U.uncurry t
         --(closures, ast, _) <- foldlM (\(cls, acc, i) x -> do
