@@ -38,63 +38,16 @@ module Core.Parser.Utils.Module where
   visitAST p z@(Node (Literal "import") [String path]) =
     return $ Node (Literal "import") [String $ p </> path]
 
-  -- Converting list to their Cons/Nil representation
-  visitAST p (List xs) = List <$> mapM (visitAST p) xs
-  visitAST p (Node (Literal "fn") (List args:body:_))
-    = buildClosure args <$> visitAST p body
-
-  visitAST _ z@(Node (Literal "declare") [n, c]) = return z
-  visitAST p (Node (Literal "defm") [n, c]) = do
-    c' <- visitAST p c
-    return $ Node (Literal "defm") [n, c']
-  visitAST _ z@(Node (Literal "data") [n, c]) = return z
-  visitAST p z@(Node (Literal "data") [n, c, expr]) = do
-    expr' <- visitAST p expr
-    return $ Node (Literal "data") [n, c, expr']
-  visitAST p (Node (Literal "if") [cond, then_, else_]) = do
-    cond' <- visitAST p cond
-    then_' <- visitAST p then_
-    else_' <- visitAST p else_
-    return $ Node (Literal "if") [cond', then_', else_']
-  visitAST p z@(Node (Literal "declare") [n, c, expr]) = do
-    expr' <- visitAST p expr
-    return $ Node (Literal "declare") [n, c, expr']
-
   visitAST p z@(Node (Literal "begin") [List xs]) = do
     xs <- mapM (visitAST p) xs
     return $ Node (Literal "begin") [List xs]
 
-  visitAST p a@(Node n z) = do
-    -- building new children by folding
-    xs' <- mapM (visitAST p) z
-    r <- visitAST p n
-    return $ if r `elem` reserved then Node r xs' else buildCall r xs'
+  visitAST _ z = return z
 
-  -- Value visiting
-  visitAST _ i@(Integer _) = return i
-  -- Converting string to list of chars
-  visitAST p s@(String _)  = return s
-  visitAST _ f@(Float _)   = return f
-  visitAST _ s@(Literal _) = return s
-  -- Converting char to integer
-  visitAST _   (Char c)    = return . Node (Literal "chr") $ [Integer . toInteger . ord $ c]
-
-  reserved = map Literal [
-    "begin", "fn", "spread", "chr", "let", 
-    "declare", "->", "match", "data", "class"
-    ]
 
   convertString :: String -> AST
   convertString s = Node (Literal "list") $ map Char s
 
-  buildClosure :: [AST] -> AST -> AST
-  buildClosure [] b = b
-  buildClosure (x:xs) b = Node (Literal "fn") [x, buildClosure xs b]
-
   buildList :: [AST] -> AST
   buildList [] = Node (Literal "Nil") []
   buildList (x:xs) = Node (Literal "Cons") [x, buildList xs]
-
-  buildCall :: AST -> [AST] -> AST
-  buildCall f [] = f
-  buildCall call (x:args) = buildCall (Node call [x]) args
