@@ -1,14 +1,26 @@
 ; CORE DECLARATIONS
-(declare (print a) (-> a int))
 (declare (begin a) (-> [a] a))
 (declare (extern a) (-> str a))
 
-(declare (Call a b) (-> a a b))
-(declare (Property a b) (-> a a b))
-(declare (Var b) (-> str b))
+(declare (Call a) (-> a a any))
+(declare (Property a) (-> a a any))
+(declare Var (-> str any))
+(declare (Throw a) (-> a any))
+(declare Block (-> expr expr))
 
-(let print (fn [x]
-  (Call (Property (Var "console") (Var "log")) x)))
+(let putStr (fn [x]
+  (Call (Property (Var "process") (Property (Var "stdout") (Var "write"))) x)))
+
+
+(declare to_string (-> any str))
+(let to_string (fn [x]
+  (Call (Property x (Var "toString")))))
+
+(declare (print a) (-> a int))
+(let print (fn [x] (let _ (putStr (to_string x))
+                     (putStr "\n"))))
+
+(let error (fn [msg] (Block (Throw msg))))
 
 ; ARITHMETIC OPERATORS
 (declare (+ a) (-> a a a))
