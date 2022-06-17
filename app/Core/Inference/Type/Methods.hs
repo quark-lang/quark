@@ -103,9 +103,22 @@ module Core.Inference.Type.Methods where
     tyApply s (LetE (name, t) body) = LetE (name, tyApply s t) (tyApply s body)
     tyApply s (LitE ast t) = LitE ast (tyApply s t)
     tyApply s (IfE cond t1 t2) = IfE (tyApply s cond) (tyApply s t1) (tyApply s t2)
-    tyApply s (PatternE pat t) = PatternE pat (map (\(n, t) -> (tyApply s n, tyApply s t)) t)
+    tyApply s (PatternE pat t) = PatternE (tyApply s pat) (map (\(n, t) -> (tyApply s n, tyApply s t)) t)
 
     tyUnify _ _ = error "Cannot unify AST"
+
+  instance Types TypedPattern where
+    tyFree (VarP _ t) = tyFree t
+    tyFree (WilP t) = tyFree t
+    tyFree (AppP p1 p2 t) = tyFree p1 ++ tyFree p2
+    tyFree _ = []
+
+    tyApply s (VarP n t) = VarP n (tyApply s t)
+    tyApply s (WilP t) = WilP (tyApply s t)
+    tyApply s (AppP p1 p2 t) = AppP (tyApply s p1) (tyApply s p2) (tyApply s t)
+    tyApply _ p = p
+
+    tyUnify _ _ = error "Cannot unify pattern"
 
   -- Generalization is the process of managing flexible type variables
   -- as rigid type variables.

@@ -5,6 +5,26 @@ module Core.Inference.Type.AST where
   import Control.Monad.RWS (MonadIO, MonadRWS)
 
   type Argument = (String, Type)
+  data TypedPattern
+    = VarP String Type
+    | LitP Literal Type
+    | WilP Type
+    | AppP TypedPattern TypedPattern Type
+    deriving Eq
+
+  getTypeP :: TypedPattern -> Type
+  getTypeP (VarP _ t) = t
+  getTypeP (LitP _ t) = t
+  getTypeP (WilP t) = t
+  getTypeP (AppP _ _ t) = t
+
+  data Literal
+    = I Integer
+    | F Float
+    | C Char
+    | S String
+    deriving Eq
+
   data TypedAST
     = AppE TypedAST TypedAST Type
     | AbsE Argument TypedAST
@@ -12,13 +32,25 @@ module Core.Inference.Type.AST where
     | LetInE Argument TypedAST TypedAST
     | ListE [TypedAST] Type
     | LetE Argument TypedAST
-    | LitE AST Type
+    | LitE Literal Type
     | IfE TypedAST TypedAST TypedAST
     -- (Name, [Generics])
     | DataE (String, [Type]) [(String, Type)]
     -- Pattern | [(Case, AST)]
-    | PatternE TypedAST [(TypedAST, TypedAST)]
+    | PatternE TypedAST [(TypedPattern, TypedAST)]
     deriving Eq
+
+  getType :: TypedAST -> Type
+  getType (AppE _ _ t) = t
+  getType (AbsE _ t) = getType t
+  getType (VarE _ t) = t
+  getType (LetInE _ _ t) = getType t
+  getType (ListE _ t) = t
+  getType (LetE _ t) = getType t
+  getType (LitE _ t) = t
+  getType (IfE _ t _) = getType t
+  getType (DataE (n, (t:ts)) _) = TApp (TId n) $ foldr TApp t ts
+  getType (PatternE _ ((_, x):_)) = getType x
 
   data Type
     = TVar Int | TId String

@@ -11,6 +11,20 @@ module Core.Inference.Type.Pretty where
   createIndent :: Int -> String
   createIndent n = replicate n ' '
 
+  showPattern :: TypedPattern -> String
+  showPattern (VarP n t) = n ++ " : " ++ show t
+  showPattern (AppP n x _) = bBlack "[" ++ showPattern n ++ bBlack "] " ++ showPattern x
+  showPattern (WilP _) = "_"
+  showPattern (LitP l _) = show l
+
+  instance Show TypedPattern where
+    show = showPattern
+
+  instance Show Literal where
+    show (S s) = bGreen (show s)
+    show (I i) = bYellow (show i)
+    show (F f) = bYellow (show f)
+
   showAST :: TypedAST -> Int -> String
   showAST (LetE (name, t) body) b
     = bBlue "let " ++ name ++ " = " ++ showAST body b ++ "\n"
@@ -23,17 +37,12 @@ module Core.Inference.Type.Pretty where
     bBlack "[" ++ showAST n 0 ++ bBlack "] " ++ showAST arg 0
   showAST (VarE n t) _
     = n ++ " : " ++ show t
-  showAST (LitE (A.String s) _) _
-    = bGreen (show s)
-  showAST (LitE (A.Integer i) _) _
-    = bYellow (show i)
-  showAST (LitE (A.Float f) _) _
-    = bYellow (show f)
+  showAST (LitE l _) _ = show l
   showAST (ListE xs _) _
     = bBlack "[" ++ intercalate "," (map (`showAST` 0) xs) ++ bBlack "]"
   showAST (LetInE (name, t) body e) i
     = bBlue "let " ++ name ++ " = " ++ showAST body i ++ "\n" ++
-      createIndent (i + 2) ++ bBlue "in " ++ showAST e 0
+      createIndent (i + 2) ++ bBlue "in " ++ showAST e (i + 2)
   showAST (DataE (name, generics) []) i
     = bBlue "data " ++ bold name ++ " " ++ unwords (map show generics)
   showAST (DataE (name, generics) ((consName, ty):xs)) i =
@@ -45,7 +54,7 @@ module Core.Inference.Type.Pretty where
       createIndent 2 ++ bBlue "then " ++ showAST then_ (i + 2) ++ "\n" ++
       createIndent 2 ++ bBlue "else " ++ showAST else_ (i + 2)
   showAST (PatternE pattern cases) i = bBlue "match " ++ show pattern ++ bBlue " with" ++ "\n" ++
-    concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ show n ++ " -> " ++ show t ++ "\n") cases
+    concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ showPattern n ++ " => " ++ show t ++ "\n") cases
   showAST x _ = error "Pattern not recognized in showAST"
 
   parens :: String -> String

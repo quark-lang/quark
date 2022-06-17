@@ -13,47 +13,28 @@ module Core.Inference.Type where
   import Core.Inference.Type.Methods
   import Core.Inference.Type.Parsing
 
-  -- Import related
-  import Core.Parser.Utils.Module (parse)
-  import Core.Parser.Utils.Garbage (runGarbageCollector)
-  import Core.Parser.Utils.ConstantPropagation (propagate, runRemover)
-  import Core.Parser.Macros (runMacroCompiler)
+  tyPattern :: MonadType m => A.AST -> m (TypedPattern, SubTy, Type, M.Map String Type)
+  tyPattern (A.Literal "_") = do
+    t <- tyFresh
+    return (WilP t, M.empty, t, M.singleton "_" t)
+  tyPattern (A.Literal n) = ask >>= \(Env t c _) -> case M.lookup n (t `M.union` c) of
+    Just t -> do
+      t' <- tyInstantiate t
+      return (VarP n t', M.empty, t', M.empty)
+    Nothing -> do
+      t <- tyFresh
+      return (VarP n t, M.empty, t, M.singleton n t)
+  tyPattern (A.Node n [x]) = do
+    tv <- tyFresh
+    (n', s1, t1, m1) <- tyPattern n
+    (x', s2, t2, m2) <- local (applyTypes (tyApply s1)) $ tyPattern x
+    let s3   = tyUnify (tyApply s2 t1) (t2 :-> tv)
+        x'' = tyApply s3 tv
+    return (AppP n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'', m1 `M.union` m2)
 
-  -- Pattern matching inference
-  tyPattern :: MonadType m => (A.AST, [A.AST]) -> m (TypedAST, SubTy, Type)
-  tyPattern (pat, cases) = do
-    (pat', subTy, patType) <- tyInfer pat
-    cases' <- mapM (\(A.List [case', body]) -> (case', body) `tyCase` patType) cases
-    let s = foldl (\s (_, s', _) -> s `tyCompose` s') M.empty cases'
-        c = map (\(pat, subTy, _) -> pat) cases'
-        t = head $ map (\(_, _, t) -> t) cases'
-
-    let cases'' = map (\(p, t) -> (tyApply s p, tyApply s t)) c
-    return $ (PatternE (tyApply s pat') cases'', s, snd t)
-
-  tyCase :: MonadType m => (A.AST, A.AST) -> Type -> m ((TypedAST, TypedAST), SubTy, (Type, Type))
-  tyCase (case', body) t =
-    case case' of
-       A.Literal "_" -> do
-         tv <- tyFresh
-         (body, s1, t1) <- tyInfer body
-         return ((VarE "_" t, body), s1, (tv, t1))
-       A.Literal n -> do
-         tv <- tyFresh
-         let e = M.singleton n (Forall [] tv)
-         (body, s1, t1) <- local (applyTypes (`M.union` e)) $ tyInfer body
-         let s2 = tyUnify t (tyApply s1 tv)
-         return ((VarE n t, body), s1 `tyCompose` s2, (tyApply s1 tv, t1))
-       A.String s -> do
-         (body, s1, t1) <- tyInfer body
-         return ((LitE (A.String s) t, body), s1, (String, t1))
-       A.Integer n -> do
-         (body, s1, t1) <- tyInfer body
-         return ((LitE (A.Integer n) t, body), s1, (Int, t1))
-       A.Float f -> do
-         (body, s1, t1) <- tyInfer body
-         return ((LitE (A.Float f) t, body), s1, (Float, t1))
-       _ -> error . show $ case'
+  tyPattern (A.String s) = return (LitP (S s) String, M.empty, String, M.empty)
+  tyPattern (A.Integer i) = return (LitP (I i) Int, M.empty, Int, M.empty)
+  tyPattern (A.Float f) = return (LitP (F f) Float, M.empty, Float, M.empty)
 
   -- Main type inference function
   tyInfer :: MonadType m => A.AST -> m (TypedAST, SubTy, Type)
@@ -71,8 +52,26 @@ module Core.Inference.Type where
     let s4 = s3 `tyCompose` s2 `tyCompose` s3
     return (tyApply s4 $ IfE cond' then_' else_', s4, then_t)
 
-  tyInfer (A.Node (A.Literal "match") (pat:cases))
-    = tyPattern (pat, cases)
+  tyInfer (A.Node (A.Literal "match") (pat:cases)) = do
+    (pat', s1, pat_t) <- tyInfer pat
+
+    xs' <- mapM (\(A.List [pattern, body]) -> do
+              (pattern', s2, pattern_t, m2) <- local (applyTypes (tyApply s1)) $ tyPattern pattern
+
+              let s' = tyUnify (tyApply s2 pat_t) pattern_t
+              Env t _ _ <- ask
+              let t' = (M.map (Forall [] . tyApply s' . tyApply s2) m2)
+
+              (body', s3, body_t) <- local (applyTypes (\e -> tyApply s2 (e `M.union` t'))) $ tyInfer body
+
+              let s4 = s3 `tyCompose` s2 `tyCompose` s3 `tyCompose` s'
+              return (tyApply s4 pattern', s4, tyApply s4 body')) cases
+
+    let cases' = map (\(p, _, t) -> (p, t)) xs'
+    let s2 = foldr (\(_, s, _) acc -> acc `tyCompose` s) M.empty xs'
+    let s3 = s1 `tyCompose` s2
+
+    return (tyApply s3 $ PatternE (tyApply s3 pat') cases', s1 `tyCompose` s2, Int)
 
   -- Type inference for abstractions
   tyInfer (A.Node (A.Literal "fn") [A.Literal arg, body]) = do
@@ -134,9 +133,9 @@ module Core.Inference.Type where
     return (AppE n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
 
   -- Value related inference
-  tyInfer s@(A.String _) = return (LitE s String, M.empty, String)
-  tyInfer i@(A.Integer _) = return (LitE i Int, M.empty, Int)
-  tyInfer f@(A.Float _) = return (LitE f Float, M.empty, Float)
+  tyInfer (A.String s)  = return (LitE (S s) String, M.empty, String)
+  tyInfer (A.Integer i) = return (LitE (I i) Int, M.empty, Int)
+  tyInfer (A.Float f)   = return (LitE (F f) Float, M.empty, Float)
   tyInfer a = error $ "AST node not supported: " ++ show a
 
   topLevel :: MonadType m => A.AST -> m (Maybe [TypedAST], Env)
