@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, BangPatterns #-}
 module Core.Inference.Type where
   import qualified Data.Map as M
   import qualified Core.Parser.AST as A
@@ -104,7 +104,6 @@ module Core.Inference.Type where
             unless (r == t'') $ error $ "Type " ++ show r ++ " does not match type " ++ show t''
             return (s `tyCompose` s1, r)
           Nothing -> return (s1, t1)
-
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) t2
         env'' = M.insert name t' env'
@@ -120,7 +119,12 @@ module Core.Inference.Type where
   tyInfer (A.List elems) = do
     (elems', s, t) <- foldlM (\(es, s, t) e -> do
       (e', s', t') <- tyInfer e
-      return (e' : es, s `tyCompose` s', t' : t)) ([], M.empty, []) elems
+      return (es ++ [e'], s `tyCompose` s', t ++ [t'])) ([], M.empty, []) elems
+
+    let initType = head t
+    unless (all (==initType) t) $
+      error $ "Type mismatch with " ++ show initType ++ " and " ++ show (head $ filter (/=initType) t)
+
     return (ListE elems' (head t), s, ListT (head t))
 
   -- Type inference for applications
@@ -128,7 +132,7 @@ module Core.Inference.Type where
     tv <- tyFresh
     (n', s1, t1) <- tyInfer n
     (x', s2, t2) <- local (applyTypes (tyApply s1)) $ tyInfer x
-    let s3   = tyUnify (tyApply s2 t1) (t2 :-> tv)
+    let !s3   = tyUnify (tyApply s2 t1) (t2 :-> tv)
         x'' = tyApply s3 tv
     return (AppE n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
 
