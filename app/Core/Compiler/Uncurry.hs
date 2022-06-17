@@ -1,14 +1,21 @@
 module Core.Compiler.Uncurry where
+  import qualified Data.Map as M
   import qualified Core.Inference.Type.AST as A
   import Core.Inference.Type.Pretty
+  import Control.Monad.State
   import Prelude hiding (uncurry)
 
   type Argument = (String, Type)
+  type Functions = M.Map String Int -- Name -> Number of arguments
+  type MonadCurry m = (Monad m, MonadState Functions m, MonadIO m)
+
+  addFunction :: MonadCurry m => String -> Int -> m ()
+  addFunction name n = modify $  M.insert name n
 
   data Type
     = TVar Int | TId String
     | [Type] :-> Type
-    | Int | String | Float | Bool
+    | Int | String | Float | Bool | Any
     | TApp Type [Type]
     | ListT Type
     deriving (Eq, Ord, Show)
@@ -53,6 +60,7 @@ module Core.Compiler.Uncurry where
   uncurryType (A.String) = String
   uncurryType (A.Float) = Float
   uncurryType (A.Bool) = Bool
+  uncurryType (A.Any) = Any
 
   uncurryTApp :: A.Type -> ([Type], Maybe Type)
   uncurryTApp (A.TApp n t) =
@@ -66,28 +74,46 @@ module Core.Compiler.Uncurry where
       in (uncurryType t1 : ts, mb)
   uncurryTArrow t = ([], Just $ uncurryType t)
 
-  uncurry :: A.TypedAST -> UncurriedAST
-  uncurry z@(A.AppE _ _ t) =
+  runUncurry :: (Monad m, MonadIO m) => A.TypedAST -> Functions -> m (UncurriedAST, Functions)
+  runUncurry a f = runStateT (uncurry a) f
+
+  uncurry :: MonadCurry m => A.TypedAST -> m UncurriedAST
+  uncurry z@(A.AppE _ _ t) = do
     let (Just a@(n, t), args, t') = uncurryApp z
-      in AppE (n, uncurryType t) (map uncurry args) (uncurryType t)
-  uncurry (A.LetE (n, t') t) = LetE (n, uncurryType t') (uncurry t)
-  uncurry (A.LetInE (n, t') v b) = LetInE (n, uncurryType t') (uncurry v) (uncurry b)
+    args' <- mapM uncurry args
+    get >>= \e -> case M.lookup n e of
+      Just n' -> do
+        if n' /= length args' then do
+          let missingArgs = [0..n' - length args' - 1]
+          let app  = AppE
+                      (n, uncurryType t)
+                      (args' ++ map (`VarE` Any) ["_" ++ show i | i <- missingArgs])
+                      (uncurryType t)
+          return $ foldl (\acc x -> AbsE [(x, Any)] acc) (AbsE [("_0", Any)] app) ["_" ++ show i | i <- [1..n' - length args' - 1]]
+        else return $ AppE (n, uncurryType t) args' (uncurryType t)
+      Nothing -> return $ AppE (n, uncurryType t) args' (uncurryType t)
+  uncurry (A.LetE (n, t') z@(A.AbsE _ _)) = do
+    let (args, b') = uncurryAbs z
+    addFunction n (length args)
+    LetE (n, uncurryType t') . AbsE args <$> uncurry b'
+  uncurry (A.LetE (n, t') t) = LetE (n, uncurryType t') <$> (uncurry t)
+  uncurry (A.LetInE (n, t') v b) = LetInE (n, uncurryType t') <$> (uncurry v) <*> (uncurry b)
   uncurry z@(A.AbsE _ _) =
     let (args, t') = uncurryAbs z
-      in AbsE args (uncurry t')
-  uncurry (A.IfE c t e) = IfE (uncurry c) (uncurry t) (uncurry e)
-  uncurry (A.ListE e t) = ListE (map uncurry e) (uncurryType t)
-  uncurry (A.LitE l t) = LitE l (uncurryType t)
-  uncurry (A.PatternE p t) =
-    let p' = uncurry p
-        t' = map (uncurry . snd) t
-      in PatternE p' (zip (map (uncurryPattern . fst) t) t')
-  uncurry (A.VarE n t) = VarE n (uncurryType t)
+      in AbsE args <$> (uncurry t')
+  uncurry (A.IfE c t e) = IfE <$> (uncurry c) <*> (uncurry t) <*> (uncurry e)
+  uncurry (A.ListE e t) = ListE <$> mapM uncurry e <*> pure (uncurryType t)
+  uncurry (A.LitE l t) = return $ LitE l (uncurryType t)
+  uncurry (A.PatternE p t) = do
+    p' <- uncurry p
+    t' <- mapM (uncurry . snd) t
+    return $ PatternE p' (zip (map (uncurryPattern . fst) t) t')
+  uncurry (A.VarE n t) = return $ VarE n (uncurryType t)
   uncurry (A.DataE (n, t) b)
     = let t' = map uncurryType t
           b' = map (uncurryType . snd) b
           n' = map fst b
-      in DataE (n, t') (zip n' b')
+      in return $ DataE (n, t') (zip n' b')
 
   uncurryAbs :: A.TypedAST -> ([Argument], A.TypedAST)
   uncurryAbs (A.AbsE (n1, t1) (A.AbsE (n2, t2) t)) =
