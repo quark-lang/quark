@@ -44,6 +44,7 @@ module Core.Compiler.Javascript where
     | Condition Expression Expression
     | Return Expression
     | Block [Expression]
+    | Throw Expression
     deriving (Show, Eq)
 
   from :: Expression -> String
@@ -56,13 +57,14 @@ module Core.Compiler.Javascript where
   from (Call (Var n) xs) = n ++ "(" ++ intercalate "," (map from xs) ++ ")"
   from (Call z@(Property _ _) xs) = from z ++ "(" ++ intercalate "," (map from xs) ++ ")"
   from (Call n xs) = "(" ++ from n ++ ")(" ++ intercalate "," (map from xs) ++ ")"
-  from (Property n (Var p)) = from n ++ "." ++ p
-  from (Property n p) = from n ++ "[" ++ from p ++ "]"
+  from (Property n z@(Lit _)) = from n ++ "[" ++ from z ++ "]"
+  from (Property n p) = from n ++ "." ++ from p
   from (BinaryCall l op r) = from l ++ " " ++ op ++ " " ++ from r
-  from (Let n v) = "const " ++ n ++ " = " ++ from v ++ ";"
+  from (Let n v) = "const " ++ n ++ " = " ++ from v
   from (Condition c t) = "if (" ++ from c ++ ") " ++ from t
-  from (Return e) = "return " ++ from e ++ ";"
-  from (Block exprs) = "{" ++ concatMap from exprs ++ "}"
+  from (Return e) = "return " ++ from e
+  from (Block exprs) = "{" ++ concatMap ((++";") . from) exprs ++ "}"
+  from (Throw e) = "throw " ++ from e
   from (Lit (S s)) = show s
   from (Lit (F f)) = show f
   from (Lit (I i)) = show i
@@ -128,9 +130,12 @@ module Core.Compiler.Javascript where
 
   compile :: MonadCompiler m => UncurriedAST -> m Expression
   -- JS AST Generation
+  compile (AppE ("Call", _) [n] _) = Call <$> compile n <*> pure []
   compile (AppE ("Call", _) [n, x] _) = Call <$> compile n <*> ((:[]) <$> compile x)
   compile (AppE ("Property", _) [obj, prop] _) = Property <$> compile obj <*> compile prop
   compile (AppE ("Var", _) [LitE (S x) _] _) = return $ Var x
+  compile (AppE ("Throw", _) [x] _) = Throw <$> compile x
+  compile (AppE ("Block", _) xs _) = Block <$> mapM compile xs
 
   -- Binary calls
   compile (AppE ("*", _) [x, y] _) = BinaryCall <$> compile x <*> pure "*" <*> compile y
