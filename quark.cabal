@@ -42,6 +42,7 @@ executable quark
         Core.Parser.Utils.ConstantPropagation
         Core.Parser.Utils.Module
         Core.Parser.Utils.Garbage
+        Core.Parser.Utils.Curry
         --Core.Parser.Utils.ClosureConversion
         Core.Parser.Utils.Imports
 
