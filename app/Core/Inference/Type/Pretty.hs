@@ -55,7 +55,7 @@ module Core.Inference.Type.Pretty where
       createIndent 2 ++ bBlue "else " ++ showAST else_ (i + 2)
   showAST (PatternE pattern cases) i = bBlue "match " ++ show pattern ++ bBlue " with" ++ "\n" ++
     concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ showPattern n ++ " => " ++ show t ++ "\n") cases
-  showAST x _ = error "Pattern not recognized in showAST"
+  --showAST x _ = error "Pattern not recognized in showAST"
 
   parens :: String -> String
   parens s = bBlack "(" ++ s ++ bBlack ")"
@@ -71,6 +71,8 @@ module Core.Inference.Type.Pretty where
   showTy Float _ = bCyan "Float"
   showTy String _ = bCyan "String"
   showTy Bool _ = bCyan "Bool"
+  showTy Any _ = bCyan "Any"
+  showTy Expr _ = bCyan "Expression"
   showTy (TApp t1 t2) (b1, b2) =
     let s = showTy t1 (b1, not b2 || b2) ++ " " ++ showTy t2 (b1, not b2 || b2)
       in if b2 then parens s else s
@@ -79,3 +81,4 @@ module Core.Inference.Type.Pretty where
     show = flip showTy (False, False)
 
   deriving instance Show Scheme
+  deriving instance Show Env

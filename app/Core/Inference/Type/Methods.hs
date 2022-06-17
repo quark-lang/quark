@@ -66,6 +66,9 @@ module Core.Inference.Type.Methods where
     tyUnify (TId s) (TId s') = if s == s'
       then M.empty
       else error $ "Type " ++ s ++ " mismatches with type " ++ s'
+    tyUnify _ Any = M.empty
+    tyUnify Any _ = M.empty
+    tyUnify Expr Expr = M.empty
     tyUnify (ListT t) (ListT t') = tyUnify t t'
     tyUnify Int Int = M.empty
     tyUnify String String = M.empty

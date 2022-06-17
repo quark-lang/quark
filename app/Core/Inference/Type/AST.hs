@@ -55,7 +55,7 @@ module Core.Inference.Type.AST where
   data Type
     = TVar Int | TId String
     | Type :-> Type
-    | Int | String | Float | Bool
+    | Int | String | Float | Bool | Any | Expr
     | TApp Type Type
     | ListT Type
     deriving (Eq, Ord)

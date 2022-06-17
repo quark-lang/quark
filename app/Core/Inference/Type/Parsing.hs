@@ -43,10 +43,14 @@ module Core.Inference.Type.Parsing where
     let xs' = map (parseType e) xs
         n'  = parseType e n
       in foldl (\acc x -> TApp <$> acc <*> x) n' xs'
-  parseType e (A.List [x]) = ListT <$> parseType e x
+  parseType e (A.List [x]) = case parseType e x of
+    Right x' -> Right $ TApp (TId "List") x'
+    Left _ -> error "Cannot create kind list"
   parseType e (A.Literal "str") = Right String
   parseType e (A.Literal "bool") = Right Bool
   parseType e (A.Literal "int") = Right Int
+  parseType e (A.Literal "any") = Right Any
+  parseType e (A.Literal "expr") = Right Expr
   parseType e (A.Literal "*") = Left Star
   parseType e (A.Literal n) = case M.lookup n e of
     Nothing -> Right $ TId n
