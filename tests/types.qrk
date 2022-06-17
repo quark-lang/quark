@@ -2,11 +2,11 @@
 (declare (begin a) (-> [a] a))
 (declare (extern a) (-> str a))
 
-(declare (Call a) (-> a a any))
-(declare (Property a) (-> a a any))
+(declare Call (-> any any any))
+(declare Property (-> any any any))
 (declare Var (-> str any))
-(declare (Throw a) (-> a any))
-(declare Block (-> expr expr))
+(declare Throw (-> any any))
+(declare Block (-> any any))
 
 (let putStr (fn [x]
   (Call (Property (Var "process") (Property (Var "stdout") (Var "write"))) x)))
