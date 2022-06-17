@@ -42,12 +42,12 @@ executable quark
         Core.Parser.Utils.ConstantPropagation
         Core.Parser.Utils.Module
         Core.Parser.Utils.Garbage
-        Core.Parser.Utils.ClosureConversion
+        --Core.Parser.Utils.ClosureConversion
         Core.Parser.Utils.Imports
 
         --Core.Compiler.Compiler
-        Core.Compiler.Instruction
-        Core.Compiler.CLang
+        Core.Compiler.Javascript
+        Core.Compiler.Uncurry
         
         Core.Entry
         Core.Color
