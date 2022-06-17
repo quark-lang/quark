@@ -101,6 +101,7 @@ module Core.Compiler.Javascript where
                   (VarP n _, i) -> (Just $ \x -> Let n $ Property x (Var i), Nothing)
                   (LitP l _, i) -> (Nothing, Just $ \x ->
                     BinaryCall (Property x (Var i)) "===" (Lit l))
+                  (WilP _, i) -> (Nothing, Nothing)
                   _ -> error "Pattern must be one level") $ zip args ["v" ++ show i | i <- [0..]]
     let lets   = map (fromJust . fst) $ filter (isJust . fst) args'
     let cs = map (fromJust . snd) $ filter (isJust . snd) args'
