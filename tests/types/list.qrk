@@ -16,9 +16,10 @@
 
 (declare (fromList a) (-> any [a]))
 
-;(defn map [f list] (match list
-;  [Nil Nil]
-;  [(Cons x xs) (Cons (f x) (map f xs))]))
+;(declare (map a b) (-> (-> a b) [a] [b]))
+(defn map [f list] (match list
+  [Nil Nil]
+  [(Cons x xs) (Cons (f x) (map f xs))]))
 
 ;(declare (filter a) (-> (-> a bool) [a] [a]))
 (defn filter [pred list] (match list
