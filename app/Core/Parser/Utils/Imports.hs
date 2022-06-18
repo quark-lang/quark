@@ -24,3 +24,9 @@ module Core.Parser.Utils.Imports where
         Just x -> return (acc ++ x)
         Nothing -> return acc) [] xs
     return $ Node (Literal "begin") [List xs]
+  resolve (Node (Literal "import") [String path]) = do
+    x <- parse path
+    case x of
+      Just x -> resolve x
+      Nothing -> error "Empty module"
+  resolve z = return z
