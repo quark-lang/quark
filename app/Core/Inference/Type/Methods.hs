@@ -4,7 +4,7 @@ module Core.Inference.Type.Methods where
   import Core.Inference.Type.Pretty ()
   import Core.Inference.Kind (KindEnv)
   import qualified Data.Map as M
-  import Data.List ((\\))
+  import qualified Data.Set as S
   import Control.Monad.RWS (modify, MonadState(get))
 
   -- Some environment functions and types
@@ -28,8 +28,11 @@ module Core.Inference.Type.Methods where
   tyCompose :: SubTy -> SubTy -> SubTy
   tyCompose s1 s2 = M.map (tyApply s1) s2 `M.union` s1
 
+  setConcatMap :: Ord b => (a -> S.Set b) -> [a] -> S.Set b
+  setConcatMap f = S.unions . map f
+
   class Types a where
-    tyFree  :: a -> [Int]
+    tyFree  :: a -> S.Set Int
     tyApply :: SubTy -> a -> a
     tyUnify :: a -> a -> Either SubTy [String]
 
@@ -41,13 +44,13 @@ module Core.Inference.Type.Methods where
     | otherwise = Left $ M.singleton n t
 
   instance Types Type where
-    tyFree (TVar i) = [i]
-    tyFree (t1 :-> t2) = tyFree t1 ++ tyFree t2
-    tyFree Int = []
-    tyFree String = []
+    tyFree (TVar i) = S.singleton i
+    tyFree (t1 :-> t2) = tyFree t1 `S.union` tyFree t2
+    tyFree Int = S.empty
+    tyFree String = S.empty
     tyFree (ListT t) = tyFree t
-    tyFree (TApp t1 t2) = tyFree t1 ++ tyFree t2
-    tyFree _ = []
+    tyFree (TApp t1 t2) = tyFree t1 `S.union` tyFree t2
+    tyFree _ = S.empty
 
     tyApply s (TVar i) = case M.lookup i s of
       Just t -> tyApply s t
@@ -87,27 +90,29 @@ module Core.Inference.Type.Methods where
           (Right e, Right e') -> Right $ e ++ e'
     tyUnify s1 s2 = Right ["Type " ++ show s1 ++ " mismatches with type " ++ show s2]
   instance Types Scheme where
-    tyFree (Forall v t) = tyFree t \\ v
+    tyFree (Forall v t) = tyFree t S.\\ S.fromList v
     tyApply s (Forall v t) = Forall v (tyApply (foldr M.delete s v) t)
     tyUnify _ _ = error "Cannot unify type scheme"
   instance Types a => Types [a] where
-    tyFree = concatMap tyFree
+    tyFree = setConcatMap tyFree
     tyApply = map . tyApply
     tyUnify _ _ = error "Cannot unify type scheme"
   instance Types TypeEnv where
     tyFree = tyFree . M.elems
     tyApply = M.map . tyApply
     tyUnify = error "Cannot unify type environment"
+
   instance Types TypedAST where
-    tyFree (AppE f arg t) = tyFree f ++ tyFree arg
-    tyFree (AbsE (n, t) body) = (tyFree t \\ tyFree t) ++ tyFree body
+    tyFree (AppE f arg t) = tyFree f `S.union` tyFree arg
+    tyFree (AbsE (n, t) body) = (tyFree t S.\\ tyFree t) `S.union` tyFree body
     tyFree (VarE name t) = tyFree t
-    tyFree (LetInE (name, t) body t') = (tyFree t \\ tyFree t) ++ tyFree body ++ tyFree t'
-    tyFree (LetE (name, t) body) = (tyFree t \\ tyFree t) ++ tyFree body
-    tyFree (ListE args t) = tyFree t ++ concatMap tyFree args
-    tyFree (IfE cond t1 t2) = tyFree cond ++ tyFree t1 ++ tyFree t2
+    tyFree (LetInE (name, t) body t')
+      = (tyFree t S.\\ tyFree t) `S.union` tyFree body `S.union` tyFree t'
+    tyFree (LetE (name, t) body) = (tyFree t S.\\ tyFree t) `S.union` tyFree body
+    tyFree (ListE args t) = tyFree t `S.union` setConcatMap tyFree args
+    tyFree (IfE cond t1 t2) = tyFree cond `S.union` tyFree t1 `S.union` tyFree t2
     tyFree (LitE ast t) = tyFree t
-    tyFree _ = []
+    tyFree _ = S.empty
 
     tyApply s (AppE f arg t) = AppE (tyApply s f) (tyApply s arg) (tyApply s t)
     tyApply s (AbsE (n, t) body) = AbsE (n, tyApply s t) (tyApply s body)
@@ -124,8 +129,8 @@ module Core.Inference.Type.Methods where
   instance Types TypedPattern where
     tyFree (VarP _ t) = tyFree t
     tyFree (WilP t) = tyFree t
-    tyFree (AppP p1 p2 t) = tyFree p1 ++ tyFree p2
-    tyFree _ = []
+    tyFree (AppP p1 p2 t) = tyFree p1 `S.union` tyFree p2
+    tyFree _ = S.empty
 
     tyApply s (VarP n t) = VarP n (tyApply s t)
     tyApply s (WilP t) = WilP (tyApply s t)
@@ -137,8 +142,8 @@ module Core.Inference.Type.Methods where
   -- Generalization is the process of managing flexible type variables
   -- as rigid type variables.
   generalize :: TypeEnv -> Type -> Scheme
-  generalize env t = Forall vars t
-    where vars = tyFree t \\ tyFree env
+  generalize env t = Forall (S.toList vars) t
+    where vars = tyFree t S.\\ tyFree env
 
   -- Creating a new fresh type variable
   tyFresh :: MonadType m => m Type
