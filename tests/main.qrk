@@ -1,5 +1,16 @@
-(import "facto.qrk")
+(import "types.qrk")
+(import "path.qrk")
+(import "types/list.qrk")
 
-(let add (fn [x] (+ x 5)))
-(let t (fn [f x] (f x)))
-(let main (fn [args] (let _ (print 7) (print 5)) ))
+(let ack (fn [m n]
+           (if (= m 0) (+ n 1)
+             (if (= n 0) (ack (- m 1) 1)
+               (ack (- m 1) (ack m (- n 1)))))))
+
+(defn compose [f g]
+  (fn [x]
+    (f (g x))))
+
+(declare main (-> [str] int))
+(defn main [args]
+  (print_list (filter (fn [x] (= x "buh")) (Cons "buh" (Cons "test" Nil)))))
