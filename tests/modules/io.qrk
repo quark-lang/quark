@@ -1,0 +1,14 @@
+(import "std:types/expression")
+(let putStr (fn [x]
+  (Call (Property (Var "process") (Property (Var "stdout") (Var "write"))) x)))
+
+(declare to_string (-> any str))
+(let to_string (fn [x]
+  (Call (Property x (Var "toString")))))
+
+(declare (print a) (-> a int))
+(let print (fn [x]
+  (let _ (putStr (to_string x))
+    (putStr "\n"))))
+
+(let error (fn [msg] (Block (Throw msg))))

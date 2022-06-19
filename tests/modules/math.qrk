@@ -1,0 +1,6 @@
+(declare (+ a) (-> a a a))
+(declare (- a) (-> a a a))
+(declare (* a) (-> a a a))
+(declare (/ a) (-> a a a))
+
+(declare (= a) (-> a a bool))

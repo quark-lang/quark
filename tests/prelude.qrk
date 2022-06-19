@@ -1,0 +1,13 @@
+; SOME BASIC MACROS
+(defm const [name value]
+  (defm name value))
+
+(defm defn [name args body]
+  (let name (fn args body)))
+
+; CORE IMPORTS
+(import "std:modules/math")
+(import "std:modules/io")
+(import "std:modules/color")
+
+(import "std:types/list")
