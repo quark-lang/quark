@@ -1,5 +1,0 @@
-(defm const [name value]
-  (defm name value))
-
-(defm defn [name args body]
-  (let name (fn args body)))
