@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, LambdaCase #-}
+{-# LANGUAGE LambdaCase #-}
 module Core.Compiler.Javascript where
   import Prelude hiding (and)
   import Data.List hiding (and)
@@ -14,6 +14,7 @@ module Core.Compiler.Javascript where
   import qualified Core.Inference.Type.AST as A
   import Data.Foldable hiding (and)
   import Core.Inference.Type.AST hiding (TypedAST(..), TypedPattern(..), Type(..))
+  import Text.Printf (printf)
 
   {-
     Module: CLang compilation
@@ -25,6 +26,16 @@ module Core.Compiler.Javascript where
   type MonadCompiler m = (MonadState Constructors m, Monad m, MonadIO m)
 
   -- Code representation
+
+
+  encodeUnicode16 :: String -> String
+  encodeUnicode16 = concatMap escapeChar
+    where
+      escapeChar c
+          | ' ' <= c && c <= 'z' = [c]
+          | otherwise =
+              printf "\\u%04x" (fromEnum c)
+
 
   data Expression
     -- Expressions
@@ -60,14 +71,15 @@ module Core.Compiler.Javascript where
   from (Property n z@(Lit _)) = from n ++ "[" ++ from z ++ "]"
   from (Property n p) = from n ++ "." ++ from p
   from (BinaryCall l op r) = from l ++ " " ++ op ++ " " ++ from r
-  from (Let n v) = "const " ++ n ++ " = " ++ from v
+  from (Let n v) = "var " ++ n ++ " = " ++ from v
   from (Condition c t) = "if (" ++ from c ++ ") " ++ from t
   from (Return e) = "return " ++ from e
   from (Block exprs) = "{" ++ concatMap ((++";") . from) exprs ++ "}"
   from (Throw e) = "throw " ++ from e
-  from (Lit (S s)) = show s
+  from (Lit (S s)) = "\"" ++ encodeUnicode16 s ++ "\""
   from (Lit (F f)) = show f
   from (Lit (I i)) = show i
+  from _ = error "from: not implemented"
 
   addCons :: MonadCompiler m => (String, String) -> m ()
   addCons (k, a) = modify $ \c -> M.insert k a c
@@ -78,18 +90,19 @@ module Core.Compiler.Javascript where
               addCons (n', n)
               case t of
                 args :-> _ -> do
-                  let args' = map fst $ zip ["v" ++ show i | i <- [0..]] args
+                  let args' = zipWith const (["v" ++ show i | i <- [0..]]) args
                   let fields = map (\x -> (x, Var x)) args'
                   return (n', Lambda args' (Object (("type", Lit (S n')) : fields)))
                 _ -> return (n', Object [("type", Lit (S n'))])) cons
     return $ Let n (Object cons')
+  compileData _ = error "compileData: not a data"
 
   type Variables    = [String]
   type Conditions   = [String]
   type AccessValues = [String]
 
   and :: Expression -> Expression -> Expression
-  and l r = BinaryCall l "&&" r
+  and l = BinaryCall l "&&"
 
   compileCase :: MonadCompiler m => UncurriedPattern -> m (Expression -> Expression -> Expression)
   compileCase (VarP n _) = do
@@ -99,20 +112,20 @@ module Core.Compiler.Javascript where
           in Condition cond $ Return body
       Nothing -> return $ \x body -> Block [Let n x, Return body]
   compileCase (AppP (n, _) args _) = do
-    let args' = map (\case
+    let args' = zipWith (curry (\case
                   (VarP n _, i) -> (Just $ \x -> Let n $ Property x (Var i), Nothing)
                   (LitP l _, i) -> (Nothing, Just $ \x ->
                     BinaryCall (Property x (Var i)) "===" (Lit l))
                   (WilP _, i) -> (Nothing, Nothing)
-                  _ -> error "Pattern must be one level") $ zip args ["v" ++ show i | i <- [0..]]
+                  _ -> error "Pattern must be one level")) args (["v" ++ show i | i <- [0..]])
     let lets   = map (fromJust . fst) $ filter (isJust . fst) args'
     let cs = map (fromJust . snd) $ filter (isJust . snd) args'
     return $ \x b ->
       let cond  = BinaryCall (Property x (Var "type")) "===" (Lit (S n))
           conds = case cs of
-                    (c:cs) -> cond `and` foldl (\acc f -> acc `and` (f x)) (c x) cs
+                    (c:cs) -> cond `and` foldl (\acc f -> acc `and` f x) (c x) cs
                     _ -> cond
-        in Condition conds $ Block $ (map (\f -> f x) lets) ++ [Return b]
+        in Condition conds $ Block $ map (\f -> f x) lets ++ [Return b]
   compileCase (WilP _) = do
     return $ \x b -> Return b
   compileCase (LitP l _) = do
@@ -127,6 +140,7 @@ module Core.Compiler.Javascript where
       b <- compile b
       p <- compileCase p
       return $ p x b) pats
+  compilePattern _ = error "compilePattern: not a pattern"
 
   compile :: MonadCompiler m => UncurriedAST -> m Expression
   -- JS AST Generation
@@ -168,4 +182,4 @@ module Core.Compiler.Javascript where
   compile z@(PatternE _ _) = compilePattern z
 
   runCompiler :: (Monad m, MonadIO m) => UncurriedAST -> Constructors -> m (Expression, Constructors)
-  runCompiler a c = runStateT (compile a) c
+  runCompiler a = runStateT (compile a)
