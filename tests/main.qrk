@@ -1,16 +1,16 @@
-(import "types.qrk")
-(import "path.qrk")
-(import "types/list.qrk")
+(import "std:prelude")
 
 (let ack (fn [m n]
-           (if (= m 0) (+ n 1)
-             (if (= n 0) (ack (- m 1) 1)
-               (ack (- m 1) (ack m (- n 1)))))))
+  (if (= m 0) (+ n 1)
+    (if (= n 0) (ack (- m 1) 1)
+      (ack (- m 1) (ack m (- n 1)))))))
 
 (defn compose [f g]
   (fn [x]
     (f (g x))))
 
 (declare main (-> [str] int))
+(defn black [x] x)
 (defn main [args]
-  (print_list (filter (fn [x] (= x "buh")) (Cons "buh" (Cons "test" Nil)))))
+  (print (compose black bold "tet")))
+  
