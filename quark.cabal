@@ -27,7 +27,6 @@ executable quark
     -- Modules included in this executable, other than Main.
     other-modules:
         -- Parser related
-        Core.Parser.Combinator
         Core.Parser.Parser
         Core.Parser.AST
         Core.Parser.Macros
@@ -65,5 +64,7 @@ executable quark
       , process
       , filepath
       , containers
+      , megaparsec
+      , projectroot
     hs-source-dirs:   app
     default-language: Haskell2010
