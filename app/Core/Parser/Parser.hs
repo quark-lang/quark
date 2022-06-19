@@ -1,7 +1,9 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Core.Parser.Parser where
-  import Core.Parser.Combinator
   import Core.Parser.AST     (AST(..))
-  import Control.Applicative ((<|>))
+  import Text.Megaparsec
+  import Text.Megaparsec.Char
+  import qualified Text.Megaparsec.Char.Lexer as L
   import Data.Maybe          (isJust, fromMaybe)
 
   {-
@@ -10,98 +12,66 @@ module Core.Parser.Parser where
     Author: thomasvergne
   -}
 
-  -- Parse an expression
-  parseExpr :: Parser String AST
-  parseExpr = do
-    char '('
-    name <- parse
-    args <- many parse
-    char ')'
-    return $ Node name args
+  -- LISP PARSER
+
+  stringLit :: MonadParsec String String m => m AST
+  stringLit = do
+    char '"'
+    s <- manyTill L.charLiteral (char '"')
+    return $ String s
+
+  integerLit :: MonadParsec String String m => m AST
+  integerLit = do
+    n <- some digitChar
+    return $ Integer (read n)
+  
+  floatLit :: MonadParsec String String m => m AST
+  floatLit = do
+    n <- some digitChar
+    char '.'
+    d <- some digitChar
+    return $ Float (read (n ++ "." ++ d))
 
   blacklist :: String
   blacklist = "() {}[]"
 
-  parseChar :: Parser String AST
-  parseChar = Char <$> (char '\'' *> (escaped <|> anyChar) <* char '\'')
+  literal :: MonadParsec String String m => m AST
+  literal = stringLit <|> try floatLit <|> integerLit
 
-  parseWord :: Parser String String
-  parseWord = many1 $ letter <|> digit <|> noneOf blacklist
+  identifier :: MonadParsec String String m => m AST
+  identifier = Literal <$> some (noneOf blacklist)
 
-  parseString :: Parser String AST
-  parseString = String <$> (char '"' *> many (escaped <|> noneOf "\"") <* char '"')
+  atom :: MonadParsec String String m => m AST
+  atom = literal <|> identifier
 
-  parseVoid :: Parser String AST
-  parseVoid = do
+  expr :: MonadParsec String String m => m AST
+  expr = do
     char '('
+    x <- many parse'
     char ')'
-    return . Literal $ "Nil"
+    case x of
+      (x:xs) -> return $ Node x xs
+      [] -> return $ Literal "nil"
 
-  parseBeginSugar :: Parser String AST
-  parseBeginSugar = do
-    lexeme $ char '{'
-    expr <- many parse
-    char '}'
-    return $ Node (Literal "begin") [List expr]
+  begin :: MonadParsec String String m => m AST
+  begin = do
+    char '{' >> space
+    x <- many parse'
+    space >> char '}'
+    return $ Node (Literal "begin") x
+    
+  list :: MonadParsec String String m => m AST
+  list = do
+    char '[' >> space
+    x <- many parse' <* space
+    space >> char ']'
+    return $ List x
 
-  parseListSugar :: Parser String AST
-  parseListSugar = do
-    lexeme $ char '['
-    expr <- many parse
-    char ']'
-    return $ List expr
+  parse' :: MonadParsec String String m => m AST
+  parse' = (list <|> begin <|> expr <|> atom) <* space
 
-  parseNumber :: Parser String AST
-  parseNumber = do
-    sign <- optional $ char '-'
-    num <- many1 digit
-    return . Integer . read $ parseSign sign ++ num
-    where parseSign s = if isJust s then let (Just x) = s in "-" else ""
-
-  -- this function should be used only if AST is integer
-  getInteger :: AST -> Integer
-  getInteger (Integer i) = i
-  getInteger _ = error "Not an integer"
-
-  parseFloat :: Parser String AST
-  parseFloat = do
-    num <- show . getInteger <$> parseNumber
-    char '.'
-    dec <- many1 digit
-    return $ Float (read $ num ++ "." ++ dec)
-
-  escaped :: Parser String Char
-  escaped = do
-    char '\\'
-    x <- oneOf codes
-    let z = zip codes replacements
-    return $ fromMaybe x (lookup x z)
-  codes        = ['b',  'n',  'f',  'r',  't',  '\\', '\"', '/']
-  replacements = ['\b', '\n', '\f', '\r', '\t', '\\', '\"', '/']
-
-  parseSugar :: Parser String AST
-  parseSugar = choices
-    [
-      parseBeginSugar,
-      parseListSugar
-    ]
-
-  parse :: Parser String AST
-  parse = lexeme . choices $
-    [
-      parseSugar,
-      parseExpr,
-      parseString,
-      parseVoid,
-      parseChar,
-      parseFloat,
-      parseNumber,
-      Literal <$> parseWord
-    ]
-
-  -- lexeme take a parser p and ignore spaces while consuming parser
-  lexeme :: Monad m => ParserT String e m a -> ParserT String e m a
-  lexeme p = p <* spaces
+  parseLisp :: String -> Either (ParseErrorBundle String String) [AST]
+  parseLisp = parse (many parse') ""
 
   trim :: String -> String
   trim = dropWhile (== ' ')
