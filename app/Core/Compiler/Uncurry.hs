@@ -56,11 +56,11 @@ module Core.Compiler.Uncurry where
     = let (ts, Just n) = uncurryTArrow z
         in ts :-> n
   uncurryType (A.ListT t) = ListT (uncurryType t)
-  uncurryType (A.Int) = Int
-  uncurryType (A.String) = String
-  uncurryType (A.Float) = Float
-  uncurryType (A.Bool) = Bool
-  uncurryType (A.Any) = Any
+  uncurryType A.Int = Int
+  uncurryType A.String = String
+  uncurryType A.Float = Float
+  uncurryType A.Bool = Bool
+  uncurryType A.Any = Any
 
   uncurryTApp :: A.Type -> ([Type], Maybe Type)
   uncurryTApp (A.TApp n t) =
@@ -75,9 +75,16 @@ module Core.Compiler.Uncurry where
   uncurryTArrow t = ([], Just $ uncurryType t)
 
   runUncurry :: (Monad m, MonadIO m) => A.TypedAST -> Functions -> m (UncurriedAST, Functions)
-  runUncurry a f = runStateT (uncurry a) f
+  runUncurry a = runStateT (uncurry a)
 
   uncurry :: MonadCurry m => A.TypedAST -> m UncurriedAST
+  uncurry z'@(A.AppE z@(A.AbsE _ _) arg t) = do
+    let t' = uncurryType t
+    let (as, b) = uncurryAbs z
+    b' <- uncurry b
+    let (_, args', t'') = uncurryApp arg
+    args'' <- mapM uncurry args'
+    return $ LetInE ("$f", t') (AbsE as b') (AppE ("$f", t') args'' t')
   uncurry z@(A.AppE _ _ t) = do
     let (Just a@(n, t), args, t') = uncurryApp z
     args' <- mapM uncurry args
@@ -87,7 +94,7 @@ module Core.Compiler.Uncurry where
           let missingArgs = [0..n' - length args' - 1]
           let app  = AppE
                       (n, uncurryType t)
-                      (args' ++ map (`VarE` Any) ["_" ++ show i | i <- missingArgs])
+                      (args' ++ [(`VarE` Any) ("_" ++ show i) | i <- missingArgs])
                       (uncurryType t)
           return $ foldl (\acc x -> AbsE [(x, Any)] acc) (AbsE [("_0", Any)] app) ["_" ++ show i | i <- [1..n' - length args' - 1]]
         else return $ AppE (n, uncurryType t) args' (uncurryType t)
