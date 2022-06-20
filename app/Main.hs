@@ -29,6 +29,7 @@ module Main where
           "build" -> case opts of
             [] -> alert "No target specified!"
             (Raw file:_) -> build file
+            _ -> alert "Invalid option!"
           "help" -> help
           x -> build x
       Nothing -> do
