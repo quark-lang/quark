@@ -1,3 +1,4 @@
+(import "std:prelude")
 (defn facto [n]
   (match n
     [0 1]
