@@ -5,15 +5,19 @@ module Core.Parser.Utils.Module where
   import System.Directory
   import System.FilePath
   import Data.Functor           ((<&>))
-  import Data.Foldable          (foldlM)
+  import Data.Foldable
   import Data.Char              (ord)
   import System.Process
   import Core.Color
-  import Data.List  
+  import Data.List
   import System.Environment (lookupEnv)
-  import Text.Megaparsec.Error (errorBundlePretty)
+  import Text.Megaparsec.Error (errorBundlePretty, ParseErrorBundle (ParseErrorBundle), ParseError (TrivialError), ErrorItem (EndOfInput, Tokens))
   import Data.Maybe (catMaybes)
-  
+  import qualified Data.Set as S
+  import qualified Data.List.NonEmpty as N
+  import Data.Void (Void)
+  import Text.Megaparsec (Stream(Token))
+
   {-
     Module: Parser utils
     Description: Set of functions to extra-parse AST 
@@ -34,7 +38,7 @@ module Core.Parser.Utils.Module where
         content <- readFile file
         let res = Parser.parseLisp content
         case res of
-          Left err -> putStrLn (errorBundlePretty err) >> return Nothing
+          Left err -> printErrorBundle err >> return Nothing
           Right ast -> do
             let ast' = catMaybes ast
             let ast'' = if length ast > 1 then Node (Literal "begin") [List ast'] else head ast'
@@ -48,7 +52,7 @@ module Core.Parser.Utils.Module where
     path <- if startsWith "std:" path'
       then lookupEnv "QUARK" >>= \case
         Just x -> do
-          let path'' = x </> "tests" </> drop 4 path' 
+          let path'' = x </> "tests" </> drop 4 path'
           exists <- doesFileExist path''
           if exists
             then return path''
@@ -63,6 +67,20 @@ module Core.Parser.Utils.Module where
 
   visitAST _ z = return z
 
+  showError :: ErrorItem (Token String) -> String
+  showError EndOfInput = "Unexpected end of input"
+  showError (Tokens x) = concatMap show x
+  showError _ = "Unknown error"
+
+  printErrorBundle :: ParseErrorBundle String a -> IO ()
+  printErrorBundle x = do
+    let (ParseErrorBundle errors _) = x
+    traverse_ (\case
+      TrivialError _ (Just msg) xs -> do
+        let xs' = S.toList xs
+        putStrLn $ red "[error] " ++ showError msg
+        putStrLn $ "  in missing " ++ bBlack (concatMap showError xs')
+      _ -> print "error") errors
 
   convertString :: String -> AST
   convertString s = Node (Literal "list") $ map Char s
