@@ -4,8 +4,8 @@ module Core.Parser.Parser where
   import Text.Megaparsec
   import Text.Megaparsec.Char
   import qualified Text.Megaparsec.Char.Lexer as L
-  import Data.Maybe          (isJust, fromMaybe)
-
+  import Data.Maybe          (isJust, fromMaybe, fromJust, catMaybes)
+  import Data.Void
   {-
     Module: Quark parser
     Description: Lisp like parser using custom combinator library
@@ -14,69 +14,77 @@ module Core.Parser.Parser where
 
   -- LISP PARSER
 
-  stringLit :: MonadParsec String String m => m AST
+  stringLit :: MonadParsec Void String m => m (Maybe AST)
   stringLit = do
     char '"'
     s <- manyTill L.charLiteral (char '"')
-    return $ String s
+    return . Just $ String s
 
-  integerLit :: MonadParsec String String m => m AST
+  integerLit :: MonadParsec Void String m => m (Maybe AST)
   integerLit = do
     n <- some digitChar
-    return $ Integer (read n)
-  
-  floatLit :: MonadParsec String String m => m AST
+    return . Just $ Integer (read n)
+
+  floatLit :: MonadParsec Void String m => m (Maybe AST)
   floatLit = do
     n <- some digitChar
     char '.'
     d <- some digitChar
-    return $ Float (read (n ++ "." ++ d))
+    return . Just $ Float (read (n ++ "." ++ d))
 
   blacklist :: String
-  blacklist = "() {}[]"
+  blacklist = "() {}[]\n\t\r;\""
 
-  literal :: MonadParsec String String m => m AST
+  literal :: MonadParsec Void String m => m (Maybe AST)
   literal = stringLit <|> try floatLit <|> integerLit
 
-  identifier :: MonadParsec String String m => m AST
-  identifier = Literal <$> some (noneOf blacklist)
+  identifier :: MonadParsec Void String m => m (Maybe AST)
+  identifier = Just . Literal <$> some (noneOf blacklist)
 
-  atom :: MonadParsec String String m => m AST
+  atom :: MonadParsec Void String m => m (Maybe AST)
   atom = literal <|> identifier
 
-  expr :: MonadParsec String String m => m AST
+  expr :: MonadParsec Void String m => m (Maybe AST)
   expr = do
     char '('
     x <- many parse'
     char ')'
-    case x of
-      (x:xs) -> return $ Node x xs
-      [] -> return $ Literal "nil"
+    Just <$> let xs = catMaybes x
+      in case xs of
+        (x:xs) -> return $ Node x xs
+        [] -> return (Literal "nil")
 
-  begin :: MonadParsec String String m => m AST
+  begin :: MonadParsec Void String m => m (Maybe AST)
   begin = do
     char '{' >> space
     x <- many parse'
     space >> char '}'
-    return $ Node (Literal "begin") x
-    
-  list :: MonadParsec String String m => m AST
+    Just <$> let xs = catMaybes x
+      in return $ Node (Literal "begin") xs
+
+  list :: MonadParsec Void String m => m (Maybe AST)
   list = do
     char '[' >> space
     x <- many parse' <* space
     space >> char ']'
-    return $ List x
+    let xs = catMaybes x
+      in return . Just $ List xs
 
-  parse' :: MonadParsec String String m => m AST
-  parse' = (list <|> begin <|> expr <|> atom) <* space
+  comment :: MonadParsec Void String m => m (Maybe AST)
+  comment = do
+    char ';' >> manyTill anySingle (char '\n')
+    return Nothing
 
-  parseLisp :: String -> Either (ParseErrorBundle String String) [AST]
+  parse' :: MonadParsec Void String m => m (Maybe AST)
+  parse' = ((comment <|> list <|> begin <|> expr <|> atom) <* space) <?> ""
+
+  parseLisp :: String -> Either (ParseErrorBundle String Void) [Maybe AST]
   parseLisp = parse (many parse') ""
 
   trim :: String -> String
   trim = dropWhile (== ' ')
-
+  
   -- remove eol from string
   format :: String -> String
-  format e = concat $ filter (\z -> not (null z) && (head z /= ';')) (lines e)
+  format e = unlines $ filter (\z -> not (null z) && (head z /= ';')) (lines e)
   
