@@ -14,7 +14,7 @@ module Core.Inference.Type where
   import Core.Inference.Type.Parsing
   import System.Exit
   import Data.Maybe (fromMaybe)
-  import Core.Color (red, bBlack)
+  import Core.Color (red, bBlack, bold)
   
   tyPattern :: MonadType m => A.AST -> m (TypedPattern, SubTy, Type, M.Map String Type)
   tyPattern (A.Literal "_") = do
@@ -49,7 +49,9 @@ module Core.Inference.Type where
     Just t -> do
       t' <- tyInstantiate t
       return (VarE n t', M.empty, t')
-    Nothing -> error $ "Variable " ++ show n ++ " is not defined."
+    Nothing -> liftIO $ do
+      putStrLn $ red "[error] " ++ "Variable " ++ bold n ++ " is not defined."
+      exitFailure 
 
   tyInfer z@(A.Node (A.Literal "if") [cond, then_, else_]) = do
     (cond', s1, cond_t) <- tyInfer cond
@@ -119,7 +121,8 @@ module Core.Inference.Type where
             case tyUnify t1 t'' of
               Left s -> do
                 let r = tyApply s t1
-                unless (r == t'') $ error $ "Type " ++ show r ++ " does not match type " ++ show t''
+                unless (r == t'') $ 
+                  printError (["Type " ++ show r ++ " does not match type " ++ show t''], z)
                 return (s `tyCompose` s1, r)
               Right x -> printError (x, z)
           Nothing -> return (s1, t1)
@@ -137,7 +140,8 @@ module Core.Inference.Type where
 
     let initType = head t
     unless (all (==initType) t) $
-      error $ "Type mismatch with " ++ show initType ++ " and " ++ show (head $ filter (/=initType) t)
+      let error = ["Type mismatch with " ++ show initType ++ " and " ++ show (head $ filter (/=initType) t)]
+        in printError (error, A.List elems)
 
     return (ListE elems' (head t), s, ListT (head t))
 
@@ -156,7 +160,7 @@ module Core.Inference.Type where
   tyInfer (A.String s)  = return (LitE (S s) String, M.empty, String)
   tyInfer (A.Integer i) = return (LitE (I i) Int, M.empty, Int)
   tyInfer (A.Float f)   = return (LitE (F f) Float, M.empty, Float)
-  tyInfer a = error $ "AST node not supported: " ++ show a
+  tyInfer a = printError (["Unknown expression"], a)
 
   topLevel :: MonadType m => A.AST -> m (Maybe [TypedAST], Env)
   -- Empty data constructor (just a phantom type)
@@ -215,7 +219,7 @@ module Core.Inference.Type where
     case ty of
       Left k -> return (Nothing, applyKinds (`M.union` M.singleton name k) e)
       Right t' -> return (Nothing, applyTypes (`M.union` M.singleton name (generalize t t')) e)
-  topLevel x = error $ "Invalid top level expression, received: " ++ show x
+  topLevel x = printError (["Unknown top-level expression received"], x)
 
   printError :: MonadIO m => ([String], A.AST) -> m a
   printError (errors, ast) = liftIO $ do
