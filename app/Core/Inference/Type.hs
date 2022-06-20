@@ -196,6 +196,9 @@ module Core.Inference.Type where
         env'' = M.insert name t' env'
     return (Just [LetE (name, t2) (tyApply s3 v')], Env env'' c k)
 
+  topLevel z@(A.Node (A.Literal "require") [A.String path]) =
+    return (Just [AppE (VarE "require" Any) (LitE (S path) String) Any], emptyEnv)
+
   -- Top-level declare used to define function type
   topLevel z@(A.Node (A.Literal "declare") [dat, def]) = do
     let (name, tyArgs) = parseTypeHeader dat

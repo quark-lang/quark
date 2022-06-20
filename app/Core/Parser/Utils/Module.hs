@@ -49,7 +49,7 @@ module Core.Parser.Utils.Module where
   -- resolving import
   visitAST p z@(Node (Literal "import") [String path]) = do
     let path' = path ++ if endsWith ".qrk" path then "" else ".qrk"
-    path <- if startsWith "std:" path'
+    path'' <- if startsWith "std:" path'
       then lookupEnv "QUARK" >>= \case
         Just x -> do
           let path'' = x </> "tests" </> drop 4 path'
@@ -59,7 +59,9 @@ module Core.Parser.Utils.Module where
             else error $ "Directory " ++ path'' ++ " does not exist"
         Nothing -> error "QUARK environment variable is not set"
       else return $ p </> path'
-    return $ Node (Literal "import") [String path]
+    if startsWith "js:" path 
+      then return $ Node (Literal "require") [String $ drop 3 path]
+      else return $ Node (Literal "import") [String path'']
 
   visitAST p z@(Node (Literal "begin") [List xs]) = do
     xs <- mapM (visitAST p) xs
