@@ -13,7 +13,9 @@ module Core.Inference.Type where
   import Core.Inference.Type.Methods
   import Core.Inference.Type.Parsing
   import System.Exit
-
+  import Data.Maybe (fromMaybe)
+  import Core.Color (red, bBlack)
+  
   tyPattern :: MonadType m => A.AST -> m (TypedPattern, SubTy, Type, M.Map String Type)
   tyPattern (A.Literal "_") = do
     t <- tyFresh
@@ -33,14 +35,12 @@ module Core.Inference.Type where
       Left s3 -> do
         let x'' = tyApply s3 tv
         return (AppP n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'', m1 `M.union` m2)
-      Right x -> liftIO $ do
-         mapM putStrLn x
-         print z
-         exitFailure
+      Right x -> printError (x, z)
 
   tyPattern (A.String s) = return (LitP (S s) String, M.empty, String, M.empty)
   tyPattern (A.Integer i) = return (LitP (I i) Int, M.empty, Int, M.empty)
   tyPattern (A.Float f) = return (LitP (F f) Float, M.empty, Float, M.empty)
+  tyPattern _ = error "tyPattern: not implemented"
 
   -- Main type inference function
   tyInfer :: MonadType m => A.AST -> m (TypedAST, SubTy, Type)
@@ -59,10 +59,7 @@ module Core.Inference.Type where
       Left s' -> do
         let s4 = s' `tyCompose` s1 `tyCompose` s2 `tyCompose` s3
         return (tyApply s4 $ IfE cond' then_' else_', s4, then_t)
-      Right x -> liftIO $ do
-         mapM putStrLn x
-         print z
-         exitFailure
+      Right x -> printError (x, z)
 
   tyInfer z@(A.Node (A.Literal "match") (pat:cases)) = do
     (pat', s1, pat_t) <- tyInfer pat
@@ -85,16 +82,13 @@ module Core.Inference.Type where
                       let pattern3  = tyApply s3 pattern'
 
                       return (acc ++ [(pattern3, body2, body_t2)], s3 `tyCompose` s2)
-                    Right x -> liftIO $ do
-                       mapM putStrLn x
-                       print z
-                       exitFailure
+                    Right x -> printError (x, z)
                   ) ([], s1) cases
 
     let cases' = map (\(p, t, _) -> (p, t)) xs'
     let t' = map (\(_, _, t) -> t) xs'
     let s3 = s2 `tyCompose` s1
-    return $ (PatternE pat' cases', s3, last t')
+    return (PatternE pat' cases', s3, last t')
 
   -- Type inference for abstractions
   tyInfer (A.Node (A.Literal "fn") [A.Literal arg, body]) = do
@@ -127,10 +121,7 @@ module Core.Inference.Type where
                 let r = tyApply s t1
                 unless (r == t'') $ error $ "Type " ++ show r ++ " does not match type " ++ show t''
                 return (s `tyCompose` s1, r)
-              Right x -> liftIO $ do
-                 mapM putStrLn x
-                 print z
-                 exitFailure
+              Right x -> printError (x, z)
           Nothing -> return (s1, t1)
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) t2
@@ -159,10 +150,7 @@ module Core.Inference.Type where
       Left s3 -> do
         let x'' = tyApply s3 tv
         return (AppE n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
-      Right x -> liftIO $ do
-         mapM putStrLn x
-         print z
-         exitFailure
+      Right x -> printError (x, z)
 
   -- Value related inference
   tyInfer (A.String s)  = return (LitE (S s) String, M.empty, String)
@@ -200,10 +188,7 @@ module Core.Inference.Type where
               Left s -> do
                 let r = tyApply s t''
                 return (s `tyCompose` s1, r)
-              Right x -> liftIO $ do
-                mapM putStrLn x
-                print z
-                exitFailure
+              Right x -> printError (x, z)
           Nothing -> return (s1, t1)
 
     let env'  = M.delete name env
@@ -229,6 +214,12 @@ module Core.Inference.Type where
       Right t' -> return (Nothing, applyTypes (`M.union` M.singleton name (generalize t t')) e)
   topLevel x = error $ "Invalid top level expression, received: " ++ show x
 
+  printError :: MonadIO m => ([String], A.AST) -> m a
+  printError (errors, ast) = liftIO $ do
+    mapM_ ((putStr (red "[error] ") >>) . putStrLn) errors
+    putStr "  in " >> print ast
+    exitFailure 
+
   runInfer :: MonadIO m => A.AST -> m [TypedAST]
   runInfer a = do
     let e = emptyEnv
@@ -241,7 +232,5 @@ module Core.Inference.Type where
             Just ast -> a ++ ast, mergeEnv e e')) ([], e) xs
       x -> do
         ((a', e), _, _) <- runRWST (topLevel x) e 0
-        return (case a' of
-          Nothing -> []
-          Just ast -> ast, e)
+        return (fromMaybe [] a', e)
     return a'

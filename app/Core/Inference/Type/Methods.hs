@@ -6,6 +6,7 @@ module Core.Inference.Type.Methods where
   import qualified Data.Map as M
   import qualified Data.Set as S
   import Control.Monad.RWS (modify, MonadState(get))
+  import Data.Bifunctor (Bifunctor(second, bimap))
 
   -- Some environment functions and types
   applyTypes :: (TypeEnv -> TypeEnv) -> Env -> Env
@@ -21,7 +22,7 @@ module Core.Inference.Type.Methods where
   emptyEnv = Env M.empty M.empty M.empty
 
   mergeEnv :: Env -> Env -> Env
-  mergeEnv (Env t c f) (Env t' c' f') 
+  mergeEnv (Env t c f) (Env t' c' f')
     = Env (t `M.union` t') (c `M.union` c') (f `M.union` f')
 
   -- Substitution composition is a way of merging two substitutions
@@ -40,7 +41,7 @@ module Core.Inference.Type.Methods where
   variable :: Int -> Type -> Either SubTy [String]
   variable n t
     | t == TVar n = Left M.empty
-    | n `elem` tyFree t = Right $ ["Occurs check failed: " ++ show t]
+    | n `elem` tyFree t = Right ["Occurs check failed: " ++ show t]
     | otherwise = Left $ M.singleton n t
 
   instance Types Type where
@@ -122,7 +123,8 @@ module Core.Inference.Type.Methods where
     tyApply s (LetE (name, t) body) = LetE (name, tyApply s t) (tyApply s body)
     tyApply s (LitE ast t) = LitE ast (tyApply s t)
     tyApply s (IfE cond t1 t2) = IfE (tyApply s cond) (tyApply s t1) (tyApply s t2)
-    tyApply s (PatternE pat t) = PatternE (tyApply s pat) (map (\(n, t) -> (tyApply s n, tyApply s t)) t)
+    tyApply s (PatternE pat t) = PatternE (tyApply s pat) (map (bimap (tyApply s) (tyApply s)) t)
+    tyApply s (DataE name args) = DataE name (map (second $ tyApply s) args)
 
     tyUnify _ _ = error "Cannot unify AST"
 
