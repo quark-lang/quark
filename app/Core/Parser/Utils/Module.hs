@@ -52,7 +52,7 @@ module Core.Parser.Utils.Module where
     path'' <- if startsWith "std:" path'
       then lookupEnv "QUARK" >>= \case
         Just x -> do
-          let path'' = x </> "tests" </> drop 4 path'
+          let path'' = x </> "std" </> drop 4 path'
           exists <- doesFileExist path''
           if exists
             then return path''
