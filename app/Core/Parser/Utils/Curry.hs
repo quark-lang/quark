@@ -26,7 +26,7 @@ module Core.Parser.Utils.Curry where
   curry z@(Node (Literal "declare") _) = z
   curry (Node (Literal "match") (x:pats))
     = let x'    = curry x
-          pats' = (map (\(List [pat, b]) -> List [curry pat, curry b])) pats
+          pats' = map (\(List [pat, b]) -> List [curry pat, curry b]) pats
         in Node (Literal "match") (x':pats')
   curry z@(Node (Literal "data") [_, _]) = z
   curry (Node n xs)
