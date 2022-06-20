@@ -1,16 +1,19 @@
 (import "std:prelude")
-
+(import "js:path")
+(declare path.join (-> str any))
+; test
 (let ack (fn [m n]
   (if (= m 0) (+ n 1)
     (if (= n 0) (ack (- m 1) 1)
       (ack (- m 1) (ack m (- n 1)))))))
 
+(declare (compose a b c) (-> (-> b c) (-> a b) a c))
 (defn compose [f g]
   (fn [x]
     (f (g x))))
 
 (declare main (-> [str] int))
-(defn black [x] x)
+(let test (compose black bold))
 (defn main [args]
-  (print (compose black bold "tet")))
+  (print (path.join "etst" "bruh")))
   
