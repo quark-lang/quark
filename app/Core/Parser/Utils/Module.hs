@@ -11,6 +11,8 @@ module Core.Parser.Utils.Module where
   import Core.Color
   import Data.List  
   import System.Environment (lookupEnv)
+  import Text.Megaparsec.Error (errorBundlePretty)
+  import Data.Maybe (catMaybes)
   
   {-
     Module: Parser utils
@@ -29,13 +31,14 @@ module Core.Parser.Utils.Module where
     exists <- doesFileExist file
     if exists
       then do
-        content <- Parser.format <$> readFile file
+        content <- readFile file
         let res = Parser.parseLisp content
         case res of
-          Left err -> print err >> return Nothing
-          Right ast ->
-            let ast' = if length ast > 1 then Node (Literal "begin") [List ast] else head ast
-              in Just <$> visitAST (dropFileName file) ast'
+          Left err -> putStrLn (errorBundlePretty err) >> return Nothing
+          Right ast -> do
+            let ast' = catMaybes ast
+            let ast'' = if length ast > 1 then Node (Literal "begin") [List ast'] else head ast'
+              in Just <$> visitAST (dropFileName file) ast''
       else print ("File " ++ file ++ " does not exist") >> return Nothing
 
   visitAST :: String -> AST -> IO AST
