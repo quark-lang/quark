@@ -23,24 +23,20 @@ module Core.Entry where
   import qualified Core.Compiler.Uncurry as U
   import Data.List
 
-  step :: (Int, Int) -> String
-  step (i, f) = bBlack "[" ++ show i ++ "/" ++ show f ++ bBlack "]"
-
   compile :: (String, String) -> String -> IO ()
   compile (dir, source) c = do
     let src = source -<.> "js"
     let cppOutput = dir </> src
 
-    putStrLn $ step (3, 4) ++  " Compiling " ++ bMagenta source ++ " to " ++ bMagenta src
     writeFile cppOutput c
-    putStrLn $ step (4, 4) ++ " " ++ bMagenta source ++ " has been compiled to " ++ bMagenta src
+    putStrLn $ bMagenta source ++ " has been compiled to " ++ bMagenta src
 
   run :: (String, String) -> IO ()
   run (dir, file) = do
     let src = dir </> file
     res <- parse src
     case res of
-      Nothing -> print "ERROR"
+      Nothing -> return ()
       Just ast -> do
         ast <- resolve ast
         m <- runMacroCompiler ast
@@ -48,14 +44,12 @@ module Core.Entry where
         let r = runRemover $ propagate m
         let curried = curry r
         -- creating a typed AST
-        putStrLn $ step (1, 4) ++ " Typechecking " ++ bMagenta file ++ ".."
         t  <- runInfer curried
 
         (t', _) <- foldlM (\(acc, i) x -> do
           (acc', i') <- U.runUncurry x i
           return (acc ++ [acc'], i')) ([], M.empty) t
 
-        putStrLn $ step (2, 4) ++  " Building and compiling program.."
         (c, _) <- foldlM (\(res, c) x -> do
           (output, c') <- runCompiler x c
           return (res ++ [output], c')) ([], M.empty) t'
