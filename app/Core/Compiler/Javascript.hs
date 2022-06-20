@@ -80,7 +80,7 @@ module Core.Compiler.Javascript where
   from (Lit (S s)) = "\"" ++ encodeUnicode16 s ++ "\""
   from (Lit (F f)) = show f
   from (Lit (I i)) = show i
-  from (Require p) = "require(\"" ++ p ++ "\")"
+  from (Require p) = "Object.entries(require(\"" ++ p ++ "\")).map(([name, exported]) => global[name] = exported);"
   from _ = error "from: not implemented"
 
   addCons :: MonadCompiler m => (String, String) -> m ()
@@ -152,7 +152,7 @@ module Core.Compiler.Javascript where
   compile (AppE ("Var", _) [LitE (S x) _] _) = return $ Var x
   compile (AppE ("Throw", _) [x] _) = Throw <$> compile x
   compile (AppE ("Block", _) xs _) = Block <$> mapM compile xs
-  compile (AppE ("require", _) [LitE (S path) _] _) = return $ Let path (Require path)
+  compile (AppE ("require", _) [LitE (S path) _] _) = return $ Require path
 
   -- Binary calls
   compile (AppE ("*", _) [x, y] _) = BinaryCall <$> compile x <*> pure "*" <*> compile y
