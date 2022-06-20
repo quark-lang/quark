@@ -12,10 +12,10 @@ module Core.Parser.AST where
     deriving Eq
 
   instance Show AST where
-    show (Node a b) = "(" ++ show a ++ " " ++ intercalate " " (map show b) ++ ")"
+    show (Node a b) = "(" ++ show a ++ " " ++ unwords (map show b) ++ ")"
     show (Integer i) = bYellow $ show i
     show (String s) = bGreen $ show s
     show (Float f) = bYellow $ show f
     show (Literal s) = bBlue s
     show (Char c) = bGreen $ show c
-    show (List l) = bBlack "[" ++  intercalate " " (map show l) ++ bBlack "]"
+    show (List l) = bBlack "[" ++  unwords (map show l) ++ bBlack "]"
