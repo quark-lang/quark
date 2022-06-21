@@ -53,13 +53,7 @@ module Core.Entry where
         (c, _) <- foldlM (\(res, c) x -> do
           (output, c') <- runCompiler x c
           return (res ++ [output], c')) ([], M.empty) t'
-        let fromList = concat $ [
-                        "const fromList = (ls = []) => {",
-                          "if (ls.length === 0) return { type: 'Nil' };",
-                          "const [x, ...xs] = ls;",
-                          "return { type: 'Cons', v0: x, v1: fromList(xs) };",
-                        "}"]
-        let c' = intercalate "\n" $ map from c ++ [fromList, "main(fromList(process.argv));"]
+        let c' = intercalate "\n" $ map from c ++ ["$main(fromList(process.argv));"]
         compile (dir, file) c'
 
 
