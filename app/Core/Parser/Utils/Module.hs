@@ -48,20 +48,18 @@ module Core.Parser.Utils.Module where
   visitAST :: String -> AST -> IO AST
   -- resolving import
   visitAST p z@(Node (Literal "import") [String path]) = do
-    let path' = path ++ if endsWith ".qrk" path then "" else ".qrk"
-    path'' <- if startsWith "std:" path'
-      then lookupEnv "QUARK" >>= \case
+    case path of
+      's':'t':'d':':':file -> lookupEnv "QUARK" >>= \case
         Just x -> do
-          let path'' = x </> "std" </> drop 4 path'
-          exists <- doesFileExist path''
-          if exists
-            then return path''
-            else error $ "Directory " ++ path'' ++ " does not exist"
+          let path' = x </> "std" </> file
+          if endsWith ".js" file
+            then do
+              content <- readFile path'
+              return $ Node (Literal "from_javascript") [String content]
+            else return $ Node (Literal "import") [String path']
         Nothing -> error "QUARK environment variable is not set"
-      else return $ p </> path'
-    if startsWith "js:" path 
-      then return $ Node (Literal "require") [String $ drop 3 path]
-      else return $ Node (Literal "import") [String path'']
+      'j':'s':':':file ->
+        return $ Node (Literal "require") [ String file ]
 
   visitAST p z@(Node (Literal "begin") [List xs]) = do
     xs <- mapM (visitAST p) xs

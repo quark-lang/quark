@@ -60,7 +60,10 @@ module Core.Inference.Type where
     case tyUnify cond_t Bool of
       Left s' -> do
         let s4 = s' `tyCompose` s1 `tyCompose` s2 `tyCompose` s3
-        return (tyApply s4 $ IfE cond' then_' else_', s4, then_t)
+        unless (tyApply s4 then_t == tyApply s4 else_t) $ liftIO $ do
+          printError (["Type " ++ show then_t ++ " does not match type " ++ show else_t], z)
+          exitFailure
+        return (tyApply s4 $ IfE cond' then_' else_', s4, tyApply s4 then_t)
       Right x -> printError (x, z)
 
   tyInfer z@(A.Node (A.Literal "match") (pat:cases)) = do
@@ -202,6 +205,8 @@ module Core.Inference.Type where
 
   topLevel z@(A.Node (A.Literal "require") [A.String path]) =
     return (Just [AppE (VarE "require" Any) (LitE (S path) String) Any], emptyEnv)
+  topLevel (A.Node (A.Literal "from_javascript") [A.String content]) =
+    return (Just [AppE (VarE "from_javascript" Any) (LitE (S content) String) Any], emptyEnv)
 
   -- Top-level declare used to define function type
   topLevel z@(A.Node (A.Literal "declare") [dat, def]) = do
