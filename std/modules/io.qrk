@@ -1,4 +1,4 @@
-(import "std:types/expression")
+(import "std:types/expression.qrk")
 (let putStr (fn [x]
   (Call (Property (Var "process") (Property (Var "stdout") (Var "write"))) x)))
 

@@ -1,5 +1,5 @@
-(import "std:modules/math")
-(import "std:modules/io")
+(import "std:modules/math.qrk")
+(import "std:modules/io.qrk")
 (data (List a) [
   Nil
   (Cons a (List a))])
@@ -22,6 +22,8 @@
 (defn map [f list] (match list
   [Nil Nil]
   [(Cons x xs) (Cons (f x) (map f xs))]))
+
+(defn iter [f x] (let _ (map f x) 0)))
 
 ;(declare (filter a) (-> (-> a bool) [a] [a]))
 (defn filter [pred list] (match list

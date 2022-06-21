@@ -5,9 +5,12 @@
 (defm defn [name args body]
   (let name (fn args body)))
 
-; CORE IMPORTS
-(import "std:modules/math")
-(import "std:modules/io")
-(import "std:modules/color")
+(import "std:types/expression.qrk")
 
-(import "std:types/list")
+; CORE IMPORTS
+(import "std:modules/math.qrk")
+(import "std:modules/io.qrk")
+(import "std:modules/color.qrk")
+
+(import "std:types/list.qrk")
+(import "std:core.js")

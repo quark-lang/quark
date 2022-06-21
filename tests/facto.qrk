@@ -1,4 +1,4 @@
-(import "std:prelude")
+(import "std:prelude.qrk")
 (defn facto [n]
   (match n
     [0 1]

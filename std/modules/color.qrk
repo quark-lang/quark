@@ -36,7 +36,7 @@
 (defn yellow_bright [x] 
   (+ "\x1b[93m" (+ x "\x1b[0m")))
 
-(import "std:modules/math")
+(import "std:modules/math.qrk")
 (defn blue_bright [x] 
   (+ "\x1b[94m" (+ x "\x1b[0m")))
 

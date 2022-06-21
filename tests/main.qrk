@@ -1,19 +1,24 @@
-(import "std:prelude")
+(import "std:prelude.qrk")
 (import "js:path")
-(declare path.join (-> str any))
 ; test
 (let ack (fn [m n]
   (if (= m 0) (+ n 1)
     (if (= n 0) (ack (- m 1) 1)
       (ack (- m 1) (ack m (- n 1)))))))
 
+(data (Tuple a b) [ (, a b) ])
+
 (declare (compose a b c) (-> (-> b c) (-> a b) a c))
 (defn compose [f g]
   (fn [x]
     (f (g x))))
 
+(defn show_tuple [xs] (match xs
+  [(, x y) (+ "(" (+ (to_string x) (+ ", " (+ (to_string y) ")"))))]))
+
+(defn print_tuple [x] (print (show_tuple x)))
+
 (declare main (-> [str] int))
-(let test (compose black bold))
 (defn main [args]
-  (print (path.join "etst" "bruh")))
+  (print_tuple (, 5 "test")))
   
