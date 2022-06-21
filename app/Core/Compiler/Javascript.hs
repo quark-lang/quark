@@ -46,6 +46,7 @@ module Core.Compiler.Javascript where
     | Array [Expression]
     | Call Expression [Expression]
     | Property Expression Expression
+    | Index Expression Expression
     | BinaryCall Expression String Expression
 
     -- Statements
@@ -82,6 +83,7 @@ module Core.Compiler.Javascript where
   from (Lit (I i)) = show i
   from (Require p) = "Object.entries(require(\"" ++ p ++ "\")).map(([name, exported]) => global[name] = exported);"
   from (Raw c) = c
+  from (Index e0 e1) = from e0 ++ "[" ++ from e1 ++ "]"
   from _ = error "from: not implemented"
 
   addCons :: MonadCompiler m => (String, String) -> m ()
@@ -156,6 +158,7 @@ module Core.Compiler.Javascript where
   compile (AppE ("Var", _) [LitE (S x) _] _) = return $ Var x
   compile (AppE ("Throw", _) [x] _) = Throw <$> compile x
   compile (AppE ("Block", _) xs _) = Block <$> mapM compile xs
+  compile (AppE ("Index", _) [obj, prop] _) = Index <$> compile obj <*> compile prop
   compile (AppE ("require", _) [LitE (S path) _] _) = return $ Require path
   compile (AppE ("extern", _) [LitE (S content) _] _) = return $ Raw content
 

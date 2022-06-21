@@ -3,3 +3,4 @@
 (declare Var (-> str any))
 (declare Throw (-> any any))
 (declare Block (-> any any))
+(declare Index (-> any any any))
