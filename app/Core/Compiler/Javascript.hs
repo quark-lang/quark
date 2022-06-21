@@ -157,7 +157,7 @@ module Core.Compiler.Javascript where
   compile (AppE ("Throw", _) [x] _) = Throw <$> compile x
   compile (AppE ("Block", _) xs _) = Block <$> mapM compile xs
   compile (AppE ("require", _) [LitE (S path) _] _) = return $ Require path
-  compile (AppE ("from_javascript", _) [LitE (S content) _] _) = return $ Raw content
+  compile (AppE ("extern", _) [LitE (S content) _] _) = return $ Raw content
 
   -- Binary calls
   compile (AppE ("*", _) [x, y] _) = BinaryCall <$> compile x <*> pure "*" <*> compile y

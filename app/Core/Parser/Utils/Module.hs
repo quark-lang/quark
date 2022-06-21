@@ -55,7 +55,7 @@ module Core.Parser.Utils.Module where
           if endsWith ".js" file
             then do
               content <- readFile path'
-              return $ Node (Literal "from_javascript") [String content]
+              return $ Node (Literal "extern") [String content]
             else return $ Node (Literal "import") [String path']
         Nothing -> error "QUARK environment variable is not set"
       'j':'s':':':file ->

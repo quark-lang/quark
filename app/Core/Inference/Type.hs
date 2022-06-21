@@ -205,8 +205,8 @@ module Core.Inference.Type where
 
   topLevel z@(A.Node (A.Literal "require") [A.String path]) =
     return (Just [AppE (VarE "require" Any) (LitE (S path) String) Any], emptyEnv)
-  topLevel (A.Node (A.Literal "from_javascript") [A.String content]) =
-    return (Just [AppE (VarE "from_javascript" Any) (LitE (S content) String) Any], emptyEnv)
+  topLevel (A.Node (A.Literal "extern") [A.String content]) =
+    return (Just [AppE (VarE "extern" Any) (LitE (S content) String) Any], emptyEnv)
 
   -- Top-level declare used to define function type
   topLevel z@(A.Node (A.Literal "declare") [dat, def]) = do
