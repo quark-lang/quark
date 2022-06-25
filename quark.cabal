@@ -26,28 +26,21 @@ executable quark
 
     -- Modules included in this executable, other than Main.
     other-modules:
+        Core.Quark
         -- Parser related
         Core.Parser.Parser
         Core.Parser.AST
-        Core.Parser.Macros
+          Core.Parser.AST.Expression
+          Core.Parser.AST.Literal
 
-        Core.Inference.Type
-        Core.Inference.Kind
-        Core.Inference.Type.AST
-        Core.Inference.Type.Pretty
-        Core.Inference.Type.Methods
-        Core.Inference.Type.Parsing
-        
-        Core.Parser.Utils.ConstantPropagation
-        Core.Parser.Utils.Module
-        Core.Parser.Utils.Garbage
-        Core.Parser.Utils.Curry
-        --Core.Parser.Utils.ClosureConversion
-        Core.Parser.Utils.Imports
-
-        --Core.Compiler.Compiler
-        Core.Compiler.Javascript
-        Core.Compiler.Uncurry
+        -- Macro related
+        Core.Macro.Compiler
+        Core.Macro.Definition
+          Core.Macro.Definition.Macro
+          Core.Macro.Definition.Type
+        Core.Macro.Initializing
+          Core.Macro.Initializing.Environment
+          Core.Macro.Initializing.Remover
         
         Core.Entry
         Core.Color
