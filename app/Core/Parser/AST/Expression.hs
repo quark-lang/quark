@@ -7,6 +7,7 @@ module Core.Parser.AST.Expression where
     | List [Expression]
     | Literal Literal
     | Quoted Expression
+    deriving Eq
 
   instance Show Expression where
     show (Node e es) = "(" ++ show e ++ " " ++ unwords (map show es) ++ ")"
