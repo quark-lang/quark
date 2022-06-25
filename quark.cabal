@@ -42,6 +42,10 @@ executable quark
           Core.Macro.Initializing.Environment
           Core.Macro.Initializing.Remover
         
+        Core.Import.Type
+        Core.Import.Duplicates
+        Core.Import.Remover
+
         Core.Entry
         Core.Color
         Core.CLI
