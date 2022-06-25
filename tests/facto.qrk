@@ -3,3 +3,6 @@
   (match n
     [0 1]
     [_ (* n (facto (- n 1)))]))
+
+(defm defn [name args body]
+  (let name args body))
