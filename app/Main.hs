@@ -1,19 +1,6 @@
 module Main where
-  import System.Environment (getArgs)
-  import System.Directory
-  import System.FilePath ((</>))
-  import Core.Entry (run)
-  import Core.CLI
-  import Core.Color
-
-  help :: IO ()
-  help = do
-    putStrLn $ bold "Quark " ++ bMagenta "0.0.1" ++ bBlack " - A functionnal programming language."
-    putStrLn ""
-    putStrLn $ "Usage: " ++ bBlack "quark [options]"
-    putStrLn "Commands:"
-    putStrLn $ "  " ++ bBlack "help" ++ "  => Show this help."
-    putStrLn $ "  " ++ bBlack "build" ++ " => Build quark file."
+  import System.Directory ( getCurrentDirectory )
+  import Core.Entry ( run )
 
   build :: String -> IO ()
   build x = do
@@ -21,17 +8,4 @@ module Main where
     run (dir, x)
 
   main :: IO ()
-  main = do
-    x <- parseCommand <$> getArgs
-    case x of
-      Just (Command name opts) ->
-        case name of
-          "build" -> case opts of
-            [] -> alert "No target specified!"
-            (Raw file:_) -> build file
-            _ -> alert "Invalid option!"
-          "help" -> help
-          x -> build x
-      Nothing -> do
-        putStrLn $ bold "Quark " ++ bMagenta "0.0.1" ++ bBlack " - A functionnal programming language."
-        putStrLn $ "Type " ++ bMagenta "quark help" ++ " to start."
+  main = build "tests/facto.qrk"
