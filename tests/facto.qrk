@@ -1,8 +1,5 @@
-(import "std:prelude.qrk")
+(import "test.qrk")
 (defn facto [n]
   (match n
     [0 1]
     [_ (* n (facto (- n 1)))]))
-
-(defm defn [name args body]
-  (let name args body))
