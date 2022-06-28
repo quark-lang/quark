@@ -75,12 +75,11 @@ module Core.Inference.Type where
                   (pattern', s'', pattern_t, bound) <- local
                                                         (applyTypes (tyApply s'))
                                                         (tyPattern pattern)
-                  case tyUnify (tyApply s'' pat_t) pattern_t of
+                  case tyUnify pattern_t (tyApply s'' pat_t) of
                     Left s''' -> do
                       let s2 =  s''' `tyCompose` s''
                       let pattern2   = tyApply s2 pattern'
                       let bound' = M.map (Forall [] . tyApply s2) bound
-
                       (body', s3, body_t) <- local (applyTypes (\e -> tyApply s2 (e `M.union` bound'))) $ tyInfer body
 
                       let body2 = tyApply s3 body'
@@ -93,7 +92,7 @@ module Core.Inference.Type where
                         case s4 of
                           Right err -> printError (err, z)
                           Left _ -> return ()
-                      return (acc ++ [(pattern3, body2, body_t2)], s3 `tyCompose` s2)
+                      return (acc ++ [(pattern3, body2, body_t2)], s2 `tyCompose` s3)
                     Right x -> printError (x, z)
                   ) ([], s1) cases
 
