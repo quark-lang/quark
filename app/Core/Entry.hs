@@ -5,6 +5,8 @@ module Core.Entry where
   import qualified Data.Map as M
   import Core.Import.Duplicates (getImports)
   import Core.Import.Remover
+  import Core.Inference.Type (runInfer)
+  import Control.Monad.RWS (liftM, MonadIO (liftIO))
   
   run :: (String, String) -> IO ()
   run (dir, file) = do
@@ -22,5 +24,9 @@ module Core.Entry where
           Right ast' -> do
             let env = runEnvironments ast'
             let x = runMacroCompiler (compileMany $ runMacroRemover ast') env
-            print x
+            case x of
+              Right x -> do
+                x' <- runInfer x
+                print x'
+              Left err -> print err
       Left err -> print err
