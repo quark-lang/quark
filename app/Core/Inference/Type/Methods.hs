@@ -84,7 +84,7 @@ module Core.Inference.Type.Methods where
                           Left s -> s `tyCompose` acc
                           Right s -> M.empty) M.empty $ zip t2 t4
         in case (s1, s2) of
-          (Left s, s') -> Left $ M.union s s'
+          (Left s, s') -> Left $ tyCompose s s'
           (Right e, _) -> Right e
     tyUnify s1 s2 = Right ["Type " ++ show s1 ++ " mismatches with type " ++ show s2]
   instance Types Scheme where

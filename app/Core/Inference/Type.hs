@@ -5,7 +5,7 @@ module Core.Inference.Type where
   import Control.Monad.RWS
     ( MonadIO (liftIO),
       RWST(runRWST),
-      MonadReader(local, ask) )
+      MonadReader(local, ask), when, void )
   import Data.Foldable (foldlM)
   import Control.Monad (unless)
   import Core.Inference.Type.AST
@@ -53,7 +53,7 @@ module Core.Inference.Type where
       return (VarE n t', M.empty, t')
     Nothing -> liftIO $ do
       putStrLn $ red "[error] " ++ "Variable " ++ bold n ++ " is not defined."
-      exitFailure 
+      exitFailure
 
   tyInfer z@(A.Node (A.Identifier "if") [cond, then_, else_]) = do
     (cond', s1, cond_t) <- tyInfer cond
@@ -86,8 +86,13 @@ module Core.Inference.Type where
                       let body2 = tyApply s3 body'
                       let body_t2 = tyApply s3 body_t
 
-                      let pattern3  = tyApply s3 pattern'
-
+                      let pattern3  = tyApply s3 pattern2
+                      unless (null acc) $ do
+                        let (_, _, t) = last acc
+                        let s4 = tyUnify t body_t2
+                        case s4 of
+                          Right err -> printError (err, z)
+                          Left _ -> return ()
                       return (acc ++ [(pattern3, body2, body_t2)], s3 `tyCompose` s2)
                     Right x -> printError (x, z)
                   ) ([], s1) cases
@@ -126,7 +131,7 @@ module Core.Inference.Type where
             case tyUnify t1 t'' of
               Left s -> do
                 let r = tyApply s t1
-                unless (r == t'') $ 
+                unless (r == t'') $
                   printError (["Type " ++ show r ++ " does not match type " ++ show t''], z)
                 return (s `tyCompose` s1, r)
               Right x -> printError (x, z)
@@ -227,7 +232,7 @@ module Core.Inference.Type where
   printError (errors, ast) = liftIO $ do
     mapM_ ((putStr (red "[error] ") >>) . putStrLn) errors
     putStr "  in " >> print ast
-    exitFailure 
+    exitFailure
 
   functions :: TypeEnv
   functions = M.fromList [
