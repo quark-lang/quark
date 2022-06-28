@@ -46,9 +46,15 @@ executable quark
         Core.Import.Duplicates
         Core.Import.Remover
 
+        Core.Inference.Type
+        Core.Inference.Type.AST
+        Core.Inference.Type.Methods
+        Core.Inference.Type.Parsing
+        Core.Inference.Type.Pretty
+
         Core.Entry
         Core.Color
-        Core.CLI
+        Core.CLI.CLI
     -- LANGUAGE extensions used by modules in this package.
     default-extensions:
       ConstraintKinds
