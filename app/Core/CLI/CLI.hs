@@ -1,4 +1,4 @@
-module Core.CLI where
+module Core.CLI.CLI where
   import Core.Color
   data Option
     = String :>: String
