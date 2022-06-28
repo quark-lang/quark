@@ -4,15 +4,15 @@ module Core.Macro.Initializing.Environment where
   import qualified Data.Map as M
 
   isID :: Expression -> Bool
-  isID (Literal (Identifier _)) = True
+  isID (Identifier _) = True
   isID _ = False
 
   identifiers :: [Expression] -> [String]
-  identifiers e = map (\(Literal (Identifier s)) -> s) e'
+  identifiers e = map (\(Identifier s) -> s) e'
     where e' = filter isID e
 
   runMacroEnvironment :: Expression -> Macros
-  runMacroEnvironment (Node (Literal (Identifier "defm")) [Literal (Identifier name), List args, body]) =
+  runMacroEnvironment (Node (Identifier "defm") [Identifier name, List args, body]) =
     let macro = Macro name (identifiers args) body
       in M.singleton name macro
   runMacroEnvironment _ = M.empty

@@ -38,11 +38,11 @@ module Core.Parser.Parser where
   literal :: MonadParsec Void String m => m (Maybe Literal)
   literal = stringLit <|> try floatLit <|> integerLit
 
-  identifier :: MonadParsec Void String m => m (Maybe Literal)
+  identifier :: MonadParsec Void String m => m (Maybe Expression)
   identifier = Just . Identifier <$>  some (noneOf blacklist)
 
   atom :: MonadParsec Void String m => m (Maybe Expression)
-  atom = literal <|> identifier >>= \case
+  atom = literal >>= \case
     Just x -> return . Just . Literal $ x
     Nothing -> return Nothing
 
@@ -54,7 +54,7 @@ module Core.Parser.Parser where
     Just <$> let xs = catMaybes x
       in case xs of
         (x:xs) -> return $ Node x xs
-        [] -> return (Literal $ Identifier "nil")
+        [] -> return (Identifier "nil")
 
   begin :: MonadParsec Void String m => m (Maybe Expression)
   begin = do
@@ -62,7 +62,7 @@ module Core.Parser.Parser where
     x <- many parse'
     space >> char '}'
     Just <$> let xs = catMaybes x
-      in return $ Node (Literal $ Identifier "begin") xs
+      in return $ Node (Identifier "begin") xs
 
   list :: MonadParsec Void String m => m (Maybe Expression)
   list = do
@@ -84,7 +84,7 @@ module Core.Parser.Parser where
     return Nothing
 
   parse' :: MonadParsec Void String m => m (Maybe Expression)
-  parse' = ((comment <|> list <|> begin <|> expr <|> atom <|> quoted) <* space) <?> ""
+  parse' = ((comment <|> list <|> begin <|> expr <|> atom <|> quoted <|> identifier) <* space) <?> ""
 
   parseLisp :: String -> Either (ParseErrorBundle String Void) [Expression]
   parseLisp = parse (catMaybes <$> many parse') ""

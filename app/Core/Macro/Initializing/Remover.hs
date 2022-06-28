@@ -3,7 +3,7 @@ module Core.Macro.Initializing.Remover where
   import Data.Maybe
 
   remove :: Expression -> Maybe Expression
-  remove (Node (Literal (Identifier "defm")) _) = Nothing
+  remove (Node (Identifier "defm") _) = Nothing
   remove x = Just x
 
   runMacroRemover :: [Expression] -> [Expression]

@@ -3,7 +3,7 @@ module Core.Import.Remover where
   import Data.Maybe
 
   removeImport :: Expression -> Maybe Expression
-  removeImport (Node (Literal (Identifier "import")) _) = Nothing
+  removeImport (Node (Identifier "import") _) = Nothing
   removeImport x = Just x
 
   runImportRemover :: [Expression] -> [Expression]

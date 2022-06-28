@@ -10,7 +10,7 @@ module Core.Import.Duplicates where
   type Import = (Either (ParseErrorBundle String Void) ImportMap)
 
   getImportMap :: Path -> Expression -> IO Import
-  getImportMap dir (Node (Literal (Identifier "import")) [Literal (String path)]) = do
+  getImportMap dir (Node (Identifier "import") [Literal (String path)]) = do
     let src = dir </> path
     content <- readFile src
     case parseLisp content of

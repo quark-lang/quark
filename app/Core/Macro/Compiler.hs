@@ -5,7 +5,7 @@ module Core.Macro.Compiler where
   import qualified Data.Map as M
 
   compile :: Expression -> MacroCompiler Expression
-  compile z@(Node (Literal (Identifier name)) args) = env >>= \e -> case M.lookup name e of
+  compile z@(Node (Identifier name) args) = env >>= \e -> case M.lookup name e of
     Just (Macro _ args1 body) -> do
       if length args1 /= length args
         then throwError $ ["Macro " ++ name ++ " expects " ++ show (length args1) ++ " arguments, but got " ++ show (length args)]
@@ -15,12 +15,13 @@ module Core.Macro.Compiler where
           return $ replaceInMacroBody args3 body
     Nothing -> do
       xs <- mapM compile args
-      return $ Node (Literal (Identifier name)) xs
+      return $ Node (Identifier name) xs
   compile (Quoted expr) = return expr
   compile (Node n xs) = do
     xs' <- mapM compile xs
     n'  <- compile n
     return $ Node n' xs'
+  compile (Identifier name) = return $ Identifier name
   compile (Literal l) = return $ Literal l
   compile (List xs) = List <$> mapM compile xs
 
@@ -30,9 +31,9 @@ module Core.Macro.Compiler where
         xs' = map (replaceInMacroBody e) xs
       in Node n' xs'
   replaceInMacroBody e (Quoted x) = x
-  replaceInMacroBody e (Literal (Identifier name)) = case lookup name e of
+  replaceInMacroBody e (Identifier name) = case lookup name e of
     Just x -> x
-    Nothing -> Literal (Identifier name)
+    Nothing -> Identifier name
   replaceInMacroBody e (Literal l) = Literal l
   replaceInMacroBody e (List xs) = List $ map (replaceInMacroBody e) xs
 
