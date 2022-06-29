@@ -2,7 +2,8 @@ module Core.Inference.Type.AST where
   import Core.Parser.AST (Expression)
   import Data.Map (Map)
   import Control.Monad.RWS (MonadIO, MonadRWS)
-
+  import Control.Monad.Except (MonadError)
+  
   type Argument = (String, Type)
   data TypedPattern
     = VarP String Type
@@ -69,4 +70,4 @@ module Core.Inference.Type.AST where
   data Scheme = Forall [Int] Type
     deriving (Eq, Ord)
 
-  type MonadType m = (MonadRWS Env () Int m, MonadIO m)
+  type MonadType m = (MonadRWS Env () Int m, MonadIO m, MonadError [(String, Expression)] m)
