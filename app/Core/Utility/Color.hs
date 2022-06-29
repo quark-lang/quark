@@ -1,4 +1,4 @@
-module Core.Color where
+module Core.Utility.Color where
   bold :: String -> String
   bold s = "\x1b[1m" ++ s ++ "\x1b[0m"
 
