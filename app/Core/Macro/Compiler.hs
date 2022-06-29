@@ -3,12 +3,13 @@ module Core.Macro.Compiler where
   import Core.Parser.AST
   import Debug.Trace
   import qualified Data.Map as M
-
+  import Core.Color (bold)
+  
   compile :: Expression -> MacroCompiler Expression
   compile z@(Node (Identifier name) args) = env >>= \e -> case M.lookup name e of
     Just (Macro _ args1 body) -> do
       if length args1 /= length args
-        then throwError $ ["Macro " ++ name ++ " expects " ++ show (length args1) ++ " arguments, but got " ++ show (length args)]
+        then throwError ["Macro " ++ bold name ++ " expects " ++ show (length args1) ++ " arguments, but got " ++ show (length args)]
         else do
           let args2 = zip args1 args
           args3 <- mapM (\(x,y) -> compile y >>= \y' -> return (x,y')) args2
