@@ -12,7 +12,8 @@ module Core.Entry where
   import Core.Closure.Converter (runConverter)
   import Data.Foldable (foldlM)
   import Core.Utility.Error (parseError, printError)
-
+  import Core.Constant.Propagation (propagate)
+  
   run :: (String, String) -> IO ()
   run (dir, file) = do
     let src = dir </> file
@@ -26,7 +27,7 @@ module Core.Entry where
           Right ast' -> do
             let env = runEnvironments ast'
             let x = runMacroCompiler (compileMany $ runMacroRemover ast') env
-            case x of
+            case fmap (map propagate) x of
               Right x -> do
                 x' <- runInfer x
                 case x' of
