@@ -57,9 +57,13 @@ executable quark
           Core.Closure.Definition.Pretty
         Core.Closure.Converter
 
-        Core.Entry
         Core.Utility.Color
         Core.Utility.Error
+
+        Core.Constant.Instances
+        Core.Constant.Propagation
+
+        Core.Entry
         Core.CLI.CLI
     -- LANGUAGE extensions used by modules in this package.
     default-extensions:
