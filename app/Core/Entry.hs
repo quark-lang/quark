@@ -6,26 +6,12 @@ module Core.Entry where
   import qualified Data.Map as M
   import Core.Import.Duplicates (getImports)
   import Core.Import.Remover
-  import Core.Inference.Type (runInfer, printError)
+  import Core.Inference.Type (runInfer)
   import Control.Monad.RWS (liftM, MonadIO (liftIO))
   import Control.Arrow (Arrow(second))
-  import Text.Megaparsec (ParseError (FancyError, TrivialError), ParseErrorBundle (ParseErrorBundle), ErrorItem (Tokens, EndOfInput), MonadParsec (parseError))
-  import Data.Void (Void)
-  import qualified Data.List.NonEmpty as N
-  import Data.Maybe (catMaybes)
-  import Core.Parser.AST (Expression)
-  import Core.Color (bBlack)
   import Core.Closure.Converter (runConverter)
   import Data.Foldable (foldlM)
-  
-  parseErrors :: ParseErrorBundle String Void -> [(String, Maybe String)]
-  parseErrors (ParseErrorBundle msg _) = catMaybes l'
-    where l  = N.toList msg
-          l' = map (\case
-                FancyError _ _ -> Nothing
-                TrivialError _ (Just (Tokens _)) _ -> Just ("Unexpected token", Nothing)
-                TrivialError _ (Just EndOfInput) _ -> Just ("Unexpected end of line", Just $ bBlack "maybe missing ), ] or }")
-                _ -> Nothing) l 
+  import Core.Utility.Error (parseError, printError)
 
   run :: (String, String) -> IO ()
   run (dir, file) = do
@@ -50,7 +36,7 @@ module Core.Entry where
                       return (acc ++ [x'], cl ++ cl', i')) ([], [], 0) x
                     mapM_ print x
                     mapM_ print closures
-                  Left err -> mapM_ (printError . second (Just . show)) err
-              Left err -> mapM_ (printError . (,Nothing :: Maybe String)) err
-          Left err -> mapM_ printError (parseErrors err)
-      Left err -> mapM_ printError (parseErrors err)
+                  Left err -> (printError . second (Just . show)) err
+              Left err -> (printError . (,Nothing)) err
+          Left err -> printError (parseError err)
+      Left err -> printError (parseError err)
