@@ -1,6 +1,6 @@
 {-# LANGUAGE StandaloneDeriving #-}
 module Core.Inference.Type.Pretty where
-  import Core.Color (bold, bBlack, bGreen, bYellow, bBlue, bCyan)
+  import Core.Utility.Color (bold, bBlack, bGreen, bYellow, bBlue, bCyan)
   import Core.Inference.Type.AST
   import qualified Core.Parser.AST as A
   import Data.List (intercalate)

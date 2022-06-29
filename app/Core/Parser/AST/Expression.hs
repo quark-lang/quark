@@ -1,6 +1,6 @@
 module Core.Parser.AST.Expression where
   import Core.Parser.AST.Literal
-  import Core.Color (bold, bBlue)
+  import Core.Utility.Color (bold, bBlue)
 
   data Expression
     = Node Expression [Expression]

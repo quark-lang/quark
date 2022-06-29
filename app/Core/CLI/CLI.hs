@@ -1,5 +1,5 @@
 module Core.CLI.CLI where
-  import Core.Color
+  import Core.Utility.Color
   data Option
     = String :>: String
     | Option String

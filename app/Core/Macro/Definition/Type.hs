@@ -5,7 +5,7 @@ module Core.Macro.Definition.Type where
   import qualified Data.Map as M
 
   newtype MacroCompiler a = MacroCompiler
-    { runMacroCompiler :: Macros -> Either [String] a }
+    { runMacroCompiler :: Macros -> Either String a }
     
   instance Functor MacroCompiler where
     fmap f (MacroCompiler m) = MacroCompiler $ fmap (fmap f) m
@@ -22,7 +22,7 @@ module Core.Macro.Definition.Type where
           x <- m s
           runMacroCompiler (f x) s
 
-  throwError :: [String] -> MacroCompiler a
+  throwError :: String -> MacroCompiler a
   throwError = MacroCompiler . const . Left
 
   env :: MacroCompiler Macros

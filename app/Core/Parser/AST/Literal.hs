@@ -1,5 +1,5 @@
 module Core.Parser.AST.Literal where
-  import Core.Color
+  import Core.Utility.Color
   data Literal
     = Integer Integer
     | String String
