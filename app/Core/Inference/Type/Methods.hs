@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE BangPatterns #-}
 module Core.Inference.Type.Methods where
   import Core.Inference.Type.AST
   import Core.Inference.Type.Pretty ()
@@ -8,7 +7,7 @@ module Core.Inference.Type.Methods where
   import Control.Monad.RWS (modify, MonadState(get))
   import Data.Bifunctor (Bifunctor(second, bimap))
   import Debug.Trace (traceShow)
-  
+
   -- Some environment functions and types
   applyTypes :: (TypeEnv -> TypeEnv) -> Env -> Env
   applyTypes f (Env ty cons) = Env (f ty) cons
@@ -33,14 +32,14 @@ module Core.Inference.Type.Methods where
   class Types a where
     tyFree  :: a -> S.Set Int
     tyApply :: SubTy -> a -> a
-    tyUnify :: a -> a -> Either SubTy [String]
+    tyUnify :: a -> a -> Either [String] SubTy 
 
   -- Unification variable helper
-  variable :: Int -> Type -> Either SubTy [String]
+  variable :: Int -> Type -> Either [String] SubTy
   variable n t
-    | t == TVar n = Left M.empty
-    | n `elem` tyFree t = Right ["Occurs check failed: " ++ show t]
-    | otherwise = Left $ M.singleton n t
+    | t == TVar n = Right M.empty
+    | n `elem` tyFree t = Left ["Occurs check failed: " ++ show t]
+    | otherwise = Right $ M.singleton n t
 
   instance Types Type where
     tyFree (TVar i) = S.singleton i
@@ -63,30 +62,29 @@ module Core.Inference.Type.Methods where
     tyUnify t (TVar i) = variable i t
     tyUnify (t1 :-> t2) (t3 :-> t4)
       = let s1 = foldl (\acc (t, t') -> case tyUnify t t' of
-                          Left s -> s `tyCompose` acc
-                          Right s -> M.empty) M.empty $ zip t1 t3
-          in let s2 = tyUnify (tyApply s1 t2) (tyApply s1 t4)
-            in case s2 of
-              Left s' -> Left $ s' `tyCompose` s1
-              Right x -> Right x
+                          Right s -> tyCompose <$> acc <*> pure s
+                          Left s -> Left s) (Right M.empty) $ zip t1 t3
+          in case s1 of
+            Right s -> tyCompose s <$> tyUnify t2 t4
+            Left s -> Left s
     tyUnify (TId s) (TId s') = if s == s'
-      then Left M.empty
-      else Right ["Type " ++ s ++ " mismatches with type " ++ s']
-    tyUnify _ Any = Left M.empty
-    tyUnify Any _ = Left M.empty
+      then Right M.empty
+      else Left ["Type " ++ s ++ " mismatches with type " ++ s']
+    tyUnify _ Any = Right M.empty
+    tyUnify Any _ = Right M.empty
     tyUnify (ListT t) (ListT t') = tyUnify t t'
-    tyUnify Int Int = Left M.empty
-    tyUnify String String = Left M.empty
-    tyUnify Bool Bool = Left M.empty
+    tyUnify Int Int = Right M.empty
+    tyUnify String String = Right M.empty
+    tyUnify Bool Bool = Right M.empty
     tyUnify (TApp t1 t2) (TApp t3 t4) =
       let s1 = tyUnify t1 t3
           s2 = foldl (\acc (t, t') -> case tyUnify t t' of
-                          Left s -> s `tyCompose` acc
-                          Right s -> M.empty) M.empty $ zip t2 t4
+                          Right s -> s `tyCompose` acc
+                          Left s -> M.empty) M.empty $ zip t2 t4
         in case (s1, s2) of
-          (Left s, s') -> Left $ tyCompose s s'
-          (Right e, _) -> Right e
-    tyUnify s1 s2 = Right ["Type " ++ show s1 ++ " mismatches with type " ++ show s2]
+          (Right s, s') -> Right $ tyCompose s s'
+          (Left e, _) -> Left e
+    tyUnify s1 s2 = Left ["Type " ++ show s1 ++ " mismatches with type " ++ show s2]
   instance Types Scheme where
     tyFree (Forall v t) = tyFree t S.\\ S.fromList v
     tyApply s (Forall v t) = Forall v (tyApply (foldr M.delete s v) t)
