@@ -70,4 +70,4 @@ module Core.Inference.Type.AST where
   data Scheme = Forall [Int] Type
     deriving (Eq, Ord)
 
-  type MonadType m = (MonadRWS Env () Int m, MonadIO m, MonadError [(String, Expression)] m)
+  type MonadType m = (MonadRWS Env () Int m, MonadIO m, MonadError (String, Expression) m)

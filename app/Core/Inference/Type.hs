@@ -14,7 +14,7 @@ module Core.Inference.Type where
   import Core.Inference.Type.Parsing
   import System.Exit
   import Data.Maybe (fromMaybe)
-  import Core.Color (red, bBlack, bold)
+  import Core.Utility.Color (red, bBlack, bold)
   import Control.Monad.Except (runExceptT, MonadError (throwError))
   import Data.Either (fromLeft)
   
@@ -39,7 +39,7 @@ module Core.Inference.Type where
       Right s3 -> do
         let x'' = tyApply s3 tv
         return (AppP n x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'', m1 `M.union` m2)
-      Left x -> throwErrors x z
+      Left x -> throwError (x, z)
 
   tyPattern (A.Literal (A.String s)) = return (LitP (S s) String, M.empty, String, M.empty)
   tyPattern (A.Literal (A.Integer i)) = return (LitP (I i) Int, M.empty, Int, M.empty)
@@ -53,7 +53,7 @@ module Core.Inference.Type where
     Just t -> do
       t' <- tyInstantiate t
       return (VarE n t', M.empty, t')
-    Nothing -> throwError [("Variable " ++ bold n ++ " is not defined.", A.Identifier n)]
+    Nothing -> throwError ("Variable " ++ bold n ++ " is not defined.", A.Identifier n)
 
   tyInfer z@(A.Node (A.Identifier "if") [cond, then_, else_]) = do
     (cond', s1, cond_t) <- tyInfer cond
@@ -63,9 +63,9 @@ module Core.Inference.Type where
       Right s' -> do
         let s4 = s' `tyCompose` s1 `tyCompose` s2 `tyCompose` s3
         unless (tyApply s4 then_t == tyApply s4 else_t) $
-          throwError [("Type " ++ show then_t ++ " does not match type " ++ show else_t, z)]
+          throwError ("Type " ++ show then_t ++ " does not match type " ++ show else_t, z)
         return (tyApply s4 $ IfE cond' then_' else_', s4, tyApply s4 then_t)
-      Left x -> throwErrors x z
+      Left x -> throwError (x, z)
 
   tyInfer z@(A.Node (A.Identifier "match") (pat:cases)) = do
     (pat', s1, pat_t) <- tyInfer pat
@@ -89,10 +89,10 @@ module Core.Inference.Type where
                         let (_, _, t) = last acc
                         let s4 = tyUnify t body_t2
                         case s4 of
-                          Left err -> throwErrors err l
+                          Left err -> throwError (err, l)
                           Right _ -> return ()
                       return (acc ++ [(pattern3, body2, body_t2)], s2 `tyCompose` s3)
-                    Left x -> throwErrors x z
+                    Left x -> throwError (x, z)
                   ) ([], s1) cases
 
     let cases' = map (\(p, t, _) -> (p, t)) xs'
@@ -130,9 +130,9 @@ module Core.Inference.Type where
               Right s -> do
                 let r = tyApply s t1
                 unless (r == t'') $
-                  throwError [("Type " ++ show r ++ " does not match type " ++ show t'', z)]
+                  throwError ("Type " ++ show r ++ " does not match type " ++ show t'', z)
                 return (s `tyCompose` s1, r)
-              Left x -> throwErrors x z
+              Left x -> throwError (x, z)
           Nothing -> return (s1, t1)
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) t2
@@ -149,7 +149,7 @@ module Core.Inference.Type where
     let initType = head t
     unless (all (==initType) t) $
       let error = "Type mismatch with " ++ show initType ++ " and " ++ show (head $ filter (/=initType) t)
-        in throwError [(error, A.List elems)]
+        in throwError (error, A.List elems)
 
     return (ListE elems' (head t), s, ListT (head t))
 
@@ -164,13 +164,13 @@ module Core.Inference.Type where
       Right s3 -> do
         let x'' = tyApply s3 tv
         return (AppE n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
-      Left x -> throwErrors x z
+      Left x -> throwError (x, z)
 
   -- Value related inference
   tyInfer (A.Literal (A.String s))  = return (LitE (S s) String, M.empty, String)
   tyInfer (A.Literal (A.Integer i)) = return (LitE (I i) Int, M.empty, Int)
   tyInfer (A.Literal (A.Float f))   = return (LitE (F f) Float, M.empty, Float)
-  tyInfer a = throwError [("Unknown expression", a)]
+  tyInfer a = throwError ("Unknown expression", a)
 
   topLevel :: MonadType m => A.Expression -> m (Maybe [TypedAST], Env)
   -- Empty data constructor (just a phantom type)
@@ -202,7 +202,7 @@ module Core.Inference.Type where
               Right s -> do
                 let r = tyApply s t''
                 return (s `tyCompose` s1, r)
-              Left x -> throwErrors x z
+              Left x -> throwError (x, z)
           Nothing -> return (s1, t1)
 
     let env'  = M.delete name env
@@ -224,18 +224,7 @@ module Core.Inference.Type where
 
     --liftIO $ print (b, name)
     return (Nothing, applyTypes (`M.union` M.singleton name (generalize t ty)) e)
-  topLevel x = throwError [("Unknown top-level expression received", x)]
-
-  printError :: MonadIO m => (String, Maybe String) -> m ()
-  printError (error, ast) = liftIO $ do
-    putStr (red "[error] ")
-    putStrLn error
-    case ast of
-      Just ast -> putStr "  with " >> putStrLn ast
-      Nothing -> return ()
-
-  throwErrors :: MonadError [(String, A.Expression)] m => [String] -> A.Expression -> m a 
-  throwErrors e a = throwError $ zip e (replicate (length e) a)
+  topLevel x = throwError ("Unknown top-level expression received", x)
 
   functions :: TypeEnv
   functions = M.fromList [
@@ -243,7 +232,7 @@ module Core.Inference.Type where
       ("-", Forall [] $ [Int, Int] :-> Int)
     ]
 
-  runInfer :: MonadIO m => [A.Expression] -> m (Either [(String, A.Expression)] [TypedAST])
+  runInfer :: MonadIO m => [A.Expression] -> m (Either (String, A.Expression) [TypedAST])
   runInfer a = do
     let e = Env functions M.empty
     fmap fst <$> foldlM (\e x -> case e of

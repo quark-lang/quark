@@ -32,13 +32,13 @@ module Core.Inference.Type.Methods where
   class Types a where
     tyFree  :: a -> S.Set Int
     tyApply :: SubTy -> a -> a
-    tyUnify :: a -> a -> Either [String] SubTy 
+    tyUnify :: a -> a -> Either String SubTy 
 
   -- Unification variable helper
-  variable :: Int -> Type -> Either [String] SubTy
+  variable :: Int -> Type -> Either String SubTy
   variable n t
     | t == TVar n = Right M.empty
-    | n `elem` tyFree t = Left ["Occurs check failed: " ++ show t]
+    | n `elem` tyFree t = Left $ "Occurs check failed: " ++ show t
     | otherwise = Right $ M.singleton n t
 
   instance Types Type where
@@ -69,7 +69,7 @@ module Core.Inference.Type.Methods where
             Left s -> Left s
     tyUnify (TId s) (TId s') = if s == s'
       then Right M.empty
-      else Left ["Type " ++ s ++ " mismatches with type " ++ s']
+      else Left $ "Type " ++ s ++ " mismatches with type " ++ s'
     tyUnify _ Any = Right M.empty
     tyUnify Any _ = Right M.empty
     tyUnify (ListT t) (ListT t') = tyUnify t t'
@@ -84,7 +84,7 @@ module Core.Inference.Type.Methods where
         in case (s1, s2) of
           (Right s, s') -> Right $ tyCompose s s'
           (Left e, _) -> Left e
-    tyUnify s1 s2 = Left ["Type " ++ show s1 ++ " mismatches with type " ++ show s2]
+    tyUnify s1 s2 = Left $ "Type " ++ show s1 ++ " mismatches with type " ++ show s2
   instance Types Scheme where
     tyFree (Forall v t) = tyFree t S.\\ S.fromList v
     tyApply s (Forall v t) = Forall v (tyApply (foldr M.delete s v) t)
