@@ -63,6 +63,13 @@ executable quark
         Core.Constant.Instances
         Core.Constant.Propagation
 
+        Core.Compiler.Compiler
+          Core.Compiler.Definition.Generation
+          Core.Compiler.Definition.IR
+          
+          Core.Compiler.Modules.Pattern
+          Core.Compiler.Modules.ADT
+
         Core.Entry
         Core.CLI.CLI
     -- LANGUAGE extensions used by modules in this package.
