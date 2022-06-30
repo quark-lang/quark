@@ -13,8 +13,10 @@ module Core.Entry where
   import Data.Foldable (foldlM)
   import Core.Utility.Error (parseError, printError)
   import Core.Constant.Propagation (propagate)
+  import Core.Compiler.Compiler (runCompiler)
+  import Core.Compiler.Definition.Generation (from)
   
-  run :: (String, String) -> IO ()
+  run :: (String, String) -> IO (Either (String, Maybe String) String)
   run (dir, file) = do
     let src = dir </> file
     content <- readFile src
@@ -32,12 +34,14 @@ module Core.Entry where
                 x' <- runInfer x
                 case x' of
                   Right x ->do
-                    (x, closures, _) <- foldlM (\(acc, cl, i) x -> do
-                      (cl', x', i') <- runConverter x i
-                      return (acc ++ [x'], cl ++ cl', i')) ([], [], 0) x
-                    mapM_ print x
-                    mapM_ print closures
-                  Left err -> (printError . second (Just . show)) err
-              Left err -> (printError . (,Nothing)) err
-          Left err -> printError (parseError err)
-      Left err -> printError (parseError err)
+                    --(x, closures, _) <- foldlM (\(acc, cl, i) x -> do
+                    --  (cl', x', i') <- runConverter x i
+                    --  return (acc ++ [x'], cl ++ cl', i')) ([], [], 0) x
+                    (c, _) <- foldlM (\(acc, st) x -> do
+                      (x', st') <- runCompiler x st
+                      return (acc ++ [x'], st')) ([], M.empty) x
+                    return . Right $ concatMap ((++";") . from) c ++ "$main();"
+                  Left err -> return $ Left (second (Just . show) err)
+              Left err -> return $ Left (err, Nothing)
+          Left err -> return $ Left (parseError err)
+      Left err -> return $ Left (parseError err)
