@@ -1,5 +1,6 @@
 module Core.Import.Type where
   import Core.Parser.AST (Expression)
+  import Debug.Trace (traceShow)
   type Path = String
   type ImportMap = [(Path, [Expression])]
 
@@ -12,4 +13,4 @@ module Core.Import.Type where
   removeDuplicates [] = []
 
   mergePaths :: ImportMap -> ImportMap -> ImportMap
-  mergePaths xs ys = removeDuplicates . reverse $ foldr (\x -> (++) (appendPath x ys)) ys xs
+  mergePaths xs ys = removeDuplicates $ xs ++ ys
