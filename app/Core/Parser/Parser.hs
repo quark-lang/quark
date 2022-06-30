@@ -6,6 +6,7 @@ module Core.Parser.Parser where
   import qualified Text.Megaparsec.Char.Lexer as L
   import Data.Maybe          (isJust, fromMaybe, fromJust, catMaybes)
   import Data.Void
+  import Control.Monad (void)
   {-
     Module: Quark parser
     Description: Lisp like parser using custom combinator library
@@ -80,7 +81,7 @@ module Core.Parser.Parser where
 
   comment :: MonadParsec Void String m => m (Maybe Expression)
   comment = do
-    char ';' >> manyTill anySingle (char '\n')
+    char ';' >> manyTill anySingle (void (char '\n') <|> eof)
     return Nothing
 
   parse' :: MonadParsec Void String m => m (Maybe Expression)
@@ -91,7 +92,7 @@ module Core.Parser.Parser where
 
   trim :: String -> String
   trim = dropWhile (== ' ')
-  
+
   -- remove eol from string
   format :: String -> String
   format e = unlines $ filter (\z -> not (null z) && (head z /= ';')) (lines e)
