@@ -1,0 +1,14 @@
+(defm const [name value]
+  (defm name value))
+
+(defm defn [name args body]
+  (let name (fn args body)))
+
+(import "std:types/expression.qrk")
+
+; CORE IMPORTS
+(import "std:modules/math.qrk")
+(import "std:modules/io.qrk")
+(import "std:modules/color.qrk")
+
+(import "std:types/list.qrk")

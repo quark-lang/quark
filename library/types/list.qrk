@@ -1,0 +1,31 @@
+(import "std:modules/math.qrk")
+(import "std:modules/io.qrk")
+(data (List a) [
+  Nil
+  (Cons a (List a))])
+
+
+;(declare (length a) (-> [a] int))
+;(defn length [x] (match x
+;  [Nil 0]
+;  [(Cons _ xs) (+ 1 (length xs))]))
+
+(defn show_list [x] (match x
+  [Nil "Nil"]
+  [(Cons y xs) (+ "(Cons " (+ (to_string y) (+ " " (+ (show_list xs) ")"))))]))
+
+(defn print_list [x] (print (show_list x)))
+
+(declare (fromList a) (-> any [a]))
+
+;(declare (map a b) (-> (-> a b) [a] [b]))
+(defn map [f list] (match list
+  [Nil Nil]
+  [(Cons x xs) (Cons (f x) (map f xs))]))
+
+(defn iter [f x] (let _ (map f x) 0)))
+
+;(declare (filter a) (-> (-> a bool) [a] [a]))
+(defn filter [pred list] (match list
+  [Nil Nil]
+  [(Cons x xs) (if (pred x) (Cons x (filter pred xs)) (filter pred xs))]))
