@@ -13,9 +13,15 @@ module Core.Entry where
   import Data.Foldable (foldlM)
   import Core.Utility.Error (parseError, printError)
   import Core.Constant.Propagation (propagate)
-  import Core.Compiler.Compiler (runCompiler)
-  import Core.Compiler.Definition.Generation (from)
-  
+  import Core.Compiler.CPP
+  import Data.List (intercalate)
+
+  headers :: [String]
+  headers = ["iostream"]
+
+  importHeader :: String -> String
+  importHeader s = "#include <" ++ s ++ ">"
+
   run :: (String, String) -> IO (Either (String, Maybe String) String)
   run (dir, file) = do
     let src = dir </> file
@@ -39,8 +45,8 @@ module Core.Entry where
                     --  return (acc ++ [x'], cl ++ cl', i')) ([], [], 0) x
                     (c, _) <- foldlM (\(acc, st) x -> do
                       (x', st') <- runCompiler x st
-                      return (acc ++ [x'], st')) ([], M.empty) x
-                    return . Right $ concatMap ((++";") . from) c ++ "$main();"
+                      return (acc ++ [x'], st')) ([], (M.empty, M.empty)) x
+                    return . Right $ concatMap ((++"\n") . importHeader) headers ++ concatMap (++";\n") c
                   Left err -> return $ Left (second (Just . show) err)
               Left err -> return $ Left (err, Nothing)
           Left err -> return $ Left (parseError err)
