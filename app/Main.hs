@@ -11,7 +11,7 @@ module Main where
     run (dir, x) >>= \case
       Left err -> printError err
       Right js -> do
-        writeFile (dir </> x -<.> "cpp") js
+        writeFile (dir </> x -<.> "js") js
 
   main :: IO ()
   main = build "tests/facto.qrk"

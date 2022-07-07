@@ -69,7 +69,6 @@ executable quark
           
           Core.Compiler.Modules.Pattern
           Core.Compiler.Modules.ADT
-        Core.Compiler.CPP
 
         Core.Entry
         Core.CLI.CLI
