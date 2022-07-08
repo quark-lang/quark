@@ -41,6 +41,7 @@ module Core.Compiler.Compiler where
   -- Binary calls
   compile (AppE (VarE "*" _) [x, y] _) = BinaryCall <$> compile x <*> pure "*" <*> compile y
   compile (AppE (VarE "=" _) [x, y] _) = BinaryCall <$> compile x <*> pure "===" <*> compile y
+  compile (AppE (VarE "!" _) [x] _)    = Call (Var "!") . (:[]) <$> compile x
   compile (AppE (VarE "-" _) [x, y] _) = BinaryCall <$> compile x <*> pure "-" <*> compile y
   compile (AppE (VarE "+" _) [x, y] _) = BinaryCall <$> compile x <*> pure "+" <*> compile y
   compile (AppE (VarE "/" _) [x, y] _) = BinaryCall <$> compile x <*> pure "/" <*> compile y
