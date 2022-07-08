@@ -153,6 +153,16 @@ module Core.Inference.Type where
 
     return (ListE elems' (head t), s, ListT (head t))
 
+  -- Type inference errors
+  tyInfer z@(A.Node (A.Identifier "let") _) 
+    = throwError ("Cannot have let as last expression in block", z)
+
+  tyInfer z@(A.Node (A.Identifier "data") _) 
+    = throwError ("Cannot have nested data constructor", z)
+
+  tyInfer z@(A.Node (A.Identifier "declare") _) 
+    = throwError ("Cannot have nested declaration", z)
+
   -- Type inference for applications
   tyInfer z@(A.Node n xs) = do
     tv <- tyFresh
@@ -160,7 +170,7 @@ module Core.Inference.Type where
     (x', s2, t2) <- foldlM (\(x', s, t) x -> do
       (x'', s', t') <- local (applyTypes (tyApply s)) $ tyInfer x
       return (x' ++ [x''], s `tyCompose` s', t ++ [t'])) ([], s1, []) xs
-    case tyUnify (tyApply s2 t1) (t2 :-> tv) of
+    case tyUnify (t2 :-> tv) (tyApply s2 t1) of
       Right s3 -> do
         let x'' = tyApply s3 tv
         return (AppE n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
