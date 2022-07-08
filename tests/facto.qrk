@@ -1,13 +1,14 @@
-(import "test.qrk")
+(import "std:prelude.qrk")
 (data (Maybe a b) [
   Nothing
   (Just a b)
 ])
+
 (defn facto [n]
   (match n
     [0 1]
     [_ (* n (facto (- n 1)))]))
+
+(let m (map:insert "a" 1 (map:insert "b" 2 (map:insert "c" 3 map:empty))))
 (defn main []
-  (match (Just 4 6)
-    [(Just a b) (- a b)]
-    [Nothing 5]))
+  (map:iter print m))
