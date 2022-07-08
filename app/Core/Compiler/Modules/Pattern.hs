@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 module Core.Compiler.Modules.Pattern where
   import Core.Compiler.Definition.IR
   import Core.Inference.Type.AST (Literal(S), TypedPattern(..))
@@ -8,20 +7,24 @@ module Core.Compiler.Modules.Pattern where
   import Data.Maybe (fromJust, isJust)
   import Prelude hiding (and)
   import Debug.Trace (traceShow)
-  
+
   and :: Expression -> Expression -> Expression
   and l = BinaryCall l "&&"
 
   -- Returning (Bind, Condition)
   findPattern :: TypedPattern -> Expression -> [(Maybe Expression, Maybe Expression)]
-  findPattern (LitP l _) e    = [(Nothing, Just $ BinaryCall e "==" (Lit l))]
-  findPattern (WilP _) e      = [(Nothing, Nothing)]
-  findPattern (VarP v _) e    = [(Just $ Let (varify v) e, Nothing)]
-  findPattern (AppP n xs _) e = traceShow (xs, e)
+  findPattern (VarP "true" _) e  = [(Nothing, Just e)]
+  findPattern (VarP "false" _) e = [(Nothing, Just $ Call (Var "!") [e])]
+  findPattern (LitP l _) e       = [(Nothing, Just $ BinaryCall e "==" (Lit l))]
+  findPattern (WilP _) e         = [(Nothing, Nothing)]
+  findPattern (VarP v _) e       = [(Just $ Let (varify v) e, Nothing)]
+  findPattern (AppP n xs _) e    = 
     concat $ [(Nothing, Just $ BinaryCall (Property e (Var "type")) "==" (Lit (S n)))] : zipWith (\x y -> findPattern y (Property e (Var x)))
     (["v" ++ show i | i <- [0..]]) xs
 
   compileCase :: MonadCompiler m => TypedPattern -> m (Expression -> Expression -> Expression)
+  compileCase (VarP "true" _) = return $ \x body -> Condition x $ Return body
+  compileCase (VarP "false" _) = return $ \x body -> Condition (Call (Var "!") [x]) $ Return body
   compileCase (VarP n _) = do
     get >>= \e -> case M.lookup (varify n) e of
       Just _ -> return $ \x body ->
