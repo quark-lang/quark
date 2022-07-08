@@ -1,0 +1,18 @@
+(data (Map k a) [
+  Empty
+  (Insert k a (Map k a))
+])
+
+(defn map:insert [k a map] (Insert k a map))
+(let map:empty Empty)
+
+(defn map:filter [pred map] (match map
+  [Empty Empty]
+  [(Insert k a map) (if (pred k) (map:insert k a (map:filter pred map)) (map:filter pred map))]))
+
+(defn map:map [f map] (match map
+  [Empty Empty]
+  [(Insert k a m) (map:insert k (f a) (map:map f m))]))
+
+(defn map:iter [f map] (let _ (map:map f map) 0))
+

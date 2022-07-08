@@ -12,3 +12,4 @@
 (import "std:modules/color.qrk")
 
 (import "std:types/list.qrk")
+(import "std:types/map.qrk")
