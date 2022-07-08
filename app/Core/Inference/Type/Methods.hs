@@ -64,9 +64,7 @@ module Core.Inference.Type.Methods where
       = let s1 = foldl (\acc (t, t') -> case tyUnify t t' of
                           Right s -> tyCompose <$> acc <*> pure s
                           Left s -> Left s) (Right M.empty) $ zip t1 t3
-          in case s1 of
-            Right s -> tyCompose s <$> tyUnify t2 t4
-            Left s -> Left s
+          in tyCompose <$> s1 <*> tyUnify t2 t4
     tyUnify (TId s) (TId s') = if s == s'
       then Right M.empty
       else Left $ "Type " ++ s ++ " mismatches with type " ++ s'
@@ -79,11 +77,9 @@ module Core.Inference.Type.Methods where
     tyUnify (TApp t1 t2) (TApp t3 t4) =
       let s1 = tyUnify t1 t3
           s2 = foldl (\acc (t, t') -> case tyUnify t t' of
-                          Right s -> s `tyCompose` acc
-                          Left s -> M.empty) M.empty $ zip t2 t4
-        in case (s1, s2) of
-          (Right s, s') -> Right $ tyCompose s s'
-          (Left e, _) -> Left e
+                          Right s -> tyCompose <$> acc <*> pure s
+                          Left s -> Left s) (Right M.empty) $ zip t2 t4
+        in tyCompose <$> s1 <*> s2
     tyUnify s1 s2 = Left $ "Type " ++ show s1 ++ " mismatches with type " ++ show s2
   instance Types Scheme where
     tyFree (Forall v t) = tyFree t S.\\ S.fromList v
