@@ -8,3 +8,6 @@
 
 (declare (/= a) (-> a a bool))
 (let /= (fn [x y] (! (= x y))))
+
+(defn . [f g]
+  (fn [x] (f (g x))))
