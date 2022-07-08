@@ -15,6 +15,7 @@ module Core.Entry where
   import Core.Constant.Propagation (propagate)
   import Core.Compiler.Compiler (runCompiler)
   import Core.Compiler.Definition.Generation (from)
+  import Core.Utility.Sugar (eliminateSugar)
   
   run :: (String, String) -> IO (Either (String, Maybe String) String)
   run (dir, file) = do
@@ -28,7 +29,7 @@ module Core.Entry where
         case res of
           Right ast' -> do
             let env = runEnvironments ast'
-            let x = runMacroCompiler (compileMany $ runMacroRemover ast') env
+            let x = map eliminateSugar <$> runMacroCompiler (compileMany $ runMacroRemover ast') env
             case fmap (map propagate) x of
               Right x -> do
                 x' <- runInfer x
