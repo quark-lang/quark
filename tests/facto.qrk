@@ -1,4 +1,5 @@
 (import "std:prelude.qrk")
+
 (data (Maybe a b) [
   Nothing
   (Just a b)
@@ -9,6 +10,13 @@
     [0 1]
     [_ (* n (facto (- n 1)))]))
 
-(let m (map:insert "a" 1 (map:insert "b" 2 (map:insert "c" 3 map:empty))))
-(defn main []
-  (map:iter print m))
+(defn . [f g]
+  (fn [x] (f (g x))))
+
+(let m (Insert 1 2 (Insert 3 4 Empty)))
+
+(let int:show (. yellow to_string))
+
+(defn main [] (match [1 2 3]
+  [[x *xs] (list:iter (. print int:show) xs)]
+  [[] (print (int:show 45))])))
