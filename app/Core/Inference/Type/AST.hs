@@ -33,7 +33,6 @@ module Core.Inference.Type.AST where
     | ListE [TypedAST] Type
     | LetE Argument TypedAST
     | LitE Literal Type
-    | IfE TypedAST TypedAST TypedAST
     -- (Name, [Generics])
     | DataE (String, [Type]) [(String, Type)]
     -- Pattern | [(Case, AST)]
@@ -48,7 +47,6 @@ module Core.Inference.Type.AST where
   getType (ListE _ t) = t
   getType (LetE _ t) = getType t
   getType (LitE _ t) = t
-  getType (IfE _ t _) = getType t
   getType (DataE (n, ts) _) = TApp (TId n) ts
   getType (PatternE _ ((_, x):_)) = getType x
   getType _ = error "getType: not a valid type"

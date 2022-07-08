@@ -58,15 +58,10 @@ module Core.Compiler.Compiler where
   compile (LetInE (n, _) value expr) = do
     value <- compile value
     expr  <- compile expr
-    return $ Call (Lambda [varify n] expr) [value]
+    return $ Call (Lambda [varify n] expr) [Call (Lambda [] $ Block [Let (varify n) value, Return (Var $ varify n)]) []]
   compile (ListE exprs _) = Array <$> mapM compile exprs
   compile (LetE (n, _) value) = Let (varify n) <$> compile value
   compile (LitE l _) = return $ Lit l
-  compile (IfE c t e) = do
-    c <- compile c
-    t <- compile t
-    e <- compile e
-    return $ Ternary c t e
   compile z@(DataE _ _) = compileData z
   compile z@(PatternE _ _) = compilePattern z
 

@@ -22,7 +22,7 @@ module Core.Compiler.Definition.Generation where
   from (Lambda args expr) = "(" ++ intercalate "," args ++ ") => " ++ from expr
   from (Var n) = n
   from (Object props) = "{" ++ intercalate "," (map (\(p, v) -> p  ++ ": " ++ from v) props) ++ "}"
-  from (Ternary t c e) = from t ++ " ? " ++ from c ++ " : " ++ from e
+  from (Ternary t c e) = "(" ++ from t ++ " ? " ++ from c ++ " : " ++ from e ++ ")"
   from (Array exprs) = "[" ++ intercalate "," (map from exprs) ++ "]"
   from (Call (Var n) xs) = n ++ "(" ++ intercalate "," (map from xs) ++ ")"
   from (Call z@(Property _ _) xs) = from z ++ "(" ++ intercalate "," (map from xs) ++ ")"

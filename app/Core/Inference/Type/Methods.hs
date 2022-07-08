@@ -102,7 +102,6 @@ module Core.Inference.Type.Methods where
       = (tyFree t S.\\ tyFree t) `S.union` tyFree body `S.union` tyFree t'
     tyFree (LetE (name, t) body) = (tyFree t S.\\ tyFree t) `S.union` tyFree body
     tyFree (ListE args t) = tyFree t `S.union` setConcatMap tyFree args
-    tyFree (IfE cond t1 t2) = tyFree cond `S.union` tyFree t1 `S.union` tyFree t2
     tyFree (LitE ast t) = tyFree t
     tyFree _ = S.empty
 
@@ -113,7 +112,6 @@ module Core.Inference.Type.Methods where
     tyApply s (ListE args t) = ListE (map (tyApply s) args) (tyApply s t)
     tyApply s (LetE (name, t) body) = LetE (name, tyApply s t) (tyApply s body)
     tyApply s (LitE ast t) = LitE ast (tyApply s t)
-    tyApply s (IfE cond t1 t2) = IfE (tyApply s cond) (tyApply s t1) (tyApply s t2)
     tyApply s (PatternE pat t) = PatternE (tyApply s pat) (map (bimap (tyApply s) (tyApply s)) t)
     tyApply s (DataE name args) = DataE name (map (second $ tyApply s) args)
 

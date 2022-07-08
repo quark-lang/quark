@@ -16,7 +16,7 @@ module Core.Inference.Type where
   import Data.Maybe (fromMaybe)
   import Core.Utility.Color (red, bBlack, bold)
   import Control.Monad.Except (runExceptT, MonadError (throwError))
-  import Data.Either (fromLeft)
+  import Data.Either (fromLeft, isLeft)
   
   tyPattern :: MonadType m => A.Expression -> m (TypedPattern, SubTy, Type, M.Map String Type)
   tyPattern (A.Identifier "_") = do
@@ -44,7 +44,7 @@ module Core.Inference.Type where
   tyPattern (A.Literal (A.String s)) = return (LitP (S s) String, M.empty, String, M.empty)
   tyPattern (A.Literal (A.Integer i)) = return (LitP (I i) Int, M.empty, Int, M.empty)
   tyPattern (A.Literal (A.Float f)) = return (LitP (F f) Float, M.empty, Float, M.empty)
-  tyPattern _ = error "tyPattern: not implemented"
+  tyPattern x = error $ "tyPattern: not implemented => " ++ show x
 
   -- Main type inference function
   tyInfer :: MonadType m => A.Expression -> m (TypedAST, SubTy, Type)
@@ -54,18 +54,6 @@ module Core.Inference.Type where
       t' <- tyInstantiate t
       return (VarE n t', M.empty, t')
     Nothing -> throwError ("Variable " ++ bold n ++ " is not defined.", A.Identifier n)
-
-  tyInfer z@(A.Node (A.Identifier "if") [cond, then_, else_]) = do
-    (cond', s1, cond_t) <- tyInfer cond
-    (then_', s2, then_t) <- local (applyTypes (tyApply s1)) $ tyInfer then_
-    (else_', s3, else_t) <- local (applyTypes (tyApply s2)) $ tyInfer else_
-    case tyUnify cond_t Bool of
-      Right s' -> do
-        let s4 = s' `tyCompose` s1 `tyCompose` s2 `tyCompose` s3
-        unless (tyApply s4 then_t == tyApply s4 else_t) $
-          throwError ("Type " ++ show then_t ++ " does not match type " ++ show else_t, z)
-        return (tyApply s4 $ IfE cond' then_' else_', s4, tyApply s4 then_t)
-      Left x -> throwError (x, z)
 
   tyInfer z@(A.Node (A.Identifier "match") (pat:cases)) = do
     (pat', s1, pat_t) <- tyInfer pat
