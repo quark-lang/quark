@@ -59,6 +59,7 @@ executable quark
 
         Core.Utility.Color
         Core.Utility.Error
+        Core.Utility.Sugar
 
         Core.Constant.Instances
         Core.Constant.Propagation
