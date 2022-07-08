@@ -14,9 +14,9 @@ module Core.Utility.Sugar where
   eliminateSugar x = x
   
   buildBeginSugar :: [Expression] -> Expression
-  buildBeginSugar [x] = x
-  buildBeginSugar (Node (Identifier "let") [Identifier name, value]:y:xs) = Node (Identifier "let") [Identifier name, value, buildBeginSugar (y:xs)]
-  buildBeginSugar (x:xs) = Node (Identifier "let") [Identifier "_", x, buildBeginSugar xs]
+  buildBeginSugar [x] = eliminateSugar x
+  buildBeginSugar (Node (Identifier "let") [Identifier name, value]:xs) = Node (Identifier "let") [Identifier name, eliminateSugar value, buildBeginSugar xs]
+  buildBeginSugar (x:xs) = Node (Identifier "let") [Identifier "_", eliminateSugar x, buildBeginSugar xs]
   buildBeginSugar [] = Identifier "nil"
 
   buildList :: [Expression] -> Expression
