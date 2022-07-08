@@ -11,5 +11,7 @@
 (import "std:modules/io.qrk")
 (import "std:modules/color.qrk")
 
+(import "std:types/bool.qrk")
+(import "std:types/maybe.qrk")
 (import "std:types/list.qrk")
 (import "std:types/map.qrk")
