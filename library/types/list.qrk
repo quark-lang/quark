@@ -1,15 +1,23 @@
 (import "std:modules/math.qrk")
 (import "std:modules/io.qrk")
+(import "std:types/maybe.qrk")
 (data (List a) [
   Nil
   (Cons a (List a))])
 
 (let list:empty Nil)
 
-(declare (length a) (-> [a] int))
 (defn list:length [x] (match x
   [Nil 0]
   [(Cons _ xs) (+ 1 (list:length xs))]))
+
+(defn list:show [xs fmt] {
+  (defn f [lst] (match lst
+    [[] ""]
+    [[x *xs] (+ (fmt x) (+ (if (= (list:length xs) 0) "" ", ") (f xs)))]
+  ))
+  (+ "[" (+ (f xs) "]"))
+})
 
 (declare (fromList a) (-> any [a]))
 
@@ -17,7 +25,11 @@
   [Nil Nil]
   [(Cons x xs) (Cons (f x) (list:map f xs))]))
 
-(defn list:iter [f x] (let _ (list:map f x) 0)))
+(defn list:iter [f x] (let _ (list:map f x) 0))
+
+(defn list:at [x i] (match x
+  [[] Nothing]
+  [[y *xs] (if (= i 0) (Just y) (list:at xs (- i 1)))]))
 
 (defn list:filter [pred list] (match list
   [Nil Nil]
