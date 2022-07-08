@@ -4,7 +4,7 @@ module Core.Inference.Type.Methods where
   import Core.Inference.Type.Pretty ()
   import qualified Data.Map as M
   import qualified Data.Set as S
-  import Control.Monad.RWS (modify, MonadState(get))
+  import Control.Monad.RWS (modify, MonadState(get), MonadIO (liftIO))
   import Data.Bifunctor (Bifunctor(second, bimap))
   import Debug.Trace (traceShow)
 
@@ -51,7 +51,7 @@ module Core.Inference.Type.Methods where
     tyFree _ = S.empty
 
     tyApply s (TVar i) = case M.lookup i s of
-      Just t -> tyApply s t
+      Just t -> t
       Nothing -> TVar i
     tyApply s (t1 :-> t2) = tyApply s t1 :-> tyApply s t2
     tyApply s (ListT t) = ListT $ tyApply s t
