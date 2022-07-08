@@ -1,0 +1,9 @@
+(data (Maybe a b) [
+  Nothing
+  (Just a b)
+])
+
+(defn maybe:show [x fmt] (match x
+  [Nothing "Nothing"]
+  [(Just y) (+ "Just " (fmt y))]))
+  
