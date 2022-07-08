@@ -5,8 +5,10 @@ module Core.Compiler.Definition.Generation where
   import Text.Printf (printf)
   import Data.Char (isLetter, ord)
   
+  isIdent x = isLetter x || x == '_'
+
   varify :: String -> String
-  varify x = "$" ++ concatMap (\x -> if isLetter x then [x] else show (ord x)) x
+  varify x = "$" ++ concatMap (\x -> if isIdent x then [x] else show (ord x)) x
 
   encodeUnicode16 :: String -> String
   encodeUnicode16 = concatMap escapeChar
