@@ -7,6 +7,7 @@ module Core.Parser.Parser where
   import Data.Maybe          (isJust, fromMaybe, fromJust, catMaybes)
   import Data.Void
   import Control.Monad (void)
+  import Core.Utility.Sugar (buildBeginSugar, eliminateSugar)
   {-
     Module: Quark parser
     Description: Lisp like parser using custom combinator library
@@ -63,7 +64,7 @@ module Core.Parser.Parser where
     x <- many parse'
     space >> char '}'
     Just <$> let xs = catMaybes x
-      in return $ Node (Identifier "begin") xs
+      in return $ buildBeginSugar xs
 
   list :: MonadParsec Void String m => m (Maybe Expression)
   list = do
