@@ -4,11 +4,16 @@
 ])
 
 (defn map:insert [k a map] (Insert k a map))
+
+(defn map:length [map] (match map
+  [Empty 0]
+  [(Insert _ _ m) (+ 1 (map:length m))]))
+
 (let map:empty Empty)
 
 (defn map:filter [pred map] (match map
   [Empty Empty]
-  [(Insert k a map) (if (pred k) (map:insert k a (map:filter pred map)) (map:filter pred map))]))
+  [(Insert k a m) (if (pred k) (map:insert k a (map:filter pred m)) (map:filter pred map))]))
 
 (defn map:map [f map] (match map
   [Empty Empty]
