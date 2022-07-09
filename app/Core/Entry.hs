@@ -1,60 +1,48 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE LambdaCase #-}
 module Core.Entry where
-  import Core.Parser.Utils.Module (parse)
-  import Core.Parser.Utils.Garbage (runGarbageCollector)
-  import Core.Parser.Utils.ConstantPropagation (propagate, runRemover)
-  import Core.Parser.Macros (runMacroCompiler)
-  --import Core.Parser.Utils.ClosureConversion -- (runConverter, closures)
-  import Core.Compiler.Javascript (runCompiler, from)
-  import Core.Inference.Type (runInfer)
-  import Core.Parser.Utils.Imports
-  import Prelude hiding (curry)
-  import Core.Parser.Utils.Curry
-
-  import System.Environment (getArgs)
-  import System.Directory
-  import System.Process
-  import System.FilePath ((</>), (-<.>))
-  import Data.Bifunctor (Bifunctor(first))
-  import Data.Foldable (foldlM)
-
-  import Core.Color
+  import Core.Quark
+  import System.FilePath ( (</>), takeDirectory )
   import qualified Data.Map as M
-  import qualified Core.Compiler.Uncurry as U
-  import Data.List
-
-  compile :: (String, String) -> String -> IO ()
-  compile (dir, source) c = do
-    let src = source -<.> "js"
-    let cppOutput = dir </> src
-
-    writeFile cppOutput c
-    putStrLn $ bMagenta source ++ " has been compiled to " ++ bMagenta src
-
-  run :: (String, String) -> IO ()
+  import Core.Import.Duplicates (getImports)
+  import Core.Import.Remover
+  import Core.Inference.Type (runInfer)
+  import Control.Monad.RWS (liftM, MonadIO (liftIO))
+  import Control.Arrow (Arrow(second))
+  import Core.Closure.Converter (runConverter)
+  import Data.Foldable (foldlM)
+  import Core.Utility.Error (parseError, printError)
+  import Core.Constant.Propagation (propagate)
+  import Core.Compiler.Compiler (runCompiler)
+  import Core.Compiler.Definition.Generation (from)
+  import Core.Utility.Sugar (eliminateSugar)
+  
+  run :: (String, String) -> IO (Either (String, Maybe String) String)
   run (dir, file) = do
     let src = dir </> file
-    res <- parse src
-    case res of
-      Nothing -> return ()
-      Just ast -> do
-        ast <- resolve ast
-        m <- runMacroCompiler ast
-        -- propagating constants and removing useless code
-        let r = runRemover $ propagate m
-        let curried = curry r
-        -- creating a typed AST
-        t  <- runInfer curried
-
-        (t', _) <- foldlM (\(acc, i) x -> do
-          (acc', i') <- U.runUncurry x i
-          return (acc ++ [acc'], i')) ([], M.empty) t
-
-        (c, _) <- foldlM (\(res, c) x -> do
-          (output, c') <- runCompiler x c
-          return (res ++ [output], c')) ([], M.empty) t'
-        let c' = intercalate "\n" $ map from c ++ ["$main(fromList(process.argv));"]
-        compile (dir, file) c'
-
-
-
+    content <- readFile src
+    let ast = parseLisp content
+    case ast of
+      Right ast -> do
+        ast' <- fmap (map snd) <$> getImports (takeDirectory src) ast
+        let res = fmap concat ((++[runImportRemover ast]) <$> ast')
+        case res of
+          Right ast' -> do
+            let env = runEnvironments ast'
+            let x = map eliminateSugar <$> runMacroCompiler (compileMany $ runMacroRemover ast') env
+            case fmap (map propagate) x of
+              Right x -> do
+                x' <- runInfer x
+                case x' of
+                  Right x ->do
+                    --(x, closures, _) <- foldlM (\(acc, cl, i) x -> do
+                    --  (cl', x', i') <- runConverter x i
+                    --  return (acc ++ [x'], cl ++ cl', i')) ([], [], 0) x
+                    (c, _) <- foldlM (\(acc, st) x -> do
+                      (x', st') <- runCompiler x st
+                      return (acc ++ [x'], st')) ([], M.empty) x
+                    return . Right $ concatMap ((++";") . from) c ++ "$main();"
+                  Left err -> return $ Left (second (Just . show) err)
+              Left err -> return $ Left (err, Nothing)
+          Left err -> return $ Left (parseError err)
+      Left err -> return $ Left (parseError err)

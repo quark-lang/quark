@@ -1,37 +1,17 @@
+{-# LANGUAGE LambdaCase #-}
 module Main where
-  import System.Environment (getArgs)
-  import System.Directory
-  import System.FilePath ((</>))
+  import System.Directory (getCurrentDirectory)
   import Core.Entry (run)
-  import Core.CLI
-  import Core.Color
-
-  help :: IO ()
-  help = do
-    putStrLn $ bold "Quark " ++ bMagenta "0.0.1" ++ bBlack " - A functionnal programming language."
-    putStrLn ""
-    putStrLn $ "Usage: " ++ bBlack "quark [options]"
-    putStrLn "Commands:"
-    putStrLn $ "  " ++ bBlack "help" ++ "  => Show this help."
-    putStrLn $ "  " ++ bBlack "build" ++ " => Build quark file."
-
+  import System.FilePath
+  import Core.Utility.Error (printError)
+  
   build :: String -> IO ()
   build x = do
     dir <- getCurrentDirectory
-    run (dir, x)
+    run (dir, x) >>= \case
+      Left err -> printError err
+      Right js -> do
+        writeFile (dir </> x -<.> "js") js
 
   main :: IO ()
-  main = do
-    x <- parseCommand <$> getArgs
-    case x of
-      Just (Command name opts) ->
-        case name of
-          "build" -> case opts of
-            [] -> alert "No target specified!"
-            (Raw file:_) -> build file
-            _ -> alert "Invalid option!"
-          "help" -> help
-          x -> build x
-      Nothing -> do
-        putStrLn $ bold "Quark " ++ bMagenta "0.0.1" ++ bBlack " - A functionnal programming language."
-        putStrLn $ "Type " ++ bMagenta "quark help" ++ " to start."
+  main = build "tests/facto.qrk"

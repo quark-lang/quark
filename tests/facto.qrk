@@ -1,5 +1,13 @@
 (import "std:prelude.qrk")
+
 (defn facto [n]
   (match n
     [0 1]
     [_ (* n (facto (- n 1)))]))
+
+(declare int:show (-> int str))
+(let int:show (. yellow to_string))
+
+(defn main [] {
+  (list:iter (. print int:show) [1 2 3])
+})

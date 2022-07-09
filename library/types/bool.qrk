@@ -1,0 +1,10 @@
+(declare true bool)
+(let true (Var "true"))
+
+(declare false bool)
+(let false (Var "false"))
+
+(defm if [cond then else]
+  (match cond
+    [true then]
+    [false else]))

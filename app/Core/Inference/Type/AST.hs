@@ -1,15 +1,15 @@
 module Core.Inference.Type.AST where
-  import Core.Parser.AST (AST)
+  import Core.Parser.AST (Expression)
   import Data.Map (Map)
-  import Core.Inference.Kind (KindEnv)
   import Control.Monad.RWS (MonadIO, MonadRWS)
-
+  import Control.Monad.Except (MonadError)
+  
   type Argument = (String, Type)
   data TypedPattern
     = VarP String Type
     | LitP Literal Type
     | WilP Type
-    | AppP TypedPattern TypedPattern Type
+    | AppP String [TypedPattern] Type
     deriving Eq
 
   getTypeP :: TypedPattern -> Type
@@ -26,14 +26,13 @@ module Core.Inference.Type.AST where
     deriving Eq
 
   data TypedAST
-    = AppE TypedAST TypedAST Type
-    | AbsE Argument TypedAST
+    = AppE TypedAST [TypedAST] Type
+    | AbsE [Argument] TypedAST
     | VarE String Type
     | LetInE Argument TypedAST TypedAST
     | ListE [TypedAST] Type
     | LetE Argument TypedAST
     | LitE Literal Type
-    | IfE TypedAST TypedAST TypedAST
     -- (Name, [Generics])
     | DataE (String, [Type]) [(String, Type)]
     -- Pattern | [(Case, AST)]
@@ -48,19 +47,19 @@ module Core.Inference.Type.AST where
   getType (ListE _ t) = t
   getType (LetE _ t) = getType t
   getType (LitE _ t) = t
-  getType (IfE _ t _) = getType t
-  getType (DataE (n, (t:ts)) _) = TApp (TId n) $ foldr TApp t ts
+  getType (DataE (n, ts) _) = TApp (TId n) ts
   getType (PatternE _ ((_, x):_)) = getType x
+  getType _ = error "getType: not a valid type"
 
   data Type
     = TVar Int | TId String
-    | Type :-> Type
+    | [Type] :-> Type
     | Int | String | Float | Bool | Any
-    | TApp Type Type
+    | TApp Type [Type]
     | ListT Type
     deriving (Eq, Ord)
 
-  data Env = Env TypeEnv ConsEnv KindEnv
+  data Env = Env TypeEnv ConsEnv
 
   type SubTy   = Map Int Type
   type TypeEnv = Map String Scheme
@@ -69,4 +68,4 @@ module Core.Inference.Type.AST where
   data Scheme = Forall [Int] Type
     deriving (Eq, Ord)
 
-  type MonadType m = (MonadRWS Env () Int m, MonadIO m)
+  type MonadType m = (MonadRWS Env () Int m, MonadIO m, MonadError (String, Expression) m)

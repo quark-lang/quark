@@ -22,3 +22,4 @@ quark
 dist-*
 
 VM/
+tests/*.js

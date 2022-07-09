@@ -1,0 +1,14 @@
+(import "std:types/expression.qrk")
+(let putStr (fn [x]
+  (Call (Property (Var "process") (Property (Var "stdout") (Var "write"))) x)))
+
+(declare (to_string a) (-> a str))
+(let to_string (fn [x]
+  (Call (Property x (Var "toString")))))
+
+(declare print (-> str int))
+(let print (fn [x]
+  (let _ (putStr x)
+    (putStr "\n"))))
+
+(let error (fn [msg] (Block (Throw msg))))

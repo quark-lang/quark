@@ -1,6 +1,6 @@
 {-# LANGUAGE StandaloneDeriving #-}
 module Core.Inference.Type.Pretty where
-  import Core.Color (bold, bBlack, bGreen, bYellow, bBlue, bCyan)
+  import Core.Utility.Color (bold, bBlack, bGreen, bYellow, bBlue, bCyan)
   import Core.Inference.Type.AST
   import qualified Core.Parser.AST as A
   import Data.List (intercalate)
@@ -13,7 +13,7 @@ module Core.Inference.Type.Pretty where
 
   showPattern :: TypedPattern -> String
   showPattern (VarP n t) = n ++ " : " ++ show t
-  showPattern (AppP n x _) = bBlack "[" ++ showPattern n ++ bBlack "] " ++ showPattern x
+  showPattern (AppP n x _) = bBlack "[" ++ n ++ bBlack "] " ++ intercalate ", " (map showPattern x)
   showPattern (WilP _) = "_"
   showPattern (LitP l _) = show l
 
@@ -24,17 +24,18 @@ module Core.Inference.Type.Pretty where
     show (S s) = bGreen (show s)
     show (I i) = bYellow (show i)
     show (F f) = bYellow (show f)
+    show (C b) = bGreen (show b)
 
   showAST :: TypedAST -> Int -> String
   showAST (LetE (name, t) body) b
     = bBlue "let " ++ name ++ " = " ++ showAST body b ++ "\n"
-  showAST (AbsE (n, t) body) n' =
+  showAST (AbsE n body) n' =
     let i1    = createIndent (n' + 2)
         body' = showAST body (n' + 2)
-        lmbd  = bBlue "lambda " ++ n ++ " : " ++ show t ++ bBlack " ->\n" ++ i1
+        lmbd  = bBlue "lambda " ++ intercalate ", " (map (\(n, t) -> n ++ " : " ++ show t) n) ++ bBlack " ->\n" ++ i1
       in lmbd ++ body'
   showAST (AppE n arg t) i =
-    bBlack "[" ++ showAST n 0 ++ bBlack "] " ++ showAST arg 0
+    bBlack "[" ++ showAST n 0 ++ bBlack "] " ++ unwords (map (`showAST` 0) arg)
   showAST (VarE n t) _
     = n ++ " : " ++ show t
   showAST (LitE l _) _ = show l
@@ -49,12 +50,8 @@ module Core.Inference.Type.Pretty where
     bBlue "data " ++ bold name ++ " " ++ unwords (map show generics) ++ "\n" ++
       createIndent (i + 2) ++ "= " ++ consName ++ " :: " ++ show ty ++ "\n" ++
       concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ n ++ " :: " ++ show t ++ "\n") xs
-  showAST (IfE cond then_ else_) i
-    = bBlue "if " ++ showAST cond (i + 2) ++ "\n" ++
-      createIndent 2 ++ bBlue "then " ++ showAST then_ (i + 2) ++ "\n" ++
-      createIndent 2 ++ bBlue "else " ++ showAST else_ (i + 2)
   showAST (PatternE pattern cases) i = bBlue "match " ++ show pattern ++ bBlue " with" ++ "\n" ++
-    concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ showPattern n ++ " => " ++ show t ++ "\n") cases
+    intercalate "\n" (map (\(n, t) -> createIndent (i + 2) ++ "| " ++ showPattern n ++ " => " ++ show t) cases)
   --showAST x _ = error "Pattern not recognized in showAST"
 
   parens :: String -> String
@@ -65,7 +62,7 @@ module Core.Inference.Type.Pretty where
   showTy (TVar n) _ = bBlack $ "a" ++ show n
   showTy (TId s) _ = bold s
   showTy (t1 :-> t2) (b1, b2) =
-    let s = showTy t1 (not b1 || b1, b2) ++ bBlack " -> " ++ showTy t2 (not b1 || b1, b2)
+    let s = intercalate ", " (map  (`showTy` (not b1 || b1, b2)) t1) ++ bBlack " -> " ++ showTy t2 (not b1 || b1, b2)
       in if b1 then parens s else s
   showTy Int _ = bCyan "Int"
   showTy Float _ = bCyan "Float"
@@ -73,7 +70,7 @@ module Core.Inference.Type.Pretty where
   showTy Bool _ = bCyan "Bool"
   showTy Any _ = bCyan "Any"
   showTy (TApp t1 t2) (b1, b2) =
-    let s = showTy t1 (b1, not b2 || b2) ++ " " ++ showTy t2 (b1, not b2 || b2)
+    let s = showTy t1 (b1, not b2 || b2) ++ " " ++ unwords (map (`showTy` (b1, not b2 || b2)) t2)
       in if b2 then parens s else s
 
   instance Show Type where

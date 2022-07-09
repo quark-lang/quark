@@ -1,111 +1,69 @@
-{-# LANGUAGE ConstraintKinds, FlexibleContexts #-}
 module Core.Compiler.Compiler where
-  import Core.Parser.AST
+  import Prelude hiding (and)
   import Control.Monad.State
-    (MonadIO(..), evalStateT, MonadState(get, put), evalStateT)
-  import GHC.Float (float2Double)
-  import Core.Parser.Macros (unliteral)
-  import Data.Functor ((<&>))
-  import Core.Parser.Utils.ClosureConversion
-    (ClosuredAST, ClosuredNode(..))
-  import Core.Compiler.Instruction
-    (Section(..), Instruction(..))
+    (MonadIO, MonadState(get), StateT(runStateT))
+  import qualified Data.Map as M
+  import Control.Arrow (Arrow(second))
+  import Data.Traversable (for)
+  import Core.Inference.Type.AST (TypedAST(..), Literal(S))
+  import Core.Compiler.Definition.Generation (varify)
+  import Core.Compiler.Definition.IR
+    (Expression(..), MonadCompiler, Constructors)
+  import Core.Compiler.Modules.Pattern (compileCase)
+  import Core.Compiler.Modules.ADT (compileData)
+  
+  {-
+    Module: CLang compilation
+    Description: Output C from Quark AST
+    Author: thomasvergne
+  -}
 
-  data Lambda = Lambda {
-    pointer :: Int,
-    variables :: [(String, Int)]
-  } deriving Show
+  compilePattern :: MonadCompiler m => TypedAST -> m Expression
+  compilePattern (PatternE x pats) = do
+    x <- compile x
+    Call <$> (Lambda [] . Block <$> mapM (\(p, b) -> do
+      b <- compile b
+      p <- compileCase p
+      return $ p x b) pats) <*> pure []
+  compilePattern _ = error "compilePattern: not a pattern"
 
-  type LambdaState m = (MonadState Lambda m, MonadIO m)
+  compile :: MonadCompiler m => TypedAST -> m Expression
+  -- JS AST Generation
+  compile (AppE (VarE "Call" _) [n] _) = Call <$> compile n <*> pure []
+  compile (AppE (VarE "Call" _) [n, x] _) = Call <$> compile n <*> ((:[]) <$> compile x)
+  compile (AppE (VarE "Property" _) [obj, prop] _) = Property <$> compile obj <*> compile prop
+  compile (AppE (VarE "Var" _) [LitE (S x) _] _) = return $ Var x
+  compile (AppE (VarE "Throw" _) [x] _) = Throw <$> compile x
+  compile (AppE (VarE "Block" _) xs _) = Block <$> mapM compile xs
+  compile (AppE (VarE "require" _) [LitE (S path) _] _) = return $ Require path
+  compile (AppE (VarE "extern" _) [LitE (S content) _] _) = return $ Raw content
 
-  addPointer :: LambdaState m => String -> m Int
-  addPointer n = do
-    Lambda p vars <- get
-    put $ Lambda (p + 1) ((n, p) : vars)
-    return p
+  -- Binary calls
+  compile (AppE (VarE "*" _) [x, y] _) = BinaryCall <$> compile x <*> pure "*" <*> compile y
+  compile (AppE (VarE "=" _) [x, y] _) = BinaryCall <$> compile x <*> pure "===" <*> compile y
+  compile (AppE (VarE "!" _) [x] _)    = Call (Var "!") . (:[]) <$> compile x
+  compile (AppE (VarE "-" _) [x, y] _) = BinaryCall <$> compile x <*> pure "-" <*> compile y
+  compile (AppE (VarE "+" _) [x, y] _) = BinaryCall <$> compile x <*> pure "+" <*> compile y
+  compile (AppE (VarE "/" _) [x, y] _) = BinaryCall <$> compile x <*> pure "/" <*> compile y
 
-  getPointer :: LambdaState m => String -> m Int
-  getPointer n = do
-    Lambda p vars <- get
-    case lookup n vars of
-      Just p' -> return p'
-      Nothing -> liftIO (print n) >> return (-1)
+  compile (AppE (VarE n _) args _) = get >>= \e -> case M.lookup (varify n) e of
+    -- Checking if it's a constructor
+    Just obj -> Call (Property (Var obj) (Var $ varify n)) <$> mapM compile args
+    Nothing -> Call (Var $ varify n) <$> mapM compile args
+  compile (AppE n xs _) = Call <$> compile n <*> mapM compile xs
+  compile (AbsE args body) = Lambda (map (varify . fst) args) <$> compile body
+  compile (VarE t _) = get >>= \e -> case M.lookup (varify t) e of
+    Just obj -> return $ Property (Var obj) (Var $ varify t)
+    Nothing -> return . Var . varify $ t
+  compile (LetInE (n, _) value expr) = do
+    value <- compile value
+    expr  <- compile expr
+    return $ Call (Lambda [varify n] expr) [Call (Lambda [] $ Block [Let (varify n) value, Return (Var $ varify n)]) []]
+  compile (ListE exprs _) = Array <$> mapM compile exprs
+  compile (LetE (n, _) value) = Let (varify n) <$> compile value
+  compile (LitE l _) = return $ Lit l
+  compile z@(DataE _ _) = compileData z
+  compile z@(PatternE _ _) = compilePattern z
 
-  toInt :: Float -> Int
-  toInt = round
-
-  startsWith :: String -> String -> Bool
-  startsWith a b = a == take (length a) b
-
-  removeStringFromString :: String -> String -> String
-  removeStringFromString a = drop (length a)
-
-  compileLambda :: LambdaState m => ClosuredNode -> Int -> m Section
-  compileLambda (Closure name args (env, body)) i = do
-    mapM_ addPointer $ args ++ env
-    Section i . (++ [RETURN]) <$> helper body
-    where helper :: LambdaState m => AST -> m [Instruction]
-          helper (Node (Literal "let") [Literal name, value]) = do
-            addr <- addPointer name
-            v <- helper value
-            return $ v ++ [STORE addr]
-          -- make-closure is a function which takes a lambda and captured environment and loading it while loading the environment too
-          helper (Node (Literal "make-closure") (name:env)) = do
-            section <- helper name
-            addrs <- mapM (getPointer . unliteral) env
-            case section of
-              [] -> error "No closures with this name"
-              [LOAD_SECTION x] -> return [LOAD_CLOSURE x addrs]
-              _ -> error "Multiple closures with this name"
-
-          helper (Node (Literal "begin") xs) = concat <$> mapM helper xs
-          helper (Node (Literal "print") [value]) = helper value <&> (++ [EXTERN 0])
-          helper (Node (Literal "input") [value]) = helper value <&> (++ [EXTERN 1])
-          helper (Node (Literal "=") [lhs, rhs]) = do
-            lhs' <- helper lhs
-            rhs' <- helper rhs
-            return $ lhs' ++ rhs' ++ [EXTERN 2]
-
-          helper (Node (Literal "-") [lhs, rhs]) = do
-            lhs' <- helper lhs
-            rhs' <- helper rhs
-            return $ lhs' ++ rhs' ++ [EXTERN 3]
-
-          helper (Node (Literal "*") [lhs, rhs]) = do
-            lhs' <- helper lhs
-            rhs' <- helper rhs
-            return $ lhs' ++ rhs' ++ [EXTERN 4]
-
-          helper (Node (Literal "if") [cond, t, e]) = do
-            c <- helper cond
-            t' <- helper t
-            e' <- helper e
-            return $ c ++ [JUMP_ELSE (length t')] ++ t' ++ [JUMP_REL (length e')] ++ e'
-
-          helper (Node (Literal "drop") [Literal n]) =
-            if startsWith "lambda" n
-              then return []
-              else do
-                addr <- getPointer n
-                return [DROP addr]
-
-          helper (Node n xs) = do
-            n' <- helper n
-            xs' <- mapM helper xs
-            return $ n' ++ concat xs' ++ [CALL (length xs)]
-
-          helper (Literal n) =
-            if startsWith "lambda" n
-              then return [LOAD_SECTION . read $ removeStringFromString "lambda" n]
-              else do
-                addr <- getPointer n
-                return [LOAD addr]
-          helper (Float f)   = return [PUSH $ toInt f]
-          helper (Integer n) = return [PUSH $ fromInteger n]
-          helper x = return []
-  compileLambda (Application _) i = return $ Section (-i) []
-
-  compile :: (Monad m, MonadIO m) => ClosuredAST -> m [Section]
-  compile xs = do
-    let data' = zip [0..] xs
-      in mapM (\(i, x) -> evalStateT (compileLambda x i) (Lambda 0 [])) data'
+  runCompiler :: (Monad m, MonadIO m) => TypedAST -> Constructors -> m (Expression, Constructors)
+  runCompiler a = runStateT (compile a)

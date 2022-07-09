@@ -26,32 +26,53 @@ executable quark
 
     -- Modules included in this executable, other than Main.
     other-modules:
+        Core.Quark
         -- Parser related
         Core.Parser.Parser
         Core.Parser.AST
-        Core.Parser.Macros
+          Core.Parser.AST.Expression
+          Core.Parser.AST.Literal
+
+        -- Macro related
+        Core.Macro.Compiler
+        Core.Macro.Definition
+          Core.Macro.Definition.Macro
+          Core.Macro.Definition.Type
+        Core.Macro.Initializing
+          Core.Macro.Initializing.Environment
+          Core.Macro.Initializing.Remover
+        
+        Core.Import.Type
+        Core.Import.Duplicates
+        Core.Import.Remover
 
         Core.Inference.Type
-        Core.Inference.Kind
-        Core.Inference.Type.AST
-        Core.Inference.Type.Pretty
-        Core.Inference.Type.Methods
-        Core.Inference.Type.Parsing
+          Core.Inference.Type.AST
+          Core.Inference.Type.Methods
+          Core.Inference.Type.Parsing
+          Core.Inference.Type.Pretty
         
-        Core.Parser.Utils.ConstantPropagation
-        Core.Parser.Utils.Module
-        Core.Parser.Utils.Garbage
-        Core.Parser.Utils.Curry
-        --Core.Parser.Utils.ClosureConversion
-        Core.Parser.Utils.Imports
+        Core.Closure.Definition
+          Core.Closure.Definition.Closure
+          Core.Closure.Definition.Pretty
+        Core.Closure.Converter
 
-        --Core.Compiler.Compiler
-        Core.Compiler.Javascript
-        Core.Compiler.Uncurry
-        
+        Core.Utility.Color
+        Core.Utility.Error
+        Core.Utility.Sugar
+
+        Core.Constant.Instances
+        Core.Constant.Propagation
+
+        Core.Compiler.Compiler
+          Core.Compiler.Definition.Generation
+          Core.Compiler.Definition.IR
+          
+          Core.Compiler.Modules.Pattern
+          Core.Compiler.Modules.ADT
+
         Core.Entry
-        Core.Color
-        Core.CLI
+        Core.CLI.CLI
     -- LANGUAGE extensions used by modules in this package.
     default-extensions:
       ConstraintKinds
@@ -65,6 +86,7 @@ executable quark
       , filepath
       , containers
       , megaparsec
-      , projectroot
+      , semialign
+      , these
     hs-source-dirs:   app
     default-language: Haskell2010

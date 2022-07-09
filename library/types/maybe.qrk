@@ -1,0 +1,12 @@
+(data (Maybe a) [
+  Nothing
+  (Just a)
+])
+
+(defn maybe:show [x fmt] (match x
+  [Nothing (black_bright "Nothing")]
+  [(Just y) (+ (black_bright "Just ") (fmt y))]))
+  
+(defn maybe:fmap [f x] (match x
+  [Nothing Nothing]
+  [(Just y) (Just (f y))]))
