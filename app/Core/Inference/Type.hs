@@ -126,20 +126,9 @@ module Core.Inference.Type where
         t'    = generalize (tyApply s3 env) t2
         env'' = M.insert name t' env'
 
-    (b', s2, t2) <- local (applyTypes . const $ tyApply s1 env'') $ tyInfer body
-    return (LetInE (name, t1) (tyApply s3 v') b', s3 `tyCompose` s2, t2)
-
-  tyInfer (A.List elems) = do
-    (elems', s, t) <- foldlM (\(es, s, t) e -> do
-      (e', s', t') <- tyInfer e
-      return (es ++ [e'], s `tyCompose` s', t ++ [t'])) ([], M.empty, []) elems
-
-    let initType = head t
-    unless (all (==initType) t) $
-      let error = "Type mismatch with " ++ show initType ++ " and " ++ show (head $ filter (/=initType) t)
-        in throwError (error, A.List elems)
-
-    return (ListE elems' (head t), s, ListT (head t))
+    (b', s2, t2) <- local (applyTypes . const $ tyApply s3 env'') $ tyInfer body
+    let s4 = s3 `tyCompose` s2
+    return (LetInE (name, tyApply s4 t1) (tyApply s4 v') b', s4, tyApply s4 t2)
 
   -- Type inference errors
   tyInfer z@(A.Node (A.Identifier "let") _) 
@@ -161,7 +150,7 @@ module Core.Inference.Type where
     case tyUnify (t2 :-> tv) (tyApply s2 t1) of
       Right s3 -> do
         let x'' = tyApply s3 tv
-        return (AppE n' x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
+        return (AppE n' (tyApply s3 x') x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
       Left x -> throwError (x, z)
 
   -- Value related inference
@@ -202,9 +191,8 @@ module Core.Inference.Type where
                 return (s `tyCompose` s1, r)
               Left x -> throwError (x, z)
           Nothing -> return (s1, t1)
-
     let env'  = M.delete name env
-        t'    = generalize (tyApply s3 env) t2
+        t'    = generalize (tyApply s3 env) (tyApply s3 t2)
         env'' = M.insert name t' env'
     return (Just [LetE (name, t2) (tyApply s3 v')], Env env'' c)
 

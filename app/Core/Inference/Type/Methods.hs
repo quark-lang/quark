@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 module Core.Inference.Type.Methods where
   import Core.Inference.Type.AST
   import Core.Inference.Type.Pretty ()
@@ -7,7 +8,10 @@ module Core.Inference.Type.Methods where
   import Control.Monad.RWS (modify, MonadState(get), MonadIO (liftIO))
   import Data.Bifunctor (Bifunctor(second, bimap))
   import Debug.Trace (traceShow)
-
+  import Data.Semialign (Semialign(alignWith))
+  import Data.These (These(This, That, These))
+  import Data.Semialign.Indexed (SemialignWithIndex(ialignWith))
+  
   -- Some environment functions and types
   applyTypes :: (TypeEnv -> TypeEnv) -> Env -> Env
   applyTypes f (Env ty cons) = Env (f ty) cons
@@ -41,6 +45,13 @@ module Core.Inference.Type.Methods where
     | n `elem` tyFree t = Left $ "Occurs check failed: " ++ show t
     | otherwise = Right $ M.singleton n t
 
+  check :: SubTy -> SubTy -> Either String SubTy
+  check s1 s2 = foldl tyCompose M.empty <$> m
+    where m = sequence $ ialignWith (\i -> \case
+                This a -> Right (M.singleton i a)
+                That b -> Right (M.singleton i b)
+                These a b -> tyUnify a b) s1 s2
+
   instance Types Type where
     tyFree (TVar i) = S.singleton i
     tyFree (t1 :-> t2) = tyFree t1 `S.union` tyFree t2
@@ -62,8 +73,8 @@ module Core.Inference.Type.Methods where
     tyUnify t (TVar i) = variable i t
     tyUnify (t1 :-> t2) (t3 :-> t4)
       = let s1 = foldl (\acc (t, t') -> case tyUnify t t' of
-                          Right s -> tyCompose <$> acc <*> pure s
-                          Left s -> Left s) (Right M.empty) $ zip t1 t3
+                   Right s -> acc >>= check s
+                   Left s -> Left s) (Right M.empty) $ zip t1 t3
           in tyCompose <$> s1 <*> tyUnify t2 t4
     tyUnify (TId s) (TId s') = if s == s'
       then Right M.empty
@@ -77,8 +88,8 @@ module Core.Inference.Type.Methods where
     tyUnify (TApp t1 t2) (TApp t3 t4) =
       let s1 = tyUnify t1 t3
           s2 = foldl (\acc (t, t') -> case tyUnify t t' of
-                          Right s -> tyCompose <$> acc <*> pure s
-                          Left s -> Left s) (Right M.empty) $ zip t2 t4
+                Right s -> acc >>= check s
+                Left s -> Left s) (Right M.empty) $ zip t2 t4
         in tyCompose <$> s1 <*> s2
     tyUnify s1 s2 = Left $ "Type " ++ show s1 ++ " mismatches with type " ++ show s2
   instance Types Scheme where
