@@ -1,22 +1,13 @@
 (import "std:prelude.qrk")
 
-(data (Maybe a b) [
-  Nothing
-  (Just a b)
-])
-
 (defn facto [n]
   (match n
     [0 1]
     [_ (* n (facto (- n 1)))]))
 
-(defn . [f g]
-  (fn [x] (f (g x))))
-
-(let m (Insert 1 2 (Insert 3 4 Empty)))
-
+(declare int:show (-> int str))
 (let int:show (. yellow to_string))
 
-(defn main [] (match [1 2 3]
-  [[x *xs] (list:iter (. print int:show) xs)]
-  [[] (print (int:show 45))])))
+(defn main [] {
+  (list:iter (. print int:show) [1 2 3])
+})
