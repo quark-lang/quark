@@ -1,22 +1,60 @@
 module Core.Utility.Sugar where
   import Core.Parser.AST (Expression(..))
   import Data.List (isPrefixOf)
-  
+
+  buildCall :: Expression -> [Expression] -> Expression
+  buildCall f [] = f
+  buildCall call (x:args) = buildCall (Node call [x]) args
+
+  buildClosure :: [Expression] -> Expression -> Expression
+  buildClosure [] b = b
+  buildClosure (x:xs) b = Node (Identifier "fn") [List [x], buildClosure xs b]
+
+  isConsCall :: Expression -> Bool
+  isConsCall (Node (Identifier (n:_)) _) = n `elem` ['A'..'Z']
+  isConsCall _ = False
+
+  reserved :: Expression -> Bool
+  reserved (Node (Identifier "declare") _) = True
+  reserved (Node (Identifier "let") _) = True
+  reserved _ = False
+
   eliminateSugar :: Expression -> Expression
   eliminateSugar (Node (Identifier "begin") xs) = buildBeginSugar xs
   eliminateSugar (Node (Identifier "match") (pat:cases)) =
     let cases' = map (\(List [pat, expr]) -> List [eliminateSugar pat, eliminateSugar expr]) cases
       in Node (Identifier "match") (eliminateSugar pat:cases')
-  eliminateSugar (Node (Identifier "fn") [args, body]) = Node (Identifier "fn") [args, eliminateSugar body]
+  eliminateSugar (Node (Identifier "fn") [List args, body])
+    = if not (null args)
+        then buildClosure args (eliminateSugar body)
+        else Node (Identifier "fn") [List args, eliminateSugar body]
   eliminateSugar z@(Node (Identifier "data") _) = z
-  eliminateSugar (Node n xs) = Node (eliminateSugar n) (map eliminateSugar xs)
+  eliminateSugar (Node (Identifier "let") [name, value])
+    = Node (Identifier "let") [name, eliminateSugar value]
+  eliminateSugar (Node (Identifier "let") [name, value, body])
+    = Node (Identifier "let") [name, eliminateSugar value, eliminateSugar body]
+  eliminateSugar e@(Node n xs) =
+    let z@(Node n' xs') = Node (eliminateSugar n) (map eliminateSugar xs)
+      in if isConsCall e 
+        then Node n xs' 
+        else if reserved e
+          then e 
+          else buildCall n' xs'
   eliminateSugar (List xs) = buildList xs
   eliminateSugar x = x
-  
+
   buildBeginSugar :: [Expression] -> Expression
   buildBeginSugar [x] = eliminateSugar x
-  buildBeginSugar (Node (Identifier "let") [Identifier name, value]:xs) = Node (Identifier "let") [Identifier name, eliminateSugar value, buildBeginSugar xs]
-  buildBeginSugar (x:xs) = Node (Identifier "let") [Identifier "_", eliminateSugar x, buildBeginSugar xs]
+  buildBeginSugar (Node (Identifier "let") [Identifier name, value]:xs)
+    = Node (Identifier "let") [
+        Identifier name,
+        eliminateSugar value,
+        buildBeginSugar xs ]
+  buildBeginSugar (x:xs)
+    = Node (Identifier "let") [
+        Identifier "_",
+        eliminateSugar x,
+        buildBeginSugar xs ]
   buildBeginSugar [] = Identifier "nil"
 
   buildList :: [Expression] -> Expression
