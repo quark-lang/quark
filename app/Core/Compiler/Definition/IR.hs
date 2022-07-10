@@ -15,6 +15,7 @@ module Core.Compiler.Definition.IR where
     | Object [(String, Expression)]
     | Ternary Expression Expression Expression
     | Array [Expression]
+    | Index Expression Expression
     | Call Expression [Expression]
     | Property Expression Expression
     | BinaryCall Expression String Expression

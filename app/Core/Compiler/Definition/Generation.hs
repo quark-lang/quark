@@ -40,4 +40,5 @@ module Core.Compiler.Definition.Generation where
   from (Lit (I i)) = show i
   from (Require p) = "Object.entries(require(\"" ++ p ++ "\")).map(([name, exported]) => global[name] = exported);"
   from (Raw c) = c
+  from (Index e i) = from e ++ "[" ++ from i ++ "]"
   from _ = error "from: not implemented"

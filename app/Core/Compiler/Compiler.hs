@@ -27,16 +27,37 @@ module Core.Compiler.Compiler where
       return $ p x b) pats) <*> pure []
   compilePattern _ = error "compilePattern: not a pattern"
 
+  fromList :: TypedAST -> [TypedAST]
+  fromList (VarE "Nil" _) = []
+  fromList (AppE (VarE "Cons" _) [x, xs] _) = x : fromList xs
+  fromList _ = error "fromList: not a list"
+
   compile :: MonadCompiler m => TypedAST -> m Expression
   -- JS AST Generation
-  compile (AppE (VarE "Call" _) [n] _) = Call <$> compile n <*> pure []
-  compile (AppE (VarE "Call" _) [n, x] _) = Call <$> compile n <*> ((:[]) <$> compile x)
-  compile (AppE (VarE "Property" _) [obj, prop] _) = Property <$> compile obj <*> compile prop
-  compile (AppE (VarE "Var" _) [LitE (S x) _] _) = return $ Var x
-  compile (AppE (VarE "Throw" _) [x] _) = Throw <$> compile x
-  compile (AppE (VarE "Block" _) xs _) = Block <$> mapM compile xs
-  compile (AppE (VarE "require" _) [LitE (S path) _] _) = return $ Require path
-  compile (AppE (VarE "extern" _) [LitE (S content) _] _) = return $ Raw content
+  compile (AppE (VarE "call" _) [n] _) 
+    = Call <$> compile n <*> pure []
+  compile (AppE (AppE (VarE "call" _) [n] _) [x] _) 
+    = Call <$> compile n <*> ((:[]) <$> compile x)
+  compile (AppE (AppE (VarE "property" _) [obj] _) [prop] _) 
+    = Property <$> compile obj <*> compile prop
+  compile (AppE (VarE "var" _) [LitE (S x) _] _) 
+    = return $ Var x
+  compile (AppE (VarE "throw" _) [x] _) 
+    = Block . (:[]) . Throw <$> compile x
+  compile (AppE (AppE (VarE "index" _) [x] _) [i] _) 
+    = Index <$> compile x <*> compile i
+  compile (AppE (AppE (AppE (VarE "binary" _) [x] _) [LitE (S op) _] _) [y] _) 
+    = BinaryCall <$> compile x <*> pure op <*> compile y
+  compile (AppE (VarE "block" _) [x] _) 
+    = Block <$> mapM compile (fromList x)
+  compile (AppE (VarE "return" _) [x] _) 
+    = Return <$> compile x
+  compile (AppE (AppE (VarE "condition" _) [cond] _) [then'] _) 
+    = Condition <$> compile cond <*> compile then'
+  compile (AppE (VarE "require" _) [LitE (S path) _] _) 
+    = return $ Require path
+  compile (AppE (VarE "extern" _) [LitE (S content) _] _) 
+    = return $ Raw content
 
   -- Binary calls
   compile (AppE (AppE (VarE "*" _) [x] _) [y] _) = BinaryCall <$> compile x <*> pure "*" <*> compile y
