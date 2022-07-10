@@ -1,3 +1,4 @@
+(import "std:modules/color.qrk")
 (data (Maybe a) [
   Nothing
   (Just a)
