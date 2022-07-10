@@ -17,6 +17,7 @@ module Core.Inference.Type where
   import Core.Utility.Color (red, bBlack, bold)
   import Control.Monad.Except (runExceptT, MonadError (throwError))
   import Data.Either (fromLeft, isLeft)
+  import GHC.Float (double2Float)
   
   tyPattern :: MonadType m => A.Expression -> m (TypedPattern, SubTy, Type, M.Map String Type)
   tyPattern (A.Identifier "_") = do
@@ -212,15 +213,8 @@ module Core.Inference.Type where
     return (Nothing, applyTypes (`M.union` M.singleton name (generalize t ty)) e)
   topLevel x = throwError ("Unknown top-level expression received", x)
 
-  functions :: TypeEnv
-  functions = M.fromList [
-      ("*", Forall [] $ [Int, Int] :-> Int),
-      ("-", Forall [] $ [Int, Int] :-> Int)
-    ]
-
   runInfer :: MonadIO m => [A.Expression] -> m (Either (String, A.Expression) [TypedAST])
-  runInfer a = do
-    let e = Env functions M.empty
+  runInfer a = 
     fmap fst <$> foldlM (\e x -> case e of
       Right (a, e) -> do
         x <- runExceptT $ runRWST (topLevel x) e 0
@@ -229,4 +223,4 @@ module Core.Inference.Type where
             Nothing -> a
             Just a' -> a ++ a', mergeEnv e e')
           Left err -> return $ Left err
-      Left err -> return $ Left err) (Right ([], e)) a
+      Left err -> return $ Left err) (Right ([], emptyEnv)) a

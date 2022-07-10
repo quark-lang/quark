@@ -5,7 +5,8 @@ module Core.Inference.Type.Parsing where
   import Core.Inference.Type.AST
   import Control.Monad (forM, unless)
   import Core.Inference.Type.Methods (tyFresh)
-
+  import Debug.Trace (traceShow)
+  
   buildDataType :: String -> [Type] -> Type
   buildDataType name = TApp (TId name)
 
@@ -23,8 +24,9 @@ module Core.Inference.Type.Parsing where
         in foldr (:->) d [xs']
 
   buildFun :: [Type] -> Type
-  buildFun [] = error "Cannot build function type"
-  buildFun xs = if length xs >= 2 then init xs :-> last xs else last xs
+  buildFun [] = error "Empty function"
+  buildFun [x] = x
+  buildFun (x:xs) = [x] :-> buildFun xs
 
   parseType :: M.Map String Type -> A.Expression -> Type
   parseType e (A.Node (A.Identifier "->") xs) = buildFun (map (parseType e) xs)

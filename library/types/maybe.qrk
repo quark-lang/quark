@@ -3,7 +3,7 @@
   (Just a)
 ])
 
-(defn maybe:show [x fmt] (match x
+(defn maybe:show [fmt x] (match x
   [Nothing (black_bright "Nothing")]
   [(Just y) (+ (black_bright "Just ") (fmt y))]))
   
