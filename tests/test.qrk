@@ -1,7 +1,12 @@
 (import "std:prelude.qrk")
+
 (declare int:show (-> int str))
 (let int:show (. yellow to_string))
 
+(defn str:show [x]
+  (green (+ "\"" (+ x "\""))))
+
 (defn main [] {
+  (print (to_string str:show))
   (print (list:show (maybe:show int:show) [(Just 4) (Just 5) (Just 6)]))
 })
