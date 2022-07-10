@@ -4,10 +4,3 @@
   (match n
     [0 1]
     [_ (* n (facto (- n 1)))]))
-
-(declare int:show (-> int str))
-(let int:show (. yellow to_string))
-
-(defn main [] {
-  (print (list:show (maybe:show int:show) [(Just 4) (Just 5) (Just 6)]))
-})
