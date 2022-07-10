@@ -14,6 +14,7 @@ module Core.Compiler.Definition.Generation where
   encodeUnicode16 = concatMap escapeChar
     where
       escapeChar c
+        | c == '\"' = "\\\""
         | ' ' <= c && c <= 'z' = [c]
         | otherwise = printf "\\u%04x" (fromEnum c)
         
