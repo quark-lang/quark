@@ -1,17 +1,7 @@
-{-# LANGUAGE LambdaCase #-}
 module Main where
-  import System.Directory (getCurrentDirectory)
-  import Core.Entry (run)
-  import System.FilePath
-  import Core.Utility.Error (printError)
+  import Core.CLI.CLI (runCLI)
+  import Core.CLI.Commands.Help (help)
+  import Core.CLI.Commands.Build (build)
   
-  build :: String -> IO ()
-  build x = do
-    dir <- getCurrentDirectory
-    run (dir, x) >>= \case
-      Left err -> printError err
-      Right js -> do
-        writeFile (dir </> x -<.> "js") js
-
   main :: IO ()
-  main = build "tests/facto.qrk"
+  main = runCLI [help, build]
