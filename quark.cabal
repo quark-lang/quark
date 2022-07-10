@@ -73,6 +73,9 @@ executable quark
 
         Core.Entry
         Core.CLI.CLI
+        Core.CLI.Type
+          Core.CLI.Commands.Build
+          Core.CLI.Commands.Help
     -- LANGUAGE extensions used by modules in this package.
     default-extensions:
       ConstraintKinds
