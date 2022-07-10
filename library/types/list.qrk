@@ -1,5 +1,4 @@
 (import "std:modules/math.qrk")
-(import "std:modules/io.qrk")
 (import "std:types/maybe.qrk")
 (data (List a) [
   Nil
@@ -19,7 +18,17 @@
   (+ "[" (+ (f xs) "]"))
 })
 
-(declare (fromList a) (-> any [a]))
+(defn fromList [ls] (block [
+  (condition (binary (property ls "length") "===" 0)
+    (return Nil))
+  (return (let x (index ls 0)
+    (let xs (call (property ls (var "slice")) 1)
+      (Cons x (fromList xs)))))
+]))
+
+(defn list:drop [n ls] (match ls
+  [(Cons _ xs) (if (= n 1) xs (list:drop (- n 1) xs))]
+  [Nil Nil]))
 
 (defn list:map [f list] (match list
   [Nil Nil]
