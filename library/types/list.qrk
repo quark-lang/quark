@@ -11,7 +11,7 @@
   [Nil 0]
   [(Cons _ xs) (+ 1 (list:length xs))]))
 
-(defn list:show [xs fmt] {
+(defn list:show [fmt xs] {
   (defn f [lst] (match lst
     [[] ""]
     [[x *xs] (+ (fmt x) (+ (if (= (list:length xs) 0) "" ", ") (f xs)))]
