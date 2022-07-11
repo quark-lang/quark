@@ -6,8 +6,6 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
-        cabal: ["3.4"]
-        ghc: ["8.10.7", "9.0.1"]
     runs-on: ${{ matrix.platform }}
     
     name: Compile quark on Linux
@@ -15,8 +13,8 @@ jobs:
       - uses: actions/checkout@master
       - uses: haskell/actions/setup@v1.2
         with:
-          ghc-version: ${{ matrix.ghc }}
-          cabal-version: ${{ matrix.cabal }}
+          ghc-version: 8.10.7
+          cabal-version: 3.4
       
       - name: Compile and ZIP Quark on Unix
         if: matrix.platform != 'windows-latest'
