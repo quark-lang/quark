@@ -6,35 +6,31 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
+        cabal: ["3.4"]
+        ghc: ["8.10.7", "9.0.1"]
     runs-on: ${{ matrix.platform }}
     
     name: Compile quark on Linux
     steps:
       - uses: actions/checkout@master
-      - name: Checkout submodules
-        run: |
-          git clone https://github.com/quark-lang/std
-          git clone https://github.com/quark-lang/cli
-      - name: Setup Node environment
-        uses: actions/setup-node@v2.1.5
+      - uses: haskell/actions/setup@v1.2
         with:
-          node-version: 14.15.3
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
       
-      - name: Compile node app into executable
-        run: |
-          npm install
-          npm run compile
-          ./node_modules/.bin/nexe
-        
-      - name: ZIP Quark on Unix
+      - name: Compile and ZIP Quark on Unix
         if: matrix.platform != 'windows-latest'
-        run: zip -r 'quark-${{ matrix.platform }}.zip' quark cli std README.md .quarkrc
-        
-      - name: ZIP Quark on Windows
+        run: |
+          cabal build
+          find dist-newstyle -type f -name 'quark' -exec mv '{}' quark \;
+          zip -r 'quark-${{ matrix.platform }}.zip' quark library README.md
+          
+      - name: Compile and ZIP Quark on Windows
         if: matrix.platform == 'windows-latest'
         run: |
-          ls
-          Compress-Archive -CompressionLevel Optimal -Force -Path quark.exe, cli, std, .quarkrc, README.md -DestinationPath 'quark-${{ matrix.platform }}.zip' 
+          cabal build
+          Get-ChildItem -Filter quark.exe -Recurse $pwd | Foreach {mv $_.fullname quark.exe}
+          Compress-Archive -CompressionLevel Optimal -Force -Path quark.exe, library, README.md -DestinationPath 'quark-${{ matrix.platform }}.zip' 
         
       - uses: AButler/upload-release-assets@v2.0
         with:
