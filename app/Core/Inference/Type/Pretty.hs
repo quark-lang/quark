@@ -76,5 +76,8 @@ module Core.Inference.Type.Pretty where
   instance Show Type where
     show = flip showTy (False, False)
 
-  deriving instance Show Scheme
+  instance Show Scheme where
+    show (Forall tv ty) = (if null tv then "" else "forall " ++ intercalate ", " tv' ++ ". ") ++ show ty
+      where tv' = map (\x -> bBlack $ "a" ++ show x) tv
+
   deriving instance Show Env
