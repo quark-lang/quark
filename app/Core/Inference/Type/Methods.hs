@@ -136,7 +136,7 @@ module Core.Inference.Type.Methods where
 
     tyApply s (VarP n t) = VarP n (tyApply s t)
     tyApply s (WilP t) = WilP (tyApply s t)
-    tyApply s (AppP p1 p2 t) = AppP p1 (tyApply s p2) (tyApply s t)
+    tyApply s (AppP p1 p2 t) = AppP p1 (map (tyApply s) p2) (tyApply s t)
     tyApply _ p = p
 
     tyUnify _ _ = error "Cannot unify pattern"

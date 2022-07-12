@@ -1,11 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
 module Core.Inference.Type where
   import qualified Data.Map as M
   import qualified Core.Parser.AST as A
   import Control.Monad.RWS
     ( MonadIO (liftIO),
       RWST(runRWST),
-      MonadReader(local, ask), when, void )
+      MonadReader(local, ask), when, void, forM )
   import Data.Foldable (foldlM)
   import Control.Monad (unless)
   import Core.Inference.Type.AST
@@ -18,25 +19,28 @@ module Core.Inference.Type where
   import Control.Monad.Except (runExceptT, MonadError (throwError))
   import Data.Either (fromLeft, isLeft)
   import GHC.Float (double2Float)
+  import Debug.Trace (traceShow)
   
-  tyPattern :: MonadType m => A.Expression -> m (TypedPattern, SubTy, Type, M.Map String Type)
+  tyPattern :: MonadType m => A.Expression -> m (TypedPattern, SubTy, Type, M.Map String Scheme)
   tyPattern (A.Identifier "_") = do
     t <- tyFresh
-    return (WilP t, M.empty, t, M.singleton "_" t)
-  tyPattern (A.Identifier n) = ask >>= \(Env t c) -> case M.lookup n (t `M.union` c) of
+    return (WilP t, M.empty, t, M.empty)
+  tyPattern (A.Identifier "true") = return (VarP "true" Bool, M.empty, Bool, M.empty)
+  tyPattern (A.Identifier "false") = return (VarP "false" Bool, M.empty, Bool, M.empty)
+  tyPattern (A.Identifier n) = ask >>= \(Env t c) -> case M.lookup n c of
     Just t -> do
       t' <- tyInstantiate t
       return (VarP n t', M.empty, t', M.empty)
     Nothing -> do
       t <- tyFresh
-      return (VarP n t, M.empty, t, M.singleton n t)
+      return (VarP n t, M.empty, t, M.singleton n (Forall [] t))
   tyPattern z@(A.Node e@(A.Identifier n) xs) = do
     tv <- tyFresh
     (n', s1, t1, m1) <- tyPattern e
     (x', s2, t2, m2) <- foldlM (\(x', s, t, m) x -> do
       (x'', s', t', m') <- local (applyTypes (tyApply s)) $ tyPattern x
       return (x' ++ [x''], s `tyCompose` s', t ++ [t'], m' `M.union` m)) ([], s1, [], M.empty) xs
-    case tyUnify (tyApply s2 t1) (t2 :-> tv) of
+    case tyUnify (t2 :-> tv) (tyApply s2 t1)  of
       Right s3 -> do
         let x'' = tyApply s3 tv
         return (AppP n x' x'', s3 `tyCompose` s2 `tyCompose` s1, x'', m1 `M.union` m2)
@@ -46,6 +50,9 @@ module Core.Inference.Type where
   tyPattern (A.Literal (A.Integer i)) = return (LitP (I i) Int, M.empty, Int, M.empty)
   tyPattern (A.Literal (A.Float f)) = return (LitP (F f) Float, M.empty, Float, M.empty)
   tyPattern x = error $ "tyPattern: not implemented => " ++ show x
+
+  patUnify :: Type -> [Type] -> Either String SubTy
+  patUnify x = foldl (\acc y -> tyCompose <$> tyUnify x y <*> acc) (Right M.empty)
 
   -- Main type inference function
   tyInfer :: MonadType m => A.Expression -> m (TypedAST, SubTy, Type)
@@ -59,35 +66,34 @@ module Core.Inference.Type where
   tyInfer z@(A.Node (A.Identifier "match") (pat:cases)) = do
     (pat', s1, pat_t) <- tyInfer pat
 
-    (xs', s2) <- foldlM (\(acc, s') l@(A.List [pattern, body]) -> do
-                  (pattern', s'', pattern_t, bound) <- local
-                                                        (applyTypes (tyApply s'))
-                                                        (tyPattern pattern)
-                  case tyUnify pattern_t (tyApply s'' pat_t) of
-                    Right s''' -> do
-                      let s2 =  s''' `tyCompose` s''
-                      let pattern2   = tyApply s2 pattern'
-                      let bound' = M.map (Forall [] . tyApply s2) bound
-                      (body', s3, body_t) <- local (applyTypes (\e -> tyApply s2 (e `M.union` bound'))) $ tyInfer body
+    let patterns = map (\(A.List [p, _]) -> p) cases
+    let exprs    = map (\(A.List [_, c]) -> c) cases
+    let cases'   = zip patterns exprs
 
-                      let body2 = tyApply s3 body'
-                      let body_t2 = tyApply s3 body_t
-
-                      let pattern3  = tyApply s3 pattern2
-                      unless (null acc) $ do
-                        let (_, _, t) = last acc
-                        let s4 = tyUnify t body_t2
-                        case s4 of
-                          Left err -> throwError (err, l)
-                          Right _ -> return ()
-                      return (acc ++ [(pattern3, body2, body_t2)], s2 `tyCompose` s3)
-                    Left x -> throwError (x, z)
-                  ) ([], s1) cases
-
-    let cases' = map (\(p, t, _) -> (p, t)) xs'
-    let t' = map (\(_, _, t) -> t) xs'
-    let s3 = s2 `tyCompose` s1
-    return (PatternE pat' cases', s3, last t')
+    res <- forM cases' $ \(pattern, expr) -> do
+      (p, s, t, m) <- tyPattern pattern
+      let s2 = s `tyCompose` s1
+      (e, s', t') <- local (applyTypes $ tyApply s2 . (m `M.union`)) $ tyInfer expr
+      let s3 = s' `tyCompose` s2
+      return (tyApply s3 t, tyApply s3 t', s3, (tyApply s3 p, tyApply s3 e))
+    
+    if null res 
+      then (PatternE pat' [], M.empty,) <$> tyFresh
+      else do
+        let (_, t, _, _) = head res
+        let s = foldl (\acc (tp, te, s, _) -> 
+                let r = tyCompose <$> tyUnify t te <*> tyUnify tp pat_t
+                    r' = tyCompose <$> acc <*> r
+                  in tyCompose s <$> r') (Right s1) res
+                
+        let tys = map (\(x, _, _, _) -> x) res
+        let s' = foldl (\acc x -> tyCompose <$> acc <*> patUnify x tys) (Right M.empty) tys
+        case tyCompose <$> s <*> s' of
+          Right s -> do
+            let patterns' = map (\(_, _, _, (x, y)) -> (tyApply s x, tyApply s y)) res
+            return (PatternE (tyApply s pat') patterns', s, t)
+          Left e -> throwError (e, z)
+          
 
   -- Type inference for abstractions
   tyInfer (A.Node (A.Identifier "fn") [A.List args, body]) = do
@@ -132,13 +138,13 @@ module Core.Inference.Type where
     return (LetInE (name, tyApply s4 t1) (tyApply s4 v') b', s4, tyApply s4 t2)
 
   -- Type inference errors
-  tyInfer z@(A.Node (A.Identifier "let") _) 
+  tyInfer z@(A.Node (A.Identifier "let") _)
     = throwError ("Cannot have let as last expression in block", z)
 
-  tyInfer z@(A.Node (A.Identifier "data") _) 
+  tyInfer z@(A.Node (A.Identifier "data") _)
     = throwError ("Cannot have nested data constructor", z)
 
-  tyInfer z@(A.Node (A.Identifier "declare") _) 
+  tyInfer z@(A.Node (A.Identifier "declare") _)
     = throwError ("Cannot have nested declaration", z)
 
   -- Type inference for applications
@@ -214,7 +220,7 @@ module Core.Inference.Type where
   topLevel x = throwError ("Unknown top-level expression received", x)
 
   runInfer :: MonadIO m => [A.Expression] -> m (Either (String, A.Expression) [TypedAST])
-  runInfer a = 
+  runInfer a =
     fmap fst <$> foldlM (\e x -> case e of
       Right (a, e) -> do
         x <- runExceptT $ runRWST (topLevel x) e 0
