@@ -1,13 +1,23 @@
 (declare (+ a) (-> a a a))
+(defn + [a b] (binary a "+" b))
+
 (declare (- a) (-> a a a))
+(defn - [a b] (binary a "-" b))
+
 (declare (* a) (-> a a a))
+(defn * [a b] (binary a "*" b))
+
 (declare (/ a) (-> a a a))
+(defn / [a b] (binary a "/" b))
 
 (declare (= a) (-> a a bool))
-(declare (! a) (-> a bool))
+(defn = [x y] (binary x "===" y))
 
-(declare (/= a) (-> a a bool))
-(let /= (fn [x y] (! (= x y))))
+(declare (! a) (-> a bool))
+(defn ! [x] (call (var "!") x))
 
 (defn . [f g]
   (fn [x] (f (g x))))
+
+(declare (/= a) (-> a a bool))
+(defn /= [x] (. ! (= x)))
