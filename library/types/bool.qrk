@@ -8,3 +8,8 @@
   (match cond
     [true then]
     [false else]))
+
+(defn bool:show [x]
+  (blue (match x
+    [true "true"]
+    [false "false"])))
