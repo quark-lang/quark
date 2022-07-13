@@ -105,8 +105,7 @@ module Core.Inference.Type where
 
     (b', s1, t1) <- local (applyTypes (const env'')) $ tyInfer body
     let argTy = tyApply s1 tvs
-
-    return (AbsE (zip args' argTy) b', s1, argTy :-> t1)
+    return (tyApply s1 $ AbsE (zip args' argTy) b', s1, argTy :-> t1)
 
   -- Type inference for let-polymorphic expressions
   tyInfer z@(A.Node (A.Identifier "let") [A.Identifier name, value, body]) = do
@@ -123,19 +122,20 @@ module Core.Inference.Type where
             t'' <- tyInstantiate t'
             case tyUnify t1 t'' of
               Right s -> do
-                let r = tyApply s t1
+                let s' = s `tyCompose` s1
+                let r = tyApply s' t1
                 unless (r == t'') $
                   throwError ("Type " ++ show r ++ " does not match type " ++ show t'', z)
-                return (s `tyCompose` s1, r)
+                return (s', r)
               Left x -> throwError (x, z)
           Nothing -> return (s1, t1)
     let env'  = M.delete name env
-        t'    = generalize (tyApply s3 env) t2
+        t'    = generalize (tyApply s3 env) (tyApply s3 t2)
         env'' = M.insert name t' env'
 
     (b', s2, t2) <- local (applyTypes . const $ tyApply s3 env'') $ tyInfer body
-    let s4 = s3 `tyCompose` s2
-    return (LetInE (name, tyApply s4 t1) (tyApply s4 v') b', s4, tyApply s4 t2)
+    let s4 = s2 `tyCompose` s3
+    return (LetInE (name, tyApply s4 t1) (tyApply s4 v') (tyApply s4 b'), s4, tyApply s4 t2)
 
   -- Type inference errors
   tyInfer z@(A.Node (A.Identifier "let") _)
@@ -201,6 +201,7 @@ module Core.Inference.Type where
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) (tyApply s3 t2)
         env'' = M.insert name t' env'
+    --liftIO $ print (name, tyApply s3 t2)
     return (Just [LetE (name, tyApply s3 t2) (tyApply s3 v')], Env env'' c)
 
   -- Top-level declare used to define function type
