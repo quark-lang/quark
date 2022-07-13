@@ -36,8 +36,12 @@ module Core.Compiler.Compiler where
   -- JS AST Generation
   compile (AppE (VarE "call" _) [n] _) 
     = Call <$> compile n <*> pure []
+  compile (AppE (AppE (VarE "call" _) [LitE (S n) _] _) [x] _) 
+    = Call (Var n) <$> ((:[]) <$> compile x)
   compile (AppE (AppE (VarE "call" _) [n] _) [x] _) 
     = Call <$> compile n <*> ((:[]) <$> compile x)
+  compile (AppE (AppE (VarE "property" _) [LitE (S obj) _] _) [prop] _) 
+    = Property (Var obj) <$> compile prop
   compile (AppE (AppE (VarE "property" _) [obj] _) [prop] _) 
     = Property <$> compile obj <*> compile prop
   compile (AppE (VarE "var" _) [LitE (S x) _] _) 
@@ -52,8 +56,8 @@ module Core.Compiler.Compiler where
     = Block <$> mapM compile (fromList x)
   compile (AppE (VarE "return" _) [x] _) 
     = Return <$> compile x
-  compile (AppE (AppE (VarE "condition" _) [cond] _) [then'] _) 
-    = Condition <$> compile cond <*> compile then'
+  compile (AppE (AppE (AppE (VarE "condition" _) [cond] _) [then'] _) [else'] _)
+    = Ternary <$> compile cond <*> compile then' <*> compile else'
   compile (AppE (VarE "require" _) [LitE (S path) _] _) 
     = return $ Require path
   compile (AppE (VarE "extern" _) [LitE (S content) _] _) 
