@@ -18,6 +18,7 @@
   (+ "[" (+ (f xs) "]"))
 })
 
+(declare (fromList a b) (-> a [b]))
 (defn fromList [ls] (block [
   (condition (binary (property ls "length") "===" 0)
     (return Nil))
