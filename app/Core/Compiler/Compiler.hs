@@ -59,14 +59,6 @@ module Core.Compiler.Compiler where
   compile (AppE (VarE "extern" _) [LitE (S content) _] _) 
     = return $ Raw content
 
-  -- Binary calls
-  compile (AppE (AppE (VarE "*" _) [x] _) [y] _) = BinaryCall <$> compile x <*> pure "*" <*> compile y
-  compile (AppE (AppE (VarE "=" _) [x] _) [y] _) = BinaryCall <$> compile x <*> pure "===" <*> compile y
-  compile (AppE (VarE "!" _) [x] _)    = Call (Var "!") . (:[]) <$> compile x
-  compile(AppE (AppE (VarE "-" _) [x] _) [y] _) = BinaryCall <$> compile x <*> pure "-" <*> compile y
-  compile(AppE (AppE (VarE "+" _) [x] _) [y] _) = BinaryCall <$> compile x <*> pure "+" <*> compile y
-  compile(AppE (AppE (VarE "/" _) [x] _) [y] _) = BinaryCall <$> compile x <*> pure "/" <*> compile y
-
   compile (AppE (VarE n _) args _) = get >>= \e -> case M.lookup (varify n) e of
     -- Checking if it's a constructor
     Just obj -> Call (Property (Var obj) (Var $ varify n)) <$> mapM compile args
