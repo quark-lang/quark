@@ -1,11 +1,11 @@
 (import "std:types/expression.qrk")
 (import "std:types/list.qrk")
 (let putStr (fn [x]
-  (call (property (var "process") (property (var "stdout") (var "write"))) x)))
+  (call (property "process" (property "stdout" "write")) x)))
 
 (declare (to_string a) (-> a str))
 (let to_string (fn [x]
-  (call (property x (var "toString")))))
+  (call (property x "toString"))))
 
 (declare print (-> str int))
 (let print (fn [x]
@@ -14,7 +14,7 @@
 
 (let error (fn [msg] (throw msg)))
 
-(let argv (fromList (property (var "process") (var "argv"))))
+(let argv (fromList (property "process" "argv")))
 
 (declare args [str])
 (let args (list:drop 2 argv))

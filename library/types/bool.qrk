@@ -1,8 +1,6 @@
 (declare true bool)
-(let true (var "true"))
 
 (declare false bool)
-(let false (var "false"))
 
 (defm if [cond then else]
   (match cond

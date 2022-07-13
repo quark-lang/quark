@@ -19,13 +19,13 @@
 })
 
 (declare (fromList a b) (-> a [b]))
-(defn fromList [ls] (block [
+(defn fromList [ls] 
   (condition (binary (property ls "length") "===" 0)
-    (return Nil))
-  (return (let x (index ls 0)
-    (let xs (call (property ls (var "slice")) 1)
-      (Cons x (fromList xs)))))
-]))
+    Nil
+    (let x (index ls 0)
+      (let xs (call (property ls "slice") 1)
+        (Cons x (fromList xs)))))
+)
 
 (defn list:drop [n ls] (match ls
   [(Cons _ xs) (if (= n 1) xs (list:drop (- n 1) xs))]

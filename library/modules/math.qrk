@@ -14,7 +14,7 @@
 (defn = [x y] (binary x "===" y))
 
 (declare (! a) (-> a bool))
-(defn ! [x] (call (var "!") x))
+(defn ! [x] (call "!" x))
 
 (defn . [f g]
   (fn [x] (f (g x))))
