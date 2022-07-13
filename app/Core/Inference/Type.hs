@@ -85,16 +85,16 @@ module Core.Inference.Type where
                 let r = tyCompose <$> tyUnify t te <*> tyUnify tp pat_t
                     r' = tyCompose <$> acc <*> r
                   in tyCompose s <$> r') (Right s1) res
-                
-        let tys = map (\(x, _, _, _) -> x) res
+        let tys = map (\(x, _, _, _) -> case s of
+                    Right s -> tyApply s x
+                    Left _ -> x) res
         let s' = foldl (\acc x -> tyCompose <$> acc <*> patUnify x tys) (Right M.empty) tys
         case tyCompose <$> s <*> s' of
           Right s -> do
             let patterns' = map (\(_, _, _, (x, y)) -> (tyApply s x, tyApply s y)) res
-            return (PatternE (tyApply s pat') patterns', s, t)
+            return (PatternE (tyApply s pat') patterns', s, tyApply s t)
           Left e -> throwError (e, z)
           
-
   -- Type inference for abstractions
   tyInfer (A.Node (A.Identifier "fn") [A.List args, body]) = do
     tvs <- mapM (const tyFresh) args
@@ -201,7 +201,7 @@ module Core.Inference.Type where
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) (tyApply s3 t2)
         env'' = M.insert name t' env'
-    return (Just [LetE (name, t2) (tyApply s3 v')], Env env'' c)
+    return (Just [LetE (name, tyApply s3 t2) (tyApply s3 v')], Env env'' c)
 
   -- Top-level declare used to define function type
   topLevel z@(A.Node (A.Identifier "declare") [dat, def]) = do
