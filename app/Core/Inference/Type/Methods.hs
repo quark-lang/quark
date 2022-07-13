@@ -79,8 +79,6 @@ module Core.Inference.Type.Methods where
     tyUnify (TId s) (TId s') = if s == s'
       then Right M.empty
       else Left $ "Type " ++ s ++ " mismatches with type " ++ s'
-    tyUnify _ Any = Right M.empty
-    tyUnify Any _ = Right M.empty
     tyUnify (ListT t) (ListT t') = tyUnify t t'
     tyUnify Int Int = Right M.empty
     tyUnify String String = Right M.empty

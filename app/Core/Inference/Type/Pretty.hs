@@ -68,7 +68,6 @@ module Core.Inference.Type.Pretty where
   showTy Float _ = bCyan "Float"
   showTy String _ = bCyan "String"
   showTy Bool _ = bCyan "Bool"
-  showTy Any _ = bCyan "Any"
   showTy (TApp t1 t2) (b1, b2) =
     let s = showTy t1 (b1, not b2 || b2) ++ " " ++ unwords (map (`showTy` (b1, not b2 || b2)) t2)
       in if b2 then parens s else s

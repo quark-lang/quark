@@ -38,7 +38,6 @@ module Core.Inference.Type.Parsing where
   parseType e (A.Identifier "str") = String
   parseType e (A.Identifier "bool") = Bool
   parseType e (A.Identifier "int") = Int
-  parseType e (A.Identifier "any") = Any
   parseType e (A.Identifier n) = case M.lookup n e of
     Nothing -> TId n
     Just i  -> i
