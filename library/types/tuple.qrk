@@ -1,0 +1,15 @@
+(data (Tuple a b) [
+  (Tuple a b)
+])
+
+(defn fst [x] (match x
+  [(Tuple a _) a]))
+
+(defn snd [x] (match x
+  [(Tuple _ b) b]))
+
+(defn , [a b] (Tuple a b))
+
+(defn tuple:show [f1 f2 x]
+  (match x
+    [(Tuple a b) (+ "(" (+ (+ (f1 a) (+ ", " (f2 b))) ")"))]))
