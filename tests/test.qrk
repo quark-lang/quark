@@ -3,10 +3,26 @@
 (declare int:show (-> int str))
 (let int:show (. yellow to_string))
 
+(data Person [
+  (Person str str int)
+])
+
+(let facto (. list:product (list:range 1)))
+
 (defn str:show [x]
   (green (+ "\"" (+ x "\""))))
 
+(defn person:show [x] (match x
+  [(Person name last age) {
+    (let age_ (int:show age))
+    (+ "The user is " (+ name (+ " " (+ last (+ " and he is " (+ age_ " years old."))))))
+  }]))
+
 (defn main [] {
-  (print (to_string str:show))
-  (print (list:show (maybe:show int:show) [(Just 4) (Just 5) (Just 6)]))
+  (print (list:show str:show args))
+  (let thomas [(Person "Thomas" "Vergne" 16) (Person "Noé" "Vergne" 12)])
+  (list:iter (. print person:show) thomas)
+  (print (tuple:show int:show str:show (, 5 "test")))
+  (print (int:show (facto 5)))
+  (print (list:show int:show (++ (list:range 0 5) (list:range 6 10))))
 })
