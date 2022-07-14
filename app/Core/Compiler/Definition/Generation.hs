@@ -3,7 +3,7 @@ module Core.Compiler.Definition.Generation where
   import Core.Inference.Type.AST (Literal(..))
   import Data.List
   import Text.Printf (printf)
-  import Data.Char (isLetter, ord)
+  import Data.Char (isLetter, ord, isAlphaNum, isPrint)
   
   isIdent x = isLetter x || x == '_'
 
@@ -16,6 +16,7 @@ module Core.Compiler.Definition.Generation where
       escapeChar c
         | c == '\"' = "\\\""
         | ' ' <= c && c <= 'z' = [c]
+        | isPrint c = [c]
         | otherwise = printf "\\u%04x" (fromEnum c)
         
   from :: Expression -> String
