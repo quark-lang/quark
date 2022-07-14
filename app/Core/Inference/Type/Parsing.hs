@@ -38,6 +38,7 @@ module Core.Inference.Type.Parsing where
   parseType e (A.Identifier "str") = String
   parseType e (A.Identifier "bool") = Bool
   parseType e (A.Identifier "int") = Int
+  parseType e (A.Identifier "float") = Float
   parseType e (A.Identifier n) = case M.lookup n e of
     Nothing -> TId n
     Just i  -> i
@@ -67,5 +68,5 @@ module Core.Inference.Type.Parsing where
       A.Identifier name -> return (name, dataType)
       _ -> error "Invalid constructor"
 
-    return $ (M.map schemeCt (M.fromList constr'), DataE (name, tyVars) constr')
+    return (M.map schemeCt (M.fromList constr'), DataE (name, tyVars) constr')
   parseData _ _ = error "Invalid data type"
