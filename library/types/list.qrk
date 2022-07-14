@@ -44,3 +44,12 @@
 (defn list:filter [pred list] (match list
   [Nil Nil]
   [(Cons x xs) (if (pred x) (Cons x (list:filter pred xs)) (list:filter pred xs))]))
+
+(defn list:foldl [f init ls] (match ls 
+  [Nil init]
+  [(Cons x xs) (list:foldl f (f init x) xs)]))
+
+(let list:sum (list:foldl + 0))
+(let list:product (list:foldl * 1))
+
+(defn list:range [from to] (if (= from to) (Cons from Nil) (Cons from (list:range (+ from 1) to))))
