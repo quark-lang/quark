@@ -15,6 +15,9 @@ module Core.Macro.Initializing.Environment where
   runMacroEnvironment (Node (Identifier "defm") [Identifier name, List args, body]) =
     let macro = Macro name (identifiers args) body
       in M.singleton name macro
+  runMacroEnvironment (Node (Identifier "defm") [Identifier name, value]) =
+    let macro = Macro name [] value
+      in M.singleton name macro
   runMacroEnvironment _ = M.empty
 
   runEnvironments :: [Expression] -> Macros

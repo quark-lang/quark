@@ -22,7 +22,9 @@ module Core.Macro.Compiler where
     xs' <- mapM compile xs
     n'  <- compile n
     return $ Node n' xs'
-  compile (Identifier name) = return $ Identifier name
+  compile (Identifier name) = env >>= \e -> case M.lookup name e of
+    Just (Macro _ _ x) -> return x
+    Nothing -> return (Identifier name)
   compile (Literal l) = return $ Literal l
   compile (List xs) = List <$> mapM compile xs
 
