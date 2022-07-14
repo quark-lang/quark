@@ -53,3 +53,7 @@
 (let list:product (list:foldl * 1))
 
 (defn list:range [from to] (if (= from to) (Cons from Nil) (Cons from (list:range (+ from 1) to))))
+
+(defn ++ [a b] (match a
+  [Nil b]
+  [(Cons x xs) (Cons x (++ xs b))]))
