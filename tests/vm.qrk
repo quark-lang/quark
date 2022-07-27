@@ -1,0 +1,42 @@
+(import "std:prelude.qrk")
+
+(data Bytecode [
+  (PUSH int)
+  POP
+  ADD
+])
+
+(declare int:show (-> int str))
+(let int:show (. yellow to_string))
+
+(defn shift [list] (match list
+  [Nil Nil]
+  [(Cons x xs) xs]))
+
+(defn shift_with_list [list] (match list
+  [(Cons x xs) (Tuple x xs)]
+  [Nil (error "Cannot shift")]))
+
+(defn push [x list] (Cons x list))
+
+(defn bytecode:show [x] (match x
+  [(PUSH int) (+ "PUSH " (int:show x))]
+  [POP "POP"]
+  [ADD "ADD"]))
+
+(defn runVM [bytecode stack] (match bytecode
+  [[(PUSH int) *xs] (runVM xs (push int stack))]
+  [[POP *xs] (runVM xs (shift stack))]
+  [[ADD *xs] {
+    (let s (shift_with_list stack))
+    (let a (fst s))
+    (let s2 (shift_with_list (snd s)))
+    (let b (fst s2))
+    (runVM xs (push (+ a b) (snd s2)))
+  }]
+  [Nil stack]
+))
+
+(defn main [] {
+  (print (list:show int:show (runVM [(PUSH 5) (PUSH 6) ADD] [])))
+})
