@@ -1,6 +1,6 @@
 (declare (call a b) (-> a b))
 (declare (property a) (-> str str a))
-(declare throw (-> str b))
+(declare (throw b) (-> str b))
 (declare (index a b c) (-> a b c))
 (declare (binary a b) (-> a str a b))
 (declare (condition b) (-> bool b b b))
