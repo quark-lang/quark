@@ -32,7 +32,7 @@ module Core.Compiler.Modules.Pattern where
       Just _ -> return $ \x body ->
         let cond = BinaryCall (Property x (Var "type")) "===" (Lit (S n))
           in Condition cond $ Return body
-      Nothing -> return $ \x body -> Block [Let n x, Return body]
+      Nothing -> return $ \x body -> Block [Let (varify n) x, Return body]
   compileCase (AppP n args _) = do
     e <- get
     return $ \x b -> do
