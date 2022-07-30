@@ -8,7 +8,7 @@ module Core.Utility.Sugar where
 
   buildClosure :: [Expression] -> Expression -> Expression
   buildClosure [] b = b
-  buildClosure (x:xs) b = Node (Identifier "fn") [List [x], buildClosure xs b]
+  buildClosure (x:xs) b = Node (Identifier "fn") [List [if isNode x then Identifier "$x" else x], if isNode x then Node (Identifier "match") [Identifier "$x", List [x, buildClosure xs b]] else buildClosure xs b]
 
   isConsCall :: Expression -> Bool
   isConsCall (Node (Identifier (n:_)) _) = n `elem` ['A'..'Z']
@@ -18,6 +18,10 @@ module Core.Utility.Sugar where
   reserved (Node (Identifier "declare") _) = True
   reserved (Node (Identifier "let") _) = True
   reserved _ = False
+
+  isNode :: Expression -> Bool
+  isNode (Node _ _) = True
+  isNode _ = False
 
   eliminateSugar :: Expression -> Expression
   eliminateSugar (Node (Identifier "begin") xs) = buildBeginSugar xs
@@ -29,10 +33,12 @@ module Core.Utility.Sugar where
         then buildClosure args (eliminateSugar body)
         else Node (Identifier "fn") [List args, eliminateSugar body]
   eliminateSugar z@(Node (Identifier "data") _) = z
+  eliminateSugar (Node (Identifier "let") [z@(Node _ _), value, body]) = 
+    eliminateSugar (Node (Identifier "match") [value, List [z, body]]) 
   eliminateSugar (Node (Identifier "let") [name, value])
-    = Node (Identifier "let") [name, eliminateSugar value]
+    = Node (Identifier "let") [eliminateSugar name, eliminateSugar value]
   eliminateSugar (Node (Identifier "let") [name, value, body])
-    = Node (Identifier "let") [name, eliminateSugar value, eliminateSugar body]
+    = Node (Identifier "let") [eliminateSugar name, eliminateSugar value, eliminateSugar body]
   eliminateSugar e@(Node n xs) =
     let z@(Node n' xs') = Node (eliminateSugar n) (map eliminateSugar xs)
       in if isConsCall e 
@@ -45,9 +51,9 @@ module Core.Utility.Sugar where
 
   buildBeginSugar :: [Expression] -> Expression
   buildBeginSugar [x] = eliminateSugar x
-  buildBeginSugar (Node (Identifier "let") [Identifier name, value]:xs)
-    = Node (Identifier "let") [
-        Identifier name,
+  buildBeginSugar (Node (Identifier "let") [name, value]:xs)
+    = eliminateSugar $ Node (Identifier "let") [
+        name,
         eliminateSugar value,
         buildBeginSugar xs ]
   buildBeginSugar (x:xs)
