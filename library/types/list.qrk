@@ -57,3 +57,5 @@
 (defn ++ [a b] (match a
   [Nil b]
   [(Cons x xs) (Cons x (++ xs b))]))
+
+(defn : [a b] (Cons a b))
