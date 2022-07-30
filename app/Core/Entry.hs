@@ -16,6 +16,7 @@ module Core.Entry where
   import Core.Compiler.Compiler (runCompiler)
   import Core.Compiler.Definition.Generation (from)
   import Core.Utility.Sugar (eliminateSugar)
+  import System.Environment (getEnv)
   
   run :: (String, String) -> IO (Either (String, Maybe String) String)
   run (dir, file) = do
@@ -41,7 +42,9 @@ module Core.Entry where
                     (c, _) <- foldlM (\(acc, st) x -> do
                       (x', st') <- runCompiler x st
                       return (acc ++ [x'], st')) ([], M.empty) x
-                    return . Right $ concatMap ((++";") . from) c ++ "$main();"
+                    path <- getEnv "QUARK"
+                    placeholder <- readFile (path </> "app/Core/placeholder.js")
+                    return . Right $ concatMap ((++";") . from) c ++ placeholder
                   Left err -> return $ Left (second (Just . show) err)
               Left err -> return $ Left (err, Nothing)
           Left err -> return $ Left (parseError err)
