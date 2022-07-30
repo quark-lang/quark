@@ -4,3 +4,6 @@
 (declare (index a b c) (-> a b c))
 (declare (binary a b) (-> a str a b))
 (declare (condition b) (-> bool b b b))
+(declare (require a) (-> str a))
+(defn require [path]
+  (call "require" path))
