@@ -164,6 +164,7 @@ module Core.Inference.Type where
   tyInfer (A.Literal (A.String s))  = return (LitE (S s) String, M.empty, String)
   tyInfer (A.Literal (A.Integer i)) = return (LitE (I i) Int, M.empty, Int)
   tyInfer (A.Literal (A.Float f))   = return (LitE (F f) Float, M.empty, Float)
+  tyInfer (A.Literal (A.Char c))    = return (LitE (C c) Char, M.empty, Char)
   tyInfer a = throwError ("Unknown expression", a)
 
   topLevel :: MonadType m => A.Expression -> m (Maybe [TypedAST], Env)

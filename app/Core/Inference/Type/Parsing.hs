@@ -35,9 +35,10 @@ module Core.Inference.Type.Parsing where
         n'  = parseType e n
       in TApp n' xs'
   parseType e (A.List [x]) = TApp (TId "List") [parseType e x]
-  parseType e (A.Identifier "str") = String
+  parseType e (A.Identifier "str") = TApp (TId "List") [Char]
   parseType e (A.Identifier "bool") = Bool
   parseType e (A.Identifier "int") = Int
+  parseType e (A.Identifier "char") = Char
   parseType e (A.Identifier "float") = Float
   parseType e (A.Identifier n) = case M.lookup n e of
     Nothing -> TId n

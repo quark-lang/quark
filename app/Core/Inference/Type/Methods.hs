@@ -83,6 +83,7 @@ module Core.Inference.Type.Methods where
     tyUnify Int Int = Right M.empty
     tyUnify String String = Right M.empty
     tyUnify Bool Bool = Right M.empty
+    tyUnify Char Char = Right M.empty
     tyUnify (TApp t1 t2) (TApp t3 t4) =
       let s1 = tyUnify t1 t3
           s2 = foldl (\acc (t, t') -> case tyUnify t t' of
