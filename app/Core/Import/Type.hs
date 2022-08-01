@@ -1,11 +1,12 @@
 module Core.Import.Type where
   import Core.Parser.AST (Expression)
   import Debug.Trace (traceShow)
+  import Data.List (union)
   type Path = String
   type ImportMap = [(Path, [Expression])]
 
-  appendPath :: (Path, [Expression]) -> ImportMap -> ImportMap
-  appendPath z@(path, _) map = map' ++ [z]
+  prependPath :: (Path, [Expression]) -> ImportMap -> ImportMap
+  prependPath z@(path, _) map = z : map'
     where map' = filter ((/=path) . fst) map
 
   removeDuplicates :: (Eq a) => [a] -> [a]
@@ -13,4 +14,5 @@ module Core.Import.Type where
   removeDuplicates [] = []
 
   mergePaths :: ImportMap -> ImportMap -> ImportMap
-  mergePaths xs ys = removeDuplicates $ xs ++ ys
+  mergePaths [] ys = ys
+  mergePaths (x:xs) ys = x : (xs `union` ys)

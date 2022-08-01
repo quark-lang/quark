@@ -8,27 +8,32 @@ module Core.Import.Duplicates where
   import Data.Void (Void)
   import Core.Import.Remover (runImportRemover)
   import System.Environment (lookupEnv)
+  import Data.List (union, find)
+  import Control.Monad.RWS (MonadState (put))
+  import Control.Monad.Except
+  import Control.Monad.State
   
-  type Import = (Either (ParseErrorBundle String Void) ImportMap)
+  type Import m = (MonadState [String] m, MonadIO m, MonadError (ParseErrorBundle String Void) m)
+  
+  addPath :: Import m => Path -> m ()
+  addPath p = modify (p:)
 
-  getImportMap :: Path -> Expression -> IO Import
+  getImportMap :: Import m => Path -> Expression -> m [Expression]
   getImportMap dir (Node (Identifier "import") [Literal (String path)]) = do
     path' <- case path of
-      's':'t':'d':':':path -> lookupEnv "QUARK" >>= \case
+      's':'t':'d':':':path -> liftIO $ lookupEnv "QUARK" >>= \case
         Nothing -> error "QUARK environment variable not set"
         Just quark -> return $ quark </> "library" </> path
       _ -> return $ dir </> path
-    content <- readFile path'
+    content <- liftIO $ readFile path'
+    addPath path'
     case parseLisp content of
-      Left err -> return $ Left err
-      Right ast -> do 
-        x <- getImports (takeDirectory path') ast
-        return $ appendPath (path', runImportRemover ast) <$> x
-  getImportMap _ _ = return . pure $ []
+      Left err -> throwError err
+      Right ast -> getImports (takeDirectory path') ast
+  getImportMap _ x = return [x]
 
-  getImports :: Path -> [Expression] -> IO Import
-  getImports dir imports = do
-    imports' <- mapM (getImportMap dir) imports
-    return $ foldl (\acc x -> case x of
-      Left err -> Left err
-      Right path -> mergePaths <$> acc <*> pure path) (Right []) imports'
+  getImports :: Import m => Path -> [Expression] -> m [Expression]
+  getImports p = (concat <$>) . mapM (getImportMap p)
+
+  runImport :: MonadIO m => Path -> [Expression] -> m (Either (ParseErrorBundle String Void) [Expression])
+  runImport dir e = runExceptT $ evalStateT (getImports dir e) []

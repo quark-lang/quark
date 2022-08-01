@@ -25,8 +25,8 @@ module Core.Entry where
     let ast = parseLisp content
     case ast of
       Right ast -> do
-        ast' <- fmap (map snd) <$> getImports (takeDirectory src) ast
-        let res = fmap concat ((++[runImportRemover ast]) <$> ast')
+        ast' <- runImport (takeDirectory src) ast
+        let res = runImportRemover <$> ast'
         case res of
           Right ast' -> do
             let env = runEnvironments ast'
@@ -44,7 +44,7 @@ module Core.Entry where
                       return (acc ++ [x'], st')) ([], M.empty) x
                     path <- getEnv "QUARK"
                     placeholder <- readFile (path </> "app/Core/placeholder.js")
-                    return . Right $ concatMap ((++";") . from) c ++ placeholder
+                    return . Right $ placeholder ++ concatMap ((++";") . from) c ++ "$main();"
                   Left err -> return $ Left (second (Just . show) err)
               Left err -> return $ Left (err, Nothing)
           Left err -> return $ Left (parseError err)
