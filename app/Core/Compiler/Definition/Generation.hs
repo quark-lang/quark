@@ -5,7 +5,7 @@ module Core.Compiler.Definition.Generation where
   import Text.Printf (printf)
   import Data.Char (isLetter, ord, isAlphaNum, isPrint)
   
-  isIdent x = isLetter x || x == '_'
+  isIdent x = isLetter x || x == '_' || x == '$'
 
   varify :: String -> String
   varify x = "$" ++ concatMap (\x -> if isIdent x then [x] else show (ord x)) x
@@ -40,6 +40,7 @@ module Core.Compiler.Definition.Generation where
   from (Lit (S s)) = "\"" ++ encodeUnicode16 s ++ "\""
   from (Lit (F f)) = show f
   from (Lit (I i)) = show i
+  from (Lit (C c)) = "'" ++ encodeUnicode16 [c] ++ "'"
   from (Require p) = "Object.entries(require(\"" ++ p ++ "\")).map(([name, exported]) => global[name] = exported);"
   from (Raw c) = c
   from (Index e i) = from e ++ "[" ++ from i ++ "]"

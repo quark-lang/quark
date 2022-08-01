@@ -1,11 +1,11 @@
 module Core.Compiler.Compiler where
   import Prelude hiding (and)
   import Control.Monad.State
-    (MonadIO, MonadState(get), StateT(runStateT))
+    (MonadIO (liftIO), MonadState(get), StateT(runStateT))
   import qualified Data.Map as M
   import Control.Arrow (Arrow(second))
   import Data.Traversable (for)
-  import Core.Inference.Type.AST (TypedAST(..), Literal(S))
+  import Core.Inference.Type.AST (TypedAST(..), Literal(S, C), Type (String, Char, TId, TApp))
   import Core.Compiler.Definition.Generation (varify)
   import Core.Compiler.Definition.IR
     (Expression(..), MonadCompiler, Constructors)
@@ -32,36 +32,35 @@ module Core.Compiler.Compiler where
   fromList (AppE (VarE "Cons" _) [x, xs] _) = x : fromList xs
   fromList _ = error "fromList: not a list"
 
+  fromString :: TypedAST -> String
+  fromString (VarE "Nil" _) = []
+  fromString (AppE (VarE "Cons" _) [LitE (C c) _, xs] _) = c : fromString xs
+  fromString x = error $ "Not a string " ++ show x
+
+  isString :: TypedAST -> Bool
+  isString (VarE "Nil" (TApp (TId "Cons") [Char])) = True
+  isString (AppE (VarE "Cons" _) [LitE (C c) _, xs] _) = True
+  isString _ = False
+
   compile :: MonadCompiler m => TypedAST -> m Expression
-  -- JS AST Generation
+  compile (AppE (AppE (AppE (VarE "binary" _) [x] _) [z] _) [y] _) 
+    = BinaryCall <$> compile x <*> pure (fromString z) <*> compile y
   compile (AppE (VarE "call" _) [n] _) 
     = Call <$> compile n <*> pure []
-  compile (AppE (AppE (VarE "call" _) [LitE (S n) _] _) [x] _) 
-    = Call (Var n) <$> ((:[]) <$> compile x)
   compile (AppE (AppE (VarE "call" _) [n] _) [x] _) 
-    = Call <$> compile n <*> ((:[]) <$> compile x)
-  compile (AppE (AppE (VarE "property" _) [LitE (S obj) _] _) [prop] _) 
-    = Property (Var obj) <$> compile prop
-  compile (AppE (AppE (VarE "property" _) [obj] _) [prop] _) 
-    = Property <$> compile obj <*> compile prop
-  compile (AppE (VarE "var" _) [LitE (S x) _] _) 
-    = return $ Var x
+    = Call <$> (if isString n then return (Var (fromString n)) else compile n) <*> ((:[]) <$> compile x)
+  compile (AppE (AppE (VarE "property" _) [obj] _) [prop] _) = do
+    obj <- if isString obj then pure (Var (fromString obj)) else compile obj
+    prop <- if isString prop then pure (Var (fromString prop)) else compile prop
+    return $ Property obj prop
+  compile (AppE (AppE (VarE "index" _) [obj] _) [prop] _) = do
+    obj <- if isString obj then pure (Var (fromString obj)) else compile obj
+    prop <- if isString prop then pure (Var (fromString prop)) else compile prop
+    return $ Index obj prop
   compile (AppE (VarE "throw" _) [x] _) 
     = Block . (:[]) . Throw <$> compile x
-  compile (AppE (AppE (VarE "index" _) [x] _) [i] _) 
-    = Index <$> compile x <*> compile i
-  compile (AppE (AppE (AppE (VarE "binary" _) [x] _) [LitE (S op) _] _) [y] _) 
-    = BinaryCall <$> compile x <*> pure op <*> compile y
-  compile (AppE (VarE "block" _) [x] _) 
-    = Block <$> mapM compile (fromList x)
-  compile (AppE (VarE "return" _) [x] _) 
-    = Return <$> compile x
   compile (AppE (AppE (AppE (VarE "condition" _) [cond] _) [then'] _) [else'] _)
     = Ternary <$> compile cond <*> compile then' <*> compile else'
-  compile (AppE (VarE "require" _) [LitE (S path) _] _) 
-    = return $ Require path
-  compile (AppE (VarE "extern" _) [LitE (S content) _] _) 
-    = return $ Raw content
 
   compile (AppE (VarE n _) args _) = get >>= \e -> case M.lookup (varify n) e of
     -- Checking if it's a constructor
@@ -69,6 +68,8 @@ module Core.Compiler.Compiler where
     Nothing -> Call (Var $ varify n) <$> mapM compile args
   compile (AppE n xs _) = Call <$> compile n <*> mapM compile xs
   compile (AbsE args body) = Lambda (map (varify . fst) args) <$> compile body
+  compile (VarE "true" _) = return $ Var "true"
+  compile (VarE "false" _) = return $ Var "false"
   compile (VarE t _) = get >>= \e -> case M.lookup (varify t) e of
     Just obj -> return $ Property (Var obj) (Var $ varify t)
     Nothing -> return . Var . varify $ t
