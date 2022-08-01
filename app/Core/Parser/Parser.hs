@@ -9,6 +9,8 @@ module Core.Parser.Parser where
   import Control.Monad (void)
   import Core.Utility.Sugar (buildBeginSugar, eliminateSugar)
   import Debug.Trace (traceShow)
+  import Data.Functor
+
   {-
     Module: Quark parser
     Description: Lisp like parser using custom combinator library
@@ -27,6 +29,13 @@ module Core.Parser.Parser where
   integerLit = do
     n <- some digitChar
     return . Just $ Integer (read n)
+  
+  charLit :: MonadParsec Void String m => m (Maybe Literal)
+  charLit = do
+    char '\''
+    c <- L.charLiteral
+    char '\''
+    return . Just $ Char c
 
   floatLit :: MonadParsec Void String m => m (Maybe Literal)
   floatLit = do
@@ -39,7 +48,7 @@ module Core.Parser.Parser where
   blacklist = "() {}[]\n\t\r;\"@"
 
   literal :: MonadParsec Void String m => m (Maybe Literal)
-  literal = stringLit <|> try floatLit <|> integerLit
+  literal = charLit <|> stringLit <|> try floatLit <|> integerLit
 
   identifier :: MonadParsec Void String m => m (Maybe Expression)
   identifier = Just . Identifier <$>  some (noneOf blacklist)
