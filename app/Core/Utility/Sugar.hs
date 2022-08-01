@@ -1,5 +1,5 @@
 module Core.Utility.Sugar where
-  import Core.Parser.AST (Expression(..))
+  import Core.Parser.AST (Expression(..), Literal (String, Char))
   import Data.List (isPrefixOf)
 
   buildCall :: Expression -> [Expression] -> Expression
@@ -25,6 +25,7 @@ module Core.Utility.Sugar where
 
   eliminateSugar :: Expression -> Expression
   eliminateSugar (Node (Identifier "begin") xs) = buildBeginSugar xs
+  eliminateSugar z@(Node (Identifier "import") _) = z
   eliminateSugar (Node (Identifier "match") (pat:cases)) =
     let cases' = map (\(List [pat, expr]) -> List [eliminateSugar pat, eliminateSugar expr]) cases
       in Node (Identifier "match") (eliminateSugar pat:cases')
@@ -47,7 +48,12 @@ module Core.Utility.Sugar where
           then e 
           else buildCall n' xs'
   eliminateSugar (List xs) = buildList xs
+  eliminateSugar (Literal (String s)) = buildString s
   eliminateSugar x = x
+
+  buildString :: String -> Expression
+  buildString [] = Identifier "Nil"
+  buildString (x:xs) = Node (Identifier "Cons") [Literal (Char x), buildString xs]
 
   buildBeginSugar :: [Expression] -> Expression
   buildBeginSugar [x] = eliminateSugar x
