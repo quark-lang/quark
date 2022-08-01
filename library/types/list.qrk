@@ -1,8 +1,5 @@
 (import "std:modules/math.qrk")
 (import "std:types/maybe.qrk")
-(data (List a) [
-  Nil
-  (Cons a (List a))])
 
 (let list:empty Nil)
 
@@ -24,8 +21,7 @@
     Nil
     (let x (index ls 0)
       (let xs (call (property ls "slice") 1)
-        (Cons x (fromList xs)))))
-)
+        (Cons x (fromList xs))))))
 
 (defn list:drop [n ls] (match ls
   [(Cons _ xs) (if (= n 1) xs (list:drop (- n 1) xs))]
@@ -54,8 +50,5 @@
 
 (defn list:range [from to] (if (= from to) (Cons from Nil) (Cons from (list:range (+ from 1) to))))
 
-(defn ++ [a b] (match a
-  [Nil b]
-  [(Cons x xs) (Cons x (++ xs b))]))
 
 (defn : [a b] (Cons a b))

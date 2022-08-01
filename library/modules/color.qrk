@@ -1,58 +1,59 @@
 (import "std:modules/math.qrk")
+(import "std:types/list.qrk")
 
 ; BASIC COLORS
 (defn black [x] 
-  (+ "\x1b[30m" (+ x "\x1b[0m")))
+  (++ "\x1b[30m" (++ x "\x1b[0m")))
 
 (defn red [x] 
-  (+ "\x1b[31m" (+ x "\x1b[0m")))
+  (++ "\x1b[31m" (++ x "\x1b[0m")))
 
 (defn green [x] 
-  (+ "\x1b[32m" (+ x "\x1b[0m")))
+  (++ "\x1b[32m" (++ x "\x1b[0m")))
 
 (defn yellow [x] 
-  (+ "\x1b[33m" (+ x "\x1b[0m")))
+  (++ "\x1b[33m" (++ x "\x1b[0m")))
 
 (defn blue [x] 
-  (+ "\x1b[34m" (+ x "\x1b[0m")))
+  (++ "\x1b[34m" (++ x "\x1b[0m")))
 
 (defn magenta [x] 
-  (+ "\x1b[35m" (+ x "\x1b[0m")))
+  (++ "\x1b[35m" (++ x "\x1b[0m")))
 
 (defn cyan [x] 
-  (+ "\x1b[36m" (+ x "\x1b[0m")))
+  (++ "\x1b[36m" (++ x "\x1b[0m")))
 
 (defn white [x] 
-  (+ "\x1b[37m" (+ x "\x1b[0m")))
+  (++ "\x1b[37m" (++ x "\x1b[0m")))
 
 ; BRIGHT COLORS
 (defn black_bright [x] 
-  (+ "\x1b[90m" (+ x "\x1b[0m")))
+  (++ "\x1b[90m" (++ x "\x1b[0m")))
 
 (defn red_bright [x] 
-  (+ "\x1b[91m" (+ x "\x1b[0m")))
+  (++ "\x1b[91m" (++ x "\x1b[0m")))
 
 (defn green_bright [x] 
-  (+ "\x1b[92m" (+ x "\x1b[0m")))
+  (++ "\x1b[92m" (++ x "\x1b[0m")))
 
 (defn yellow_bright [x] 
-  (+ "\x1b[93m" (+ x "\x1b[0m")))
+  (++ "\x1b[93m" (++ x "\x1b[0m")))
 
 (defn blue_bright [x] 
-  (+ "\x1b[94m" (+ x "\x1b[0m")))
+  (++ "\x1b[94m" (++ x "\x1b[0m")))
 
 (defn magenta_bright [x] 
-  (+ "\x1b[95m" (+ x "\x1b[0m")))
+  (++ "\x1b[95m" (++ x "\x1b[0m")))
 
 (defn cyan_bright [x] 
-  (+ "\x1b[96m" (+ x "\x1b[0m")))
+  (++ "\x1b[96m" (++ x "\x1b[0m")))
 
 ; STYLE CODES
 (defn bold [x] 
-  (+ "\x1b[1m" (+ x "\x1b[0m")))
+  (++ "\x1b[1m" (++ x "\x1b[0m")))
 
 (defn italic [x] 
-  (+ "\x1b[3m" (+ x "\x1b[0m")))
+  (++ "\x1b[3m" (++ x "\x1b[0m")))
 
 (defn underline [x] 
-  (+ "\x1b[4m" (+ x "\x1b[0m")))
+  (++ "\x1b[4m" (++ x "\x1b[0m")))

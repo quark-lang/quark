@@ -1,16 +1,21 @@
 (import "std:types/expression.qrk")
 (import "std:types/list.qrk")
+(import "std:types/string.qrk")
+
 (let putStr (fn [x]
-  (call (property "process" (property "stdout" "write")) x)))
+  (call (property (property "process" "stdout") "write") x)))
 
 (declare (to_string a) (-> a str))
-(let to_string (fn [x]
-  (call (property x "toString"))))
+(defn to_string [x] 
+  (fromString (call (property x "toString"))))
 
 (declare print (-> str int))
-(let print (fn [x]
-  (let _ (putStr x)
-    (putStr "\n"))))
+(defn print [str] (match str 
+  [Nil (putStr '\n')]
+  [(Cons x xs) {
+    (putStr x)
+    (print xs)
+  }]))
 
 (let error (fn [msg] (throw msg)))
 
