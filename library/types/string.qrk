@@ -1,0 +1,8 @@
+(import "std:types/list.qrk")
+
+(defn str:at [x i] (index x i))
+(defn str:substring [x i] (call (property x "slice") i))
+(defn str:length [x] (property x "length"))
+
+(defn fromString [x] (if (= (str:length x) 0) Nil
+  (Cons (str:at x 0) (fromString (str:substring x 1)))))
