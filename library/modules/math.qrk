@@ -7,6 +7,9 @@
 (declare (* a) (-> a a a))
 (defn * [a b] (binary a "*" b))
 
+(declare (> a) (-> a a bool))
+(defn > [a b] (binary a ">" b))
+
 (declare (/ a) (-> a a a))
 (defn / [a b] (binary a "/" b))
 
