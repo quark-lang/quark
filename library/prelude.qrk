@@ -22,3 +22,4 @@
 (import "std:types/list.qrk")
 (import "std:types/tuple.qrk")
 (import "std:types/map.qrk")
+(import "std:types/string.qrk")
