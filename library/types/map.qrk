@@ -27,8 +27,8 @@
     [(Insert k a m) {
       (let x (fk k))
       (let y (fv a))
-      (+ x (+ " => " (+ y (+ (if (= (map:length m) 0) "" ", ") (f m)))))
+      (++ x (++ " => " (++ y (++ (if (= (map:length m) 0) "" ", ") (f m)))))
     }]
   ))
-  (+ "{ " (+ (f map) " }"))
+  (++ "{ " (++ (f map) " }"))
 })

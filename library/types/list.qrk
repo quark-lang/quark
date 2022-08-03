@@ -10,9 +10,9 @@
 (defn list:show [fmt xs] {
   (defn f [lst] (match lst
     [[] ""]
-    [[x *xs] (+ (fmt x) (+ (if (= (list:length xs) 0) "" ", ") (f xs)))]
+    [[x *xs] (++ (fmt x) (++ (if (= (list:length xs) 0) "" ", ") (f xs)))]
   ))
-  (+ "[" (+ (f xs) "]"))
+  (++ "[" (++ (f xs) "]"))
 })
 
 (declare (fromList a b) (-> a [b]))
@@ -52,3 +52,5 @@
 
 
 (defn : [a b] (Cons a b))
+
+(defn elem [x ls] (> (list:length (list:filter (fn [y] (= y x)) ls)) 0))
