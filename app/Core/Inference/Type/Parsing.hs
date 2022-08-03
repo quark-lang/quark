@@ -6,9 +6,10 @@ module Core.Inference.Type.Parsing where
   import Control.Monad (forM, unless)
   import Core.Inference.Type.Methods (tyFresh)
   import Debug.Trace (traceShow)
+  import Core.Parser.Parser (trim)
   
   buildDataType :: String -> [Type] -> Type
-  buildDataType name = TApp (TId name)
+  buildDataType name args = if null args then TId name else TApp (TId name) args
 
   isRight :: Either a b -> Bool
   isRight (Right _) = True
@@ -29,6 +30,7 @@ module Core.Inference.Type.Parsing where
   buildFun (x:xs) = [x] :-> buildFun xs
 
   parseType :: M.Map String Type -> A.Expression -> Type
+  parseType e (A.Node (A.Identifier "->") [y]) = [] :-> parseType e y
   parseType e (A.Node (A.Identifier "->") xs) = buildFun (map (parseType e) xs)
   parseType e (A.Node n xs) =
     let xs' = map (parseType e) xs
@@ -69,5 +71,5 @@ module Core.Inference.Type.Parsing where
       A.Identifier name -> return (name, dataType)
       _ -> error "Invalid constructor"
 
-    return (M.map schemeCt (M.fromList constr'), DataE (name, tyVars) constr')
+    return (M.map schemeCt (M.fromList constr'), DataE (trim name, tyVars) constr')
   parseData _ _ = error "Invalid data type"
