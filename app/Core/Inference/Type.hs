@@ -49,6 +49,7 @@ module Core.Inference.Type where
   tyPattern (A.Literal (A.String s)) = return (LitP (S s) String, M.empty, String, M.empty)
   tyPattern (A.Literal (A.Integer i)) = return (LitP (I i) Int, M.empty, Int, M.empty)
   tyPattern (A.Literal (A.Float f)) = return (LitP (F f) Float, M.empty, Float, M.empty)
+  tyPattern (A.Literal (A.Char c)) = return (LitP (C c) Char, M.empty, Char, M.empty)
   tyPattern x = error $ "tyPattern: not implemented => " ++ show x
 
   patUnify :: Type -> [Type] -> Either String SubTy
@@ -83,7 +84,7 @@ module Core.Inference.Type where
         let (_, t, _, _) = head res
         let s = foldl (\acc (tp, te, s, _) -> 
                 let r = tyCompose <$> tyUnify t te <*> tyUnify tp pat_t
-                    r' = tyCompose <$> acc <*> r
+                    r' = tyCompose <$> r <*> acc
                   in tyCompose s <$> r') (Right s1) res
         let tys = map (\(x, _, _, _) -> case s of
                     Right s -> tyApply s x
@@ -124,8 +125,6 @@ module Core.Inference.Type where
               Right s -> do
                 let s' = s `tyCompose` s1
                 let r = tyApply s' t1
-                unless (r == t'') $
-                  throwError ("Type " ++ show r ++ " does not match type " ++ show t'', z)
                 return (s', r)
               Left x -> throwError (x, z)
           Nothing -> return (s1, t1)
