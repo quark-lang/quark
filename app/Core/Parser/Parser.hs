@@ -2,15 +2,15 @@
 module Core.Parser.Parser where
   import Core.Parser.AST
   import Text.Megaparsec
-  import Text.Megaparsec.Char
-  import qualified Text.Megaparsec.Char.Lexer as L
-  import Data.Maybe          (isJust, fromMaybe, fromJust, catMaybes)
+  import Text.Megaparsec.Char (char, digitChar, space, space1, alphaNumChar)
+  import Data.Maybe           (isJust, fromMaybe, fromJust, catMaybes)
   import Data.Void
-  import Control.Monad (void)
-  import Core.Utility.Sugar (buildBeginSugar, eliminateSugar)
-  import Debug.Trace (traceShow)
+  import Control.Monad        (void)
+  import Core.Utility.Sugar   (buildBeginSugar, eliminateSugar)
+  import Debug.Trace          (traceShow)
   import Data.Functor
-
+  import qualified Text.Megaparsec.Char.Lexer as L
+  
   {-
     Module: Quark parser
     Description: Lisp like parser using custom combinator library
@@ -18,6 +18,14 @@ module Core.Parser.Parser where
   -}
 
   -- LISP PARSER
+
+  sc :: MonadParsec Void String m => m ()
+  sc = L.space space1 lineCmnt empty
+    where
+      lineCmnt  = L.skipLineComment ";"
+
+  lexeme :: MonadParsec Void String m => m a -> m a
+  lexeme = L.lexeme sc
 
   stringLit :: MonadParsec Void String m => m (Maybe Literal)
   stringLit = do
@@ -45,13 +53,13 @@ module Core.Parser.Parser where
     return . Just $ Float (read (n ++ "." ++ d))
 
   blacklist :: String
-  blacklist = "() {}[]\n\t\r;\"@"
+  blacklist = "() {}[];\r\n\t\"@"
 
   literal :: MonadParsec Void String m => m (Maybe Literal)
   literal = charLit <|> stringLit <|> try floatLit <|> integerLit
 
   identifier :: MonadParsec Void String m => m (Maybe Expression)
-  identifier = Just . Identifier <$>  some (noneOf blacklist)
+  identifier = Just . Identifier <$> some (noneOf blacklist)
 
   atom :: MonadParsec Void String m => m (Maybe Expression)
   atom = literal >>= \case
@@ -96,15 +104,9 @@ module Core.Parser.Parser where
     return Nothing
 
   parse' :: MonadParsec Void String m => m (Maybe Expression)
-  parse' = ((comment <|> list <|> begin <|> expr <|> atom <|> quoted <|> identifier) <* space) <?> ""
+  parse' = lexeme (list <|> begin <|> expr <|> atom <|> quoted <|> identifier) <?> ""
 
   parseLisp :: String -> Either (ParseErrorBundle String Void) [Expression]
-  parseLisp = parse (catMaybes <$> many parse') ""
+  parseLisp = parse (catMaybes <$> many (space *> parse' <* space)) ""
 
-  trim :: String -> String
-  trim = dropWhile (== ' ')
-
-  -- remove eol from string
-  format :: String -> String
-  format e = unlines $ filter (\z -> not (null z) && (head z /= ';')) (lines e)
   
