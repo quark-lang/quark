@@ -82,6 +82,7 @@ module Core.Compiler.Compiler where
   compile (LitE l _) = return $ Lit l
   compile z@(DataE _ _) = compileData z
   compile z@(PatternE _ _) = compilePattern z
+  compile (InstE t _) = error $ "Should not appear in compilation: " ++ t
 
   runCompiler :: (Monad m, MonadIO m) => TypedAST -> Constructors -> m (Expression, Constructors)
   runCompiler a = runStateT (compile a)
