@@ -17,6 +17,7 @@ module Core.Utility.Sugar where
   reserved :: Expression -> Bool
   reserved (Node (Identifier "declare") _) = True
   reserved (Node (Identifier "let") _) = True
+  reserved (Node (Identifier "class") _) = True
   reserved _ = False
 
   isNode :: Expression -> Bool
@@ -26,6 +27,8 @@ module Core.Utility.Sugar where
   eliminateSugar :: Expression -> Expression
   eliminateSugar (Node (Identifier "begin") xs) = buildBeginSugar xs
   eliminateSugar z@(Node (Identifier "import") _) = z
+  eliminateSugar (Node (Identifier "instance") [i, x, List methods]) = 
+    Node (Identifier "instance") [i, x, List (map eliminateSugar methods)]
   eliminateSugar (Node (Identifier "match") (pat:cases)) =
     let cases' = map (\(List [pat, expr]) -> List [eliminateSugar pat, eliminateSugar expr]) cases
       in Node (Identifier "match") (eliminateSugar pat:cases')
