@@ -33,6 +33,7 @@ module Core.Inference.Type.AST where
     | ListE [TypedAST] Type
     | LetE Argument TypedAST
     | LitE Literal Type
+    | InstE String Type
     -- (Name, [Generics])
     | DataE (String, [Type]) [(String, Type)]
     -- Pattern | [(Case, AST)]
@@ -51,9 +52,13 @@ module Core.Inference.Type.AST where
   getType (PatternE _ ((_, x):_)) = getType x
   getType _ = error "getType: not a valid type"
 
+  data Class = IsIn String [Type]
+    deriving (Eq, Ord)
+
   data Type
     = TVar Int | TId String
     | [Type] :-> Type
+    | [Class] :=> Type
     | Int | String | Float | Bool | Char
     | TApp Type [Type]
     | ListT Type
@@ -68,4 +73,4 @@ module Core.Inference.Type.AST where
   data Scheme = Forall [Int] Type
     deriving (Eq, Ord)
 
-  type MonadType m = (MonadRWS Env () Int m, MonadIO m, MonadError (String, Expression) m)
+  type MonadType m = (MonadRWS Env [([Class], (String, [Class]))] Int m, MonadIO m, MonadError (String, Expression) m)

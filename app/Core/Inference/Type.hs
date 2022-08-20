@@ -1,12 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE LambdaCase #-}
 module Core.Inference.Type where
   import qualified Data.Map as M
   import qualified Core.Parser.AST as A
   import Control.Monad.RWS
-    ( MonadIO (liftIO),
-      RWST(runRWST),
-      MonadReader(local, ask), when, void, forM )
   import Data.Foldable (foldlM)
   import Control.Monad (unless)
   import Core.Inference.Type.AST
@@ -20,7 +18,9 @@ module Core.Inference.Type where
   import Data.Either (fromLeft, isLeft)
   import GHC.Float (double2Float)
   import Debug.Trace (traceShow)
-  
+  import Control.Arrow (Arrow(second))
+  import Data.List (nub, union)
+
   tyPattern :: MonadType m => A.Expression -> m (TypedPattern, SubTy, Type, M.Map String Scheme)
   tyPattern (A.Identifier "_") = do
     t <- tyFresh
@@ -77,12 +77,12 @@ module Core.Inference.Type where
       (e, s', t') <- local (applyTypes $ tyApply s2 . (m `M.union`)) $ tyInfer expr
       let s3 = s' `tyCompose` s2
       return (tyApply s3 t, tyApply s3 t', s3, (tyApply s3 p, tyApply s3 e))
-    
-    if null res 
+
+    if null res
       then (PatternE pat' [], M.empty,) <$> tyFresh
       else do
         let (_, t, _, _) = head res
-        let s = foldl (\acc (tp, te, s, _) -> 
+        let s = foldl (\acc (tp, te, s, _) ->
                 let r = tyCompose <$> tyUnify t te <*> tyUnify tp pat_t
                     r' = tyCompose <$> r <*> acc
                   in tyCompose s <$> r') (Right s1) res
@@ -95,7 +95,7 @@ module Core.Inference.Type where
             let patterns' = map (\(_, _, _, (x, y)) -> (tyApply s x, tyApply s y)) res
             return (PatternE (tyApply s pat') patterns', s, tyApply s t)
           Left e -> throwError (e, z)
-          
+
   -- Type inference for abstractions
   tyInfer (A.Node (A.Identifier "fn") [A.List args, body]) = do
     tvs <- mapM (const tyFresh) args
@@ -103,10 +103,11 @@ module Core.Inference.Type where
     Env env _ <- ask
     let env'  = foldl (flip M.delete) env args'
         env'' = env' `M.union` M.fromList [(x, Forall [] tv) | (x, tv) <- zip args' tvs]
-
     (b', s1, t1) <- local (applyTypes (const env'')) $ tyInfer body
     let argTy = tyApply s1 tvs
-    return (tyApply s1 $ AbsE (zip args' argTy) b', s1, argTy :-> t1)
+    let argTy' = concat $ nub (map (\t -> let res = appearsInTC' b' t
+                  in if not (null res) then res else []) argTy)
+    return (tyApply s1 $ AbsE (zip args' argTy) b', s1, if not (null argTy') then argTy' :=> (argTy :-> t1) else argTy :-> t1)
 
   -- Type inference for let-polymorphic expressions
   tyInfer z@(A.Node (A.Identifier "let") [A.Identifier name, value, body]) = do
@@ -153,12 +154,23 @@ module Core.Inference.Type where
     (x', s2, t2) <- foldlM (\(x', s, t) x -> do
       (x'', s', t') <- local (applyTypes (tyApply s)) $ tyInfer x
       return (x' ++ [x''], s `tyCompose` s', t ++ [t'])) ([], s1, []) xs
-    case tyUnify (t2 :-> tv) (tyApply s2 t1) of
-      Right s3 -> do
-        let x'' = tyApply s3 tv
-        return (AppE n' (tyApply s3 x') x'', s3 `tyCompose` s2 `tyCompose` s1, x'')
-      Left x -> throwError (x, z)
-
+    case t1 of
+      cls :=> _ ->
+        case tyUnify ([] :=> (t2 :-> tv)) (tyApply s2 t1) of
+          Right s3 -> do
+            let s4 = s3 `tyCompose` s2 `tyCompose` s1
+            let x'' = tyApply s4 tv
+            return (AppE (tyApply s4 $ case n' of
+              VarE n t -> InstE n t
+              _ -> n')  (tyApply s4 x') x'', s4, x'')
+          Left x -> throwError (x, z)
+      _ ->
+        case tyUnify (t2 :-> tv) (tyApply s2 t1) of
+          Right s3 -> do
+            let s4 = s3 `tyCompose` s2 `tyCompose` s1
+            let x'' = tyApply s4 tv
+            return (AppE (tyApply s4 n') (tyApply s4 x') x'', s4, x'')
+          Left x -> throwError (x, z)
   -- Value related inference
   tyInfer (A.Literal (A.String s))  = return (LitE (S s) String, M.empty, String)
   tyInfer (A.Literal (A.Integer i)) = return (LitE (I i) Int, M.empty, Int)
@@ -166,7 +178,114 @@ module Core.Inference.Type where
   tyInfer (A.Literal (A.Char c))    = return (LitE (C c) Char, M.empty, Char)
   tyInfer a = throwError ("Unknown expression", a)
 
+  containsTVar :: Int -> Type -> Bool
+  containsTVar x (TVar x') = x == x'
+  containsTVar i (TApp t1 t2) = containsTVar i t1 || all (containsTVar i) t2
+  containsTVar i (t1 :-> t2) = all (containsTVar i) t1 || containsTVar i t2
+  containsTVar i _ = False
+
+  appearsInTC :: Type -> Type -> [Class]
+  appearsInTC (TVar t) (ps :=> _) = filter (\(IsIn _ p) -> any (containsTVar t) p) ps
+  appearsInTC t (t1 :-> t2) = concatMap (appearsInTC t) t1 ++ appearsInTC t t2
+  appearsInTC _ _ = []
+
+  appearsInTC' :: TypedAST -> Type -> [Class]
+  appearsInTC' (LitE _ t) t' = appearsInTC t' t
+  appearsInTC' (VarE _ t) t' = appearsInTC t' t
+  appearsInTC' (InstE _ t) t' = appearsInTC t' t
+  appearsInTC' (AbsE _ b) t' = appearsInTC' b t'
+  appearsInTC' (LetInE _ v b) t' = appearsInTC' v t' ++ appearsInTC' b t'
+  appearsInTC' (AppE e x t) t' = appearsInTC' e t' ++ concatMap (`appearsInTC'` t') x ++ appearsInTC t' t
+  appearsInTC' (PatternE _ ps) t' = concatMap ((`appearsInTC'` t') . snd) ps
+  appearsInTC' (ListE xs _) t = concatMap (`appearsInTC'` t) xs
+  appearsInTC' (LetE (_, t) b) t' = appearsInTC' b t' ++ appearsInTC t' t
+  appearsInTC' (DataE _ _) _ = []
+
+  createInstName :: [Class] -> String
+  createInstName (IsIn name ty:ts) = name ++ createTypeInstName ty ++ createInstName ts
+  createInstName [] = ""
+
+  createInstGenName :: [Class] -> String
+  createInstGenName (IsIn name ty:ts) = name ++ concat (replicate (length ty) "Gen") ++ createInstGenName ts
+  createInstGenName [] = ""
+
+  createTypeInstName :: [Type] -> String
+  createTypeInstName (t:ts) = case t of
+    TVar x -> show x ++ (if null ts then "" else "_") ++ createTypeInstName ts
+    TApp n ts -> createTypeInstName [n] ++ createTypeInstName ts
+    TId n -> n
+    _ -> show t ++ createTypeInstName ts
+  createTypeInstName _ = ""
+
+  appify :: Class -> Type
+  appify (IsIn c ty) = TApp (TId c) ty
+
   topLevel :: MonadType m => A.Expression -> m (Maybe [TypedAST], Env)
+  topLevel (A.Node (A.Identifier "class") [name', A.List fields]) = do
+    let (name, tyArgs) = parseTypeHeader name'
+
+    argsMap <- M.fromList <$> mapM ((`fmap` tyFresh) . (,)) tyArgs
+    let cls = IsIn name (M.elems argsMap)
+    let fields' = map (\case
+                (A.Node (A.Identifier "declare") [dat, _]) -> parseTypeHeader dat
+                _ -> error "Not a identifier") fields
+    ty <- mapM (\((name, ty), t) -> case t of
+      (A.Node (A.Identifier "declare") [_, t]) -> do
+        argsMap' <- M.union argsMap . M.fromList <$> mapM ((`fmap` tyFresh) . (,)) ty
+        let ty = parseType argsMap' t
+        Env e _ <- ask
+        return (name, case ty of
+          clss :=> ty -> (cls : clss) :=> ty
+          _ -> [cls] :=> ty)
+      _ -> error "Not a declaration") (zip fields' fields)
+    e@(Env t _) <- ask
+    let cons = map (\(name, ty) -> case ty of
+            cls :=> (args :-> t) -> (map appify cls ++ args) :-> t
+            cls :=> args -> map appify cls :-> args
+            _ -> ty) ty
+    let datType = TApp (TId name) (M.elems argsMap)
+    let patterns = AppP name (map (uncurry VarP) ty) datType
+    return (
+      Just $ DataE (name, M.elems argsMap) [(name, cons :-> datType)] : map (\(name, ty) -> LetE (name, [datType] :-> ty) (AbsE [("$s", datType)] (PatternE (VarE "$s" datType) [(patterns, VarE name ty)]))) ty,
+      applyCons (`M.union` M.fromList (map (second $ generalize t) ty)) e)
+
+  topLevel (A.Node (A.Identifier "instance") [A.List instances, A.Node (A.Identifier cls) xs, A.List fields]) = do
+    (e, ty) <- parseInstanceHeader M.empty xs 
+    x <- mapM (\(A.Node (A.Identifier cls) xs) -> (cls,) <$> parseInstanceHeader e xs) instances
+    let subClasses = map (\(cls, (_, ty)) -> IsIn cls ty) x
+
+    let cls' = IsIn cls ty
+    let name = createInstName [cls']
+    fields' <- mapM (\case
+      z@(A.Node (A.Identifier "let") [A.Identifier name', value]) -> do
+        ask >>= \(Env _ t) -> case M.lookup name' t of
+          Just ty' -> do
+            t' <- tyInstantiate ty'
+            (v', s1, t1) <- tyInfer value
+            let t1' = case t1 of
+                      cls :=> ty -> (cls `union` (cls' : subClasses)) :=> ty
+                      _ -> (cls' : subClasses) :=> t1
+            let s2 = tyUnify t1' t'
+            case s2 of
+              Right s -> do
+                Env _ e <- ask
+                return (((name' ++ name, tyApply s t1), tyApply s v'), M.singleton name' (generalize e (tyApply s t1)), s)
+              Left x -> throwError (x, z)
+          Nothing -> throwError ("Unknown variable", z)
+      x -> throwError ("Unknown method", x)) fields
+
+    let tys = map (\(((_, ty), _), _, _) -> ty) fields'
+    let fields'' = map (\(((_, _), f), _, _) -> f) fields'
+
+    let s = map (\(_, _, s) -> s) fields'
+    let s' = foldl1 tyCompose s
+    
+    tell [(tyApply s' [cls'], (name, tyApply s' subClasses))]
+
+    let datType = TApp (TId cls) (tyApply s' ty)
+    let call = AppE (VarE cls (tys :-> datType)) fields'' datType
+
+    return (Just [LetE (name, datType) call], emptyEnv)
   -- Empty data constructor (just a phantom type)
   topLevel (A.Node (A.Identifier "data") [dat]) = do
     (constr', ast) <- parseData (parseTypeHeader dat) (A.List [])
@@ -185,7 +304,6 @@ module Core.Inference.Type where
     tv <- tyFresh
     let e =  M.singleton name (Forall [] tv)
     (v', s1, t1) <- local (applyTypes (`M.union` e)) $ tyInfer value
-
     Env env c <- ask
 
     -- Typechecking variable type
@@ -220,14 +338,14 @@ module Core.Inference.Type where
     return (Nothing, applyTypes (`M.union` M.singleton name (generalize t ty)) e)
   topLevel x = throwError ("Unknown top-level expression received", x)
 
-  runInfer :: MonadIO m => [A.Expression] -> m (Either (String, A.Expression) [TypedAST])
+  runInfer :: MonadIO m => [A.Expression] -> m (Either (String, A.Expression) ([TypedAST], [([Class], (String, [Class]))]))
   runInfer a =
     fmap fst <$> foldlM (\e x -> case e of
-      Right (a, e) -> do
+      Right ((a, w), e) -> do
         x <- runExceptT $ runRWST (topLevel x) e 0
         case x of
-          Right ((a', e'), _, _) -> return $ Right (case a' of
-            Nothing -> a
-            Just a' -> a ++ a', mergeEnv e e')
+          Right ((a', e'), _, w') -> return $ Right (case a' of
+            Nothing -> (a, w)
+            Just a' -> (a ++ a', w ++ w'), mergeEnv e e')
           Left err -> return $ Left err
-      Left err -> return $ Left err) (Right ([], emptyEnv)) a
+      Left err -> return $ Left err) (Right (([], []), emptyEnv)) a

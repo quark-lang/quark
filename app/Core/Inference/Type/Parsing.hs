@@ -6,8 +6,8 @@ module Core.Inference.Type.Parsing where
   import Control.Monad (forM, unless)
   import Core.Inference.Type.Methods (tyFresh)
   import Debug.Trace (traceShow)
-  import Core.Parser.Parser (trim)
-  
+  import Data.List (union)
+
   buildDataType :: String -> [Type] -> Type
   buildDataType name args = if null args then TId name else TApp (TId name) args
 
@@ -56,6 +56,41 @@ module Core.Inference.Type.Parsing where
   parseTypeHeader (A.Identifier name) = (name, [])
   parseTypeHeader _ = error "Invalid type header"
 
+  parseInstanceHeader :: MonadType m => M.Map String Type -> [A.Expression] -> m (M.Map String Type, [Type])
+  parseInstanceHeader e (t:ts) = do
+    (names, types) <- parseInstanceHeader e ts
+    case t of
+      A.Identifier "str" -> return (names, TApp (TId "List") [Char] : types)
+      A.Identifier "bool" -> return (names, Bool : types)
+      A.Identifier "int" -> return (names, Int : types)
+      A.Identifier "char" -> return (names, Char : types)
+      A.Identifier "float" -> return (names, Float : types)
+      A.Identifier name -> do
+        case M.lookup name (names `M.union` e) of
+          Nothing -> do
+            if head name `elem` ['A'..'Z'] 
+              then return $ (names, TId name : types)
+              else do
+                ty <- tyFresh
+                return (M.insert name ty names, ty : types)
+          Just ty -> return (names, ty : types)
+      (A.Node (A.Identifier "->") [y]) -> do
+        (names', ty) <- parseInstanceHeader e [y]
+        case ty of
+          [ty'] -> return (names', ty' : types)
+          _ -> error "Invalid type"
+      (A.Node (A.Identifier "->") xs) -> do
+        (names', ty) <- parseInstanceHeader e xs
+        return (names `M.union` names', (init ty :-> last ty) : types)
+      (A.Node n xs) -> do
+        (n2, xs') <- parseInstanceHeader e xs
+        (n1, n')  <- parseInstanceHeader e [n]
+        case n' of
+          [n''] -> return (n1 `M.union` n2, TApp n''  xs' : types)
+          _ -> error "Invalid type"
+      _ -> error "Invalid type"
+  parseInstanceHeader _ _ = return (M.empty, [])
+
   parseData :: MonadType m => (String, [String]) -> A.Expression -> m (TypeEnv, TypedAST)
   parseData (name, tyArgs) (A.List constructors) = do
     argsMap <- M.fromList <$> mapM ((`fmap` tyFresh) . (,)) tyArgs
@@ -71,5 +106,5 @@ module Core.Inference.Type.Parsing where
       A.Identifier name -> return (name, dataType)
       _ -> error "Invalid constructor"
 
-    return (M.map schemeCt (M.fromList constr'), DataE (trim name, tyVars) constr')
+    return (M.map schemeCt (M.fromList constr'), DataE (name, tyVars) constr')
   parseData _ _ = error "Invalid data type"

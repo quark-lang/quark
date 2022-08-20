@@ -32,12 +32,14 @@ module Core.Inference.Type.Pretty where
   showAST (AbsE n body) n' =
     let i1    = createIndent (n' + 2)
         body' = showAST body (n' + 2)
-        lmbd  = bBlue "lambda " ++ intercalate ", " (map (\(n, t) -> n ++ " : " ++ show t) n) ++ bBlack " ->\n" ++ i1
+        lmbd  = bBlue "lambda " ++ intercalate ", " (map (\(n, t) -> n ++ " : " ++ show' t) n) ++ bBlack " ->\n" ++ i1
       in lmbd ++ body'
   showAST (AppE n arg t) i =
     bBlack "[" ++ showAST n 0 ++ bBlack "] " ++ unwords (map (`showAST` 0) arg)
   showAST (VarE n t) _
-    = n ++ " : " ++ show t
+    = n ++ " : " ++ show' t
+  showAST (InstE n t) _
+    = "@" ++ n ++ " : " ++ show' t
   showAST (LitE l _) _ = show l
   showAST (ListE xs _) _
     = bBlack "[" ++ intercalate "," (map (`showAST` 0) xs) ++ bBlack "]"
@@ -45,11 +47,11 @@ module Core.Inference.Type.Pretty where
     = bBlue "let " ++ name ++ " = " ++ showAST body i ++ "\n" ++
       createIndent (i + 2) ++ bBlue "in " ++ showAST e (i + 2)
   showAST (DataE (name, generics) []) i
-    = bBlue "data " ++ bold name ++ " " ++ unwords (map show generics)
+    = bBlue "data " ++ bold name ++ " " ++ unwords (map show' generics)
   showAST (DataE (name, generics) ((consName, ty):xs)) i =
-    bBlue "data " ++ bold name ++ " " ++ unwords (map show generics) ++ "\n" ++
-      createIndent (i + 2) ++ "= " ++ consName ++ " :: " ++ show ty ++ "\n" ++
-      concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ n ++ " :: " ++ show t ++ "\n") xs
+    bBlue "data " ++ bold name ++ " " ++ unwords (map show' generics) ++ "\n" ++
+      createIndent (i + 2) ++ "= " ++ consName ++ " :: " ++ show' ty ++ "\n" ++
+      concatMap (\(n, t) -> createIndent (i + 2) ++ "| " ++ n ++ " :: " ++ show' t ++ "\n") xs
   showAST (PatternE pattern cases) i = bBlue "match " ++ show pattern ++ bBlue " with" ++ "\n" ++
     intercalate "\n" (map (\(n, t) -> createIndent (i + 2) ++ "| " ++ showPattern n ++ " => " ++ show t) cases)
   --showAST x _ = error "Pattern not recognized in showAST"
@@ -69,15 +71,20 @@ module Core.Inference.Type.Pretty where
   showTy String _ = bCyan "String"
   showTy Char _ = bCyan "Char"
   showTy Bool _ = bCyan "Bool"
+  showTy (ps :=> t) b = "(" ++ intercalate ", " (map show ps) ++ ") => " ++ showTy t b
   showTy (TApp t1 t2) (b1, b2) =
     let s = showTy t1 (b1, not b2 || b2) ++ " " ++ unwords (map (`showTy` (b1, not b2 || b2)) t2)
       in if b2 then parens s else s
 
-  instance Show Type where
-    show = flip showTy (False, False)
+  show' :: Type -> String
+  show' = flip showTy (False, False)
+
+  deriving instance Show Type
 
   instance Show Scheme where
     show (Forall tv ty) = (if null tv then "" else "forall " ++ intercalate ", " tv' ++ ". ") ++ show ty
       where tv' = map (\x -> bBlack $ "a" ++ show x) tv
 
   deriving instance Show Env
+  instance Show Class where
+    show (IsIn cls t) = cls ++ " " ++ unwords (map (`showTy` (False, False)) t)

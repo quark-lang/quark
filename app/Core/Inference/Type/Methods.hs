@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Core.Inference.Type.Methods where
   import Core.Inference.Type.AST
-  import Core.Inference.Type.Pretty ()
+  import Core.Inference.Type.Pretty (show')
   import qualified Data.Map as M
   import qualified Data.Set as S
   import Control.Monad.RWS (modify, MonadState(get), MonadIO (liftIO))
@@ -52,12 +52,27 @@ module Core.Inference.Type.Methods where
                 That b -> Right (M.singleton i b)
                 These a b -> tyUnify a b) s1 s2
 
+  constraintCheck :: [Class] -> [Class] -> Either String SubTy
+  constraintCheck cs1 cs2 = foldl tyCompose M.empty <$> m
+    where m = sequence $ alignWith (\case
+                That a -> Right M.empty
+                This b -> Right M.empty
+                These a b -> tyUnify a b) cs1 cs2
+
+  instance Types Class where
+    tyFree (IsIn _ t) = tyFree t
+    tyApply s (IsIn c t) = IsIn c (tyApply s t)
+    tyUnify (IsIn c t) (IsIn c' t')
+      | c == c' = tyUnify t t'
+      | otherwise = Left $ "Classes " ++ show c ++ " and " ++ show c' ++ " do not match"
+
   instance Types Type where
     tyFree (TVar i) = S.singleton i
     tyFree (t1 :-> t2) = tyFree t1 `S.union` tyFree t2
     tyFree Int = S.empty
     tyFree String = S.empty
     tyFree (ListT t) = tyFree t
+    tyFree (ps :=> t) = tyFree ps `S.union` tyFree t
     tyFree (TApp t1 t2) = tyFree t1 `S.union` tyFree t2
     tyFree _ = S.empty
 
@@ -67,13 +82,16 @@ module Core.Inference.Type.Methods where
     tyApply s (t1 :-> t2) = tyApply s t1 :-> tyApply s t2
     tyApply s (ListT t) = ListT $ tyApply s t
     tyApply s (TApp t1 t2) = TApp (tyApply s t1) (tyApply s t2)
+    tyApply s (ps :=> t) = tyApply s ps :=> tyApply s t
     tyApply _ s = s
 
+    tyUnify (ps1 :=> t1) (ps2 :=> t2) = 
+      tyCompose <$> constraintCheck ps1 ps2 <*> tyUnify t1 t2
     tyUnify (TVar i) t = variable i t
     tyUnify t (TVar i) = variable i t
     tyUnify (t1 :-> t2) (t3 :-> t4)
       = let s1 = foldl (\acc (t, t') -> case tyUnify t t' of
-                   Right s -> acc >>= check s
+                   Right s -> tyCompose <$> (acc >>= check s) <*> pure s
                    Left s -> Left s) (Right M.empty) $ zip t1 t3
           in tyCompose <$> s1 <*> tyUnify t2 t4
     tyUnify (TId s) (TId s') = if s == s'
@@ -90,7 +108,7 @@ module Core.Inference.Type.Methods where
                 Right s -> acc >>= check s
                 Left s -> Left s) (Right M.empty) $ zip t2 t4
         in tyCompose <$> s1 <*> s2
-    tyUnify s1 s2 = Left $ "Type " ++ show s1 ++ " mismatches with type " ++ show s2
+    tyUnify s1 s2 = Left $ "Type " ++ show' s1 ++ " mismatches with type " ++ show' s2
   instance Types Scheme where
     tyFree (Forall v t) = tyFree t S.\\ S.fromList v
     tyApply s (Forall v t) = Forall v (tyApply (foldr M.delete s v) t)
@@ -98,7 +116,9 @@ module Core.Inference.Type.Methods where
   instance Types a => Types [a] where
     tyFree = setConcatMap tyFree
     tyApply = map . tyApply
-    tyUnify _ _ = error "Cannot unify type scheme"
+    tyUnify t1 t2 = foldl (\acc (t, t') -> case tyUnify t t' of
+      Right s -> tyCompose <$> (acc >>= check s) <*> pure s
+      Left s -> Left s) (Right M.empty) $ zip t1 t2
   instance Types TypeEnv where
     tyFree = tyFree . M.elems
     tyApply = M.map . tyApply
@@ -113,6 +133,7 @@ module Core.Inference.Type.Methods where
     tyFree (LetE (name, t) body) = (tyFree t S.\\ tyFree t) `S.union` tyFree body
     tyFree (ListE args t) = tyFree t `S.union` setConcatMap tyFree args
     tyFree (LitE ast t) = tyFree t
+    tyFree (InstE _ t) = tyFree t
     tyFree _ = S.empty
 
     tyApply s (AppE f arg t) = AppE (tyApply s f) (tyApply s arg) (tyApply s t)
@@ -124,6 +145,7 @@ module Core.Inference.Type.Methods where
     tyApply s (LitE ast t) = LitE ast (tyApply s t)
     tyApply s (PatternE pat t) = PatternE (tyApply s pat) (map (bimap (tyApply s) (tyApply s)) t)
     tyApply s (DataE name args) = DataE name (map (second $ tyApply s) args)
+    tyApply s (InstE name t) = InstE name (tyApply s t)
 
     tyUnify _ _ = error "Cannot unify AST"
 
