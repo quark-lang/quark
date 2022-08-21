@@ -20,7 +20,8 @@ module Core.Inference.Type where
   import Debug.Trace (traceShow)
   import Control.Arrow (Arrow(second))
   import Data.List (nub, union)
-
+  import Data.Char (isUpper)
+  
   tyPattern :: MonadType m => A.Expression -> m (TypedPattern, SubTy, Type, M.Map String Scheme)
   tyPattern (A.Identifier "_") = do
     t <- tyFresh
@@ -219,6 +220,10 @@ module Core.Inference.Type where
 
   appify :: Class -> Type
   appify (IsIn c ty) = TApp (TId c) ty
+  
+  isInstanceName :: String -> Bool
+  isInstanceName (c:_) = isUpper c
+  isInstanceName [] = False
 
   topLevel :: MonadType m => A.Expression -> m (Maybe [TypedAST], Env)
   topLevel (A.Node (A.Identifier "class") [name', A.List fields]) = do
@@ -241,7 +246,7 @@ module Core.Inference.Type where
     e@(Env t _) <- ask
     let cons = map (\(name, ty) -> case ty of
             cls :=> (args :-> t) -> (map appify cls ++ args) :-> t
-            cls :=> args -> map appify cls :-> args
+            cls :=> args -> args
             _ -> ty) ty
     let datType = TApp (TId name) (M.elems argsMap)
     let patterns = AppP name (map (uncurry VarP) ty) datType
@@ -250,32 +255,40 @@ module Core.Inference.Type where
       applyCons (`M.union` M.fromList (map (second $ generalize t) ty)) e)
 
   topLevel (A.Node (A.Identifier "instance") [A.List instances, A.Node (A.Identifier cls) xs, A.List fields]) = do
-    (e, ty) <- parseInstanceHeader M.empty xs 
-    x <- mapM (\(A.Node (A.Identifier cls) xs) -> (cls,) <$> parseInstanceHeader e xs) instances
+    (env, ty) <- parseInstanceHeader M.empty xs 
+    x <- mapM (\(A.Node (A.Identifier cls) xs) -> (cls,) <$> parseInstanceHeader env xs) instances
     let subClasses = map (\(cls, (_, ty)) -> IsIn cls ty) x
 
     let cls' = IsIn cls ty
     let name = createInstName [cls']
+
     fields' <- mapM (\case
       z@(A.Node (A.Identifier "let") [A.Identifier name', value]) -> do
         ask >>= \(Env _ t) -> case M.lookup name' t of
           Just ty' -> do
+            -- create an instance of the method
             t' <- tyInstantiate ty'
+
             (v', s1, t1) <- tyInfer value
+            liftIO $ print (t', t1)
+
+            -- adding classes to the inferred type
             let t1' = case t1 of
                       cls :=> ty -> (cls `union` (cls' : subClasses)) :=> ty
                       _ -> (cls' : subClasses) :=> t1
+            -- unifying it with instantatied method type
             let s2 = tyUnify t1' t'
             case s2 of
               Right s -> do
                 Env _ e <- ask
-                return (((name' ++ name, tyApply s t1), tyApply s v'), M.singleton name' (generalize e (tyApply s t1)), s)
+                -- returning inferred type, inferred value, inferred method scheme and substitution
+                return ((tyApply s t1, tyApply s v'), M.singleton name' (generalize e (tyApply s t1)), s)
               Left x -> throwError (x, z)
           Nothing -> throwError ("Unknown variable", z)
       x -> throwError ("Unknown method", x)) fields
-
-    let tys = map (\(((_, ty), _), _, _) -> ty) fields'
-    let fields'' = map (\(((_, _), f), _, _) -> f) fields'
+    
+    let tys = map (\((ty, _), _, _) -> ty) fields'
+    let fields'' = map (\((_, f), _, _) -> f) fields'
 
     let s = map (\(_, _, s) -> s) fields'
     let s' = foldl1 tyCompose s
@@ -284,8 +297,15 @@ module Core.Inference.Type where
 
     let datType = TApp (TId cls) (tyApply s' ty)
     let call = AppE (VarE cls (tys :-> datType)) fields'' datType
+    
+    let subConstraints = map (\(cls, (_, ty)) -> TApp (TId cls) (tyApply s' ty)) x
+    let subNames = map (\(cls, (_, ty)) -> cls ++ createTypeInstName (tyApply s' ty)) x
 
-    return (Just [LetE (name, datType) call], emptyEnv)
+    liftIO $ print (subNames, x, s')
+
+    return (Just [LetE (name, datType) (case subConstraints of
+      [] -> call
+      xs -> foldr AbsE call (zipWith (\x y -> [(x, y)]) subNames xs))], emptyEnv)
   -- Empty data constructor (just a phantom type)
   topLevel (A.Node (A.Identifier "data") [dat]) = do
     (constr', ast) <- parseData (parseTypeHeader dat) (A.List [])
