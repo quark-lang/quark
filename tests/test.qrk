@@ -1,28 +1,32 @@
-(import "std:prelude.qrk")
-
-(declare int:show (-> int str))
-(let int:show (. yellow to_string))
-
-(data Person [
-  (Person str str int)
+(defm defn [name args body]
+  (let name (fn args body)))
+(data (List a) [
+  Nil
+  (Cons a (List a))
 ])
 
-(let facto (. list:product (list:range 1)))
+(defn ++ [a b] (match a
+  [Nil b]
+  [(Cons x xs) (Cons x (++ xs b))]))
+(class (Show a) [
+  (declare show (-> a str))
+])
 
-(defn str:show [x]
-  (green (+ "\"" (+ x "\""))))
+(instance [] (Show char) [
+  (let show (fn [c] (Cons c Nil)))
+])
 
-(defn person:show [x] (match x
-  [(Person name last age) {
-    (let age_ (int:show age))
-    (+ "The user is " (+ name (+ " " (+ last (+ " and he is " (+ age_ " years old."))))))
-  }]))
+(instance [] (Show int) [
+  (let show (fn [x] "test"))
+])
 
-(defn main [] {
-  (print (list:show str:show args))
-  (let thomas [(Person "Thomas" "Vergne" 16) (Person "Noé" "Vergne" 12)])
-  (list:iter (. print person:show) thomas)
-  (print (tuple:show int:show str:show (, 5 "test")))
-  (print (int:show (facto 5)))
-  (print (list:show int:show (++ (list:range 0 5) (list:range 6 10))))
-})
+(instance [(Show a)] (Show (List a)) [
+  (let show (fn [x] (match x 
+    [Nil ""]
+    [(Cons y xs) (++ (show y) (show xs))])))
+])
+
+
+(let main (fn [] {
+  (show "test")
+}))
