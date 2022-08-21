@@ -8,7 +8,7 @@ module Core.Import.Duplicates where
   import Data.Void (Void)
   import Core.Import.Remover (runImportRemover)
   import System.Environment (lookupEnv)
-  import Data.List (union, find)
+  import Data.List (union, find, nub)
   import Control.Monad.RWS (MonadState (put))
   import Control.Monad.Except
   import Control.Monad.State
@@ -36,4 +36,4 @@ module Core.Import.Duplicates where
   getImports p = (concat <$>) . mapM (getImportMap p)
 
   runImport :: MonadIO m => Path -> [Expression] -> m (Either (ParseErrorBundle String Void) [Expression])
-  runImport dir e = runExceptT $ evalStateT (getImports dir e) []
+  runImport dir e = runExceptT $ evalStateT (nub <$> getImports dir e) []
