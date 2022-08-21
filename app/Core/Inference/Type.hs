@@ -108,7 +108,8 @@ module Core.Inference.Type where
     let argTy = tyApply s1 tvs
     let argTy' = concat $ nub (map (\t -> let res = appearsInTC' b' t
                   in if not (null res) then res else []) argTy)
-    return (tyApply s1 $ AbsE (zip args' argTy) b', s1, if not (null argTy') then argTy' :=> (argTy :-> t1) else argTy :-> t1)
+    let args'' = map (\x -> (createInstName [x], appify x)) argTy'
+    return (tyApply s1 $ if null args'' then AbsE (zip args' argTy) b' else AbsE args'' (AbsE (zip args' argTy) b'), s1, if not (null argTy') then argTy' :=> (argTy :-> t1) else argTy :-> t1)
 
   -- Type inference for let-polymorphic expressions
   tyInfer z@(A.Node (A.Identifier "let") [A.Identifier name, value, body]) = do
@@ -270,7 +271,6 @@ module Core.Inference.Type where
             t' <- tyInstantiate ty'
 
             (v', s1, t1) <- tyInfer value
-            liftIO $ print (t', t1)
 
             -- adding classes to the inferred type
             let t1' = case t1 of
@@ -301,7 +301,6 @@ module Core.Inference.Type where
     let subConstraints = map (\(cls, (_, ty)) -> TApp (TId cls) (tyApply s' ty)) x
     let subNames = map (\(cls, (_, ty)) -> cls ++ createTypeInstName (tyApply s' ty)) x
 
-    liftIO $ print (subNames, x, s')
 
     return (Just [LetE (name, datType) (case subConstraints of
       [] -> call
