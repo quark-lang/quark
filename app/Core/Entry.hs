@@ -37,13 +37,12 @@ module Core.Entry where
                 x' <- runInfer x
                 case x' of
                   Right (x, insts) -> do
-                    mapM_ (print . fst . addArgument (False, []) insts) x
                     --(x, closures, _) <- foldlM (\(acc, cl, i) x -> do
                     --  (cl', x', i') <- runConverter x i
                     --  return (acc ++ [x'], cl ++ cl', i')) ([], [], 0) x
                     (c, _) <- foldlM (\(acc, st) x -> do
                       (x', st') <- runCompiler x st
-                      return (acc ++ [x'], st')) ([], M.empty) $ map (fst . addArgument (False, []) insts) x
+                      return (acc ++ [x'], st')) ([], M.empty) $ map (fst . addArgument insts) x
                     path <- getEnv "QUARK"
                     placeholder <- readFile (path </> "app/Core/placeholder.js")
                     return . Right $ placeholder ++ concatMap ((++";") . from) c ++ "$main();"
