@@ -15,6 +15,7 @@ module Core.Compiler.Definition.Generation where
     where
       escapeChar c
         | c == '\"' = "\\\""
+        | c == '\'' = "\\\'"
         | ' ' <= c && c <= 'z' = [c]
         | isPrint c = [c]
         | otherwise = printf "\\u%04x" (fromEnum c)
