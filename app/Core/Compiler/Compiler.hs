@@ -38,7 +38,7 @@ module Core.Compiler.Compiler where
   fromString x = error $ "Not a string " ++ show x
 
   isString :: TypedAST -> Bool
-  isString (VarE "Nil" (TApp (TId "Cons") [Char])) = True
+  isString (VarE "Nil" (TApp (TId "Cons") Char)) = True
   isString (AppE (VarE "Cons" _) [LitE (C c) _, xs] _) = True
   isString _ = False
 
