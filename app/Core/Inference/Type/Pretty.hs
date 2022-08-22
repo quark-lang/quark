@@ -73,7 +73,7 @@ module Core.Inference.Type.Pretty where
   showTy Bool _ = bCyan "Bool"
   showTy (ps :=> t) b = "(" ++ intercalate ", " (map show ps) ++ ") => " ++ showTy t b
   showTy (TApp t1 t2) (b1, b2) =
-    let s = showTy t1 (b1, not b2 || b2) ++ " " ++ unwords (map (`showTy` (b1, not b2 || b2)) t2)
+    let s = showTy t1 (b1, not b2 || b2) ++ " " ++ showTy t2 (b1, not b2 || b2)
       in if b2 then parens s else s
 
   show' :: Type -> String

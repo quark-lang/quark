@@ -9,7 +9,7 @@ module Core.Inference.Type.Parsing where
   import Data.List (union)
 
   buildDataType :: String -> [Type] -> Type
-  buildDataType name args = if null args then TId name else TApp (TId name) args
+  buildDataType name args = if null args then TId name else buildData (TId name) args
 
   isRight :: Either a b -> Bool
   isRight (Right _) = True
@@ -35,9 +35,9 @@ module Core.Inference.Type.Parsing where
   parseType e (A.Node n xs) =
     let xs' = map (parseType e) xs
         n'  = parseType e n
-      in TApp n' xs'
-  parseType e (A.List [x]) = TApp (TId "List") [parseType e x]
-  parseType e (A.Identifier "str") = TApp (TId "List") [Char]
+      in buildData n' xs'
+  parseType e (A.List [x]) = TApp (TId "List") (parseType e x)
+  parseType e (A.Identifier "str") = TApp (TId "List") Char
   parseType e (A.Identifier "bool") = Bool
   parseType e (A.Identifier "int") = Int
   parseType e (A.Identifier "char") = Char
@@ -60,7 +60,7 @@ module Core.Inference.Type.Parsing where
   parseInstanceHeader e (t:ts) = do
     (names, types) <- parseInstanceHeader e ts
     case t of
-      A.Identifier "str" -> return (names, TApp (TId "List") [Char] : types)
+      A.Identifier "str" -> return (names, TApp (TId "List") Char : types)
       A.Identifier "bool" -> return (names, Bool : types)
       A.Identifier "int" -> return (names, Int : types)
       A.Identifier "char" -> return (names, Char : types)
@@ -86,7 +86,7 @@ module Core.Inference.Type.Parsing where
         (n2, xs') <- parseInstanceHeader e xs
         (n1, n')  <- parseInstanceHeader e [n]
         case n' of
-          [n''] -> return (n1 `M.union` n2, TApp n''  xs' : types)
+          [n''] -> return (n1 `M.union` n2, (buildData n'' xs') : types)
           _ -> error "Invalid type"
       _ -> error "Invalid type"
   parseInstanceHeader _ _ = return (M.empty, [])

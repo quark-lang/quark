@@ -86,7 +86,9 @@ module Core.Inference.Type.Methods where
     tyApply _ s = s
 
     tyUnify (ps1 :=> t1) (ps2 :=> t2) = 
-      tyCompose <$> constraintCheck ps1 ps2 <*> tyUnify t1 t2
+      tyCompose <$> tyUnify t1 t2 <*> constraintCheck ps1 ps2
+    tyUnify t (_ :=> t2) = tyUnify t t2
+    tyUnify (_ :=> t) t2 = tyUnify t t2
     tyUnify (TVar i) t = variable i t
     tyUnify t (TVar i) = variable i t
     tyUnify (t1 :-> t2) (t3 :-> t4)
@@ -104,9 +106,7 @@ module Core.Inference.Type.Methods where
     tyUnify Char Char = Right M.empty
     tyUnify (TApp t1 t2) (TApp t3 t4) =
       let s1 = tyUnify t1 t3
-          s2 = foldl (\acc (t, t') -> case tyUnify t t' of
-                Right s -> acc >>= check s
-                Left s -> Left s) (Right M.empty) $ zip t2 t4
+          s2 = tyUnify t2 t4
         in tyCompose <$> s1 <*> s2
     tyUnify s1 s2 = Left $ "Type " ++ show' s1 ++ " mismatches with type " ++ show' s2
   instance Types Scheme where

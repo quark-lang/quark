@@ -40,6 +40,11 @@ module Core.Inference.Type.AST where
     | PatternE TypedAST [(TypedPattern, TypedAST)]
     deriving Eq
 
+  buildData :: Type -> [Type] -> Type
+  buildData n xs = go n $ reverse xs
+    where go name (x:xs) = TApp (go name xs) x
+          go n [] = n
+
   getType :: TypedAST -> Type
   getType (AppE _ _ t) = t
   getType (AbsE _ t) = getType t
@@ -48,7 +53,7 @@ module Core.Inference.Type.AST where
   getType (ListE _ t) = t
   getType (LetE _ t) = getType t
   getType (LitE _ t) = t
-  getType (DataE (n, ts) _) = TApp (TId n) ts
+  getType (DataE (n, ts) _) = buildData (TId n) ts
   getType (PatternE _ ((_, x):_)) = getType x
   getType _ = error "getType: not a valid type"
 
@@ -60,7 +65,7 @@ module Core.Inference.Type.AST where
     | [Type] :-> Type
     | [Class] :=> Type
     | Int | String | Float | Bool | Char
-    | TApp Type [Type]
+    | TApp Type Type
     | ListT Type
     deriving (Eq, Ord)
 
