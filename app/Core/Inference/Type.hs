@@ -62,7 +62,9 @@ module Core.Inference.Type where
   tyInfer (A.Identifier n) = ask >>= \(Env t c) -> case M.lookup n (t `M.union` c) of
     Just t -> do
       t' <- tyInstantiate t
-      return (VarE n t', M.empty, t')
+      return (case t' of
+        _ :=> _ -> InstE n t'
+        _ -> VarE n t', M.empty, t')
     Nothing -> throwError ("Variable " ++ bold n ++ " is not defined.", A.Identifier n)
 
   tyInfer z@(A.Node (A.Identifier "match") (pat:cases)) = do
@@ -91,7 +93,7 @@ module Core.Inference.Type where
                     Right s -> tyApply s x
                     Left _ -> x) res
         let s' = foldl (\acc x -> tyCompose <$> acc <*> patUnify x tys) (Right M.empty) tys
-        case tyCompose <$> s <*> s' of
+        case tyCompose <$> s' <*> s of
           Right s -> do
             let patterns' = map (\(_, _, _, (x, y)) -> (tyApply s x, tyApply s y)) res
             return (PatternE (tyApply s pat') patterns', s, tyApply s t)
@@ -106,7 +108,7 @@ module Core.Inference.Type where
         env'' = env' `M.union` M.fromList [(x, Forall [] tv) | (x, tv) <- zip args' tvs]
     (b', s1, t1) <- local (applyTypes (const env'')) $ tyInfer body
     let argTy = tyApply s1 tvs
-    let argTy' = concat $ nub (map (\t -> let res = appearsInTC' b' t
+    let argTy' = concat $ nub (map (\t -> let res = concatMap (appearsInTC' b') $ getTVars t 
                   in if not (null res) then res else []) argTy)
     return (tyApply s1 $ AbsE (zip args' argTy) b' , s1, if not (null argTy') then argTy' :=> (argTy :-> t1) else argTy :-> t1)
 
@@ -118,6 +120,8 @@ module Core.Inference.Type where
     (v', s1, t1) <- local (applyTypes (`M.union` e)) $ tyInfer value
 
     Env env _ <- ask
+
+    --liftIO $ print (name, t1)
 
     -- Typechecking variable type
     (s3, t2) <- case M.lookup name env of
@@ -155,22 +159,33 @@ module Core.Inference.Type where
     (x', s2, t2) <- foldlM (\(x', s, t) x -> do
       (x'', s', t') <- local (applyTypes (tyApply s)) $ tyInfer x
       return (x' ++ [x''], s `tyCompose` s', t ++ [t'])) ([], s1, []) xs
+    let cls' = concatMap (\case 
+                cls :=> _ -> cls
+                _ -> []) t2
     case t1 of
-      cls :=> _ ->
-        case tyUnify ([] :=> (t2 :-> tv)) (tyApply s2 t1) of
+      cls :=> ty ->
+        case tyUnify (tyApply s2 t1) (t2 :-> tv) of
           Right s3 -> do
             let s4 = s3 `tyCompose` s2 `tyCompose` s1
             let x'' = tyApply s4 tv
             return (AppE (tyApply s4 $ case n' of
-              VarE n t -> InstE n t
+              VarE n t -> InstE n (case t of
+                cls :=> ty -> (cls ++ cls') :=> ty
+                _ -> t)
               _ -> n')  (tyApply s4 x') x'', s4, x'')
           Left x -> throwError (x, z)
       _ ->
-        case tyUnify (t2 :-> tv) (tyApply s2 t1) of
+        case tyUnify (tyApply s2 t1) (t2 :-> tv) of
           Right s3 -> do
             let s4 = s3 `tyCompose` s2 `tyCompose` s1
             let x'' = tyApply s4 tv
-            return (AppE (tyApply s4 n') (tyApply s4 x') x'', s4, x'')
+            let app = AppE (tyApply s4 n') (tyApply s4 x') x''
+            return (tyApply s4 $ case getType app of
+                cls :=> ty -> setType app ((cls ++ cls') :=> ty)
+                _ -> if null cls' 
+                  then app 
+                  else setType app (cls' :=> getType app), 
+                s4, if null cls' then x'' else cls' :=> x'')
           Left x -> throwError (x, z)
   -- Value related inference
   tyInfer (A.Literal (A.String s))  = return (LitE (S s) String, M.empty, String)
@@ -179,9 +194,24 @@ module Core.Inference.Type where
   tyInfer (A.Literal (A.Char c))    = return (LitE (C c) Char, M.empty, Char)
   tyInfer a = throwError ("Unknown expression", a)
 
+  getTVars :: Type -> [Type]
+  getTVars (TApp t xs) = getTVars t ++ getTVars xs
+  getTVars (TVar x) = [TVar x]
+  getTVars (t1 :-> t2) = concatMap getTVars t1 ++ getTVars t2
+  getTVars _ = []
+
+  setType :: TypedAST -> Type -> TypedAST
+  setType (LitE l t) t' = LitE l t'
+  setType (VarE n t) t' = VarE n t'
+  setType (InstE n t) t' = InstE n t'
+  setType (AbsE xs e) t' = AbsE xs (setType e t')
+  setType (AppE e x _) t' = AppE e x t'
+  setType (LetInE (x, t) e b) t' = LetInE (x, t') e (setType b t')
+  setType x _ = x
+
   containsTVar :: Int -> Type -> Bool
   containsTVar x (TVar x') = x == x'
-  containsTVar i (TApp t1 t2) = containsTVar i t1 || all (containsTVar i) t2
+  containsTVar i (TApp t1 t2) = containsTVar i t1 || containsTVar i t2
   containsTVar i (t1 :-> t2) = all (containsTVar i) t1 || containsTVar i t2
   containsTVar i _ = False
 
@@ -194,10 +224,10 @@ module Core.Inference.Type where
   appearsInTC' (LitE _ t) t' = appearsInTC t' t
   appearsInTC' (VarE _ t) t' = appearsInTC t' t
   appearsInTC' (InstE _ t) t' = appearsInTC t' t
-  appearsInTC' (AbsE _ b) t' = appearsInTC' b t'
-  appearsInTC' (LetInE _ v b) t' = appearsInTC' v t' ++ appearsInTC' b t'
+  appearsInTC' (AbsE t b) t' = concatMap ((`appearsInTC` t') . snd) t ++ appearsInTC' b t'
+  appearsInTC' (LetInE (_, t) v b) t' = appearsInTC t t' ++ appearsInTC' v t' ++ appearsInTC' b t'
   appearsInTC' (AppE e x t) t' = appearsInTC' e t' ++ concatMap (`appearsInTC'` t') x ++ appearsInTC t' t
-  appearsInTC' (PatternE _ ps) t' = concatMap ((`appearsInTC'` t') . snd) ps
+  appearsInTC' (PatternE e ps) t' = appearsInTC' e t' ++ concatMap ((`appearsInTC'` t') . snd) ps
   appearsInTC' (ListE xs _) t = concatMap (`appearsInTC'` t) xs
   appearsInTC' (LetE (_, t) b) t' = appearsInTC' b t' ++ appearsInTC t' t
   appearsInTC' (DataE _ _) _ = []
@@ -213,13 +243,13 @@ module Core.Inference.Type where
   createTypeInstName :: [Type] -> String
   createTypeInstName (t:ts) = case t of
     TVar x -> show x ++ (if null ts then "" else "_") ++ createTypeInstName ts
-    TApp n ts -> createTypeInstName [n] ++ createTypeInstName ts
+    TApp n ts -> createTypeInstName [n] ++ createTypeInstName [ts]
     TId n -> n
     _ -> show t ++ createTypeInstName ts
   createTypeInstName _ = ""
 
   appify :: Class -> Type
-  appify (IsIn c ty) = TApp (TId c) ty
+  appify (IsIn c ty) = buildData (TId c) ty
   
   isInstanceName :: String -> Bool
   isInstanceName (c:_) = isUpper c
@@ -245,10 +275,10 @@ module Core.Inference.Type where
       _ -> error "Not a declaration") (zip fields' fields)
     e@(Env t _) <- ask
     let cons = map (\(name, ty) -> case ty of
-            cls :=> (args :-> t) -> (map appify cls ++ args) :-> t
+            cls :=> (args :-> t) -> (args) :-> t
             cls :=> args -> args
             _ -> ty) ty
-    let datType = TApp (TId name) (M.elems argsMap)
+    let datType = buildData (TId name) $ M.elems argsMap
     let patterns = AppP name (map (uncurry VarP) ty) datType
     return (
       Just $ DataE (name, M.elems argsMap) [(name, cons :-> datType)] : map (\(name, ty) -> LetE (name, [datType] :-> ty) (AbsE [("$s", datType)] (PatternE (VarE "$s" datType) [(patterns, VarE name ty)]))) ty,
@@ -276,9 +306,14 @@ module Core.Inference.Type where
                       cls :=> ty -> (cls `union` (cls' : subClasses)) :=> ty
                       _ -> (cls' : subClasses) :=> t1
             -- unifying it with instantatied method type
-            let s2 = tyUnify t1' t'
+            let s2 = tyUnify t' t1'
             case s2 of
               Right s -> do
+                --liftIO $ putStrLn $ show' t'
+                --liftIO $ putStrLn $ show' t1
+                --liftIO $ print s
+                --liftIO $ putStrLn $ show' (tyApply s t1)
+                --liftIO $ putStrLn ""
                 Env _ e <- ask
                 -- returning inferred type, inferred value, inferred method scheme and substitution
                 return ((tyApply s t1, tyApply s v'), M.singleton name' (generalize e (tyApply s t1)), s)
@@ -294,10 +329,10 @@ module Core.Inference.Type where
     
     tell [(tyApply s' [cls'], (name, tyApply s' subClasses))]
 
-    let datType = TApp (TId cls) (tyApply s' ty)
+    let datType = buildData (TId cls) $ tyApply s' ty
     let call = AppE (VarE cls (tys :-> datType)) fields'' datType
     
-    let subConstraints = map (\(cls, (_, ty)) -> TApp (TId cls) (tyApply s' ty)) x
+    let subConstraints = map (\(cls, (_, ty)) -> buildData (TId cls) $ tyApply s' ty) x
     let subNames = map (\(cls, (_, ty)) -> cls ++ createTypeInstName (tyApply s' ty)) x
 
 
