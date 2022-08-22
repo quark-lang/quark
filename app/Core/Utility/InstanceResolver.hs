@@ -65,11 +65,15 @@ module Core.Utility.InstanceResolver where
             then var
             else AppE var subVar (tyApply s (appify z))], subTC)
 
-      -- If no superclass instance exists
-      _ -> (map (\z@(IsIn cls tys) ->
+      xs -> if containsTVar (appify x)
+        then (map (\z@(IsIn cls tys) ->
         VarE (cls ++ createTypeInstName tys) (appify z)) subCls,
         map (\z@(IsIn cls tys) ->
-          (cls ++ createTypeInstName tys, appify z)) subCls)) subCls
+          (cls ++ createTypeInstName tys, appify z)) subCls)
+        else 
+          if null xs
+            then error $ "No instance found for " ++ show x
+            else error $ "Instance overlaps: " ++ unwords (map (\(_, (c, _)) -> show c) xs)) subCls
 
   addDictOnRecursive :: TypedAST -> (String, Set (String, Type)) -> TypedAST
   addDictOnRecursive (VarE n t) (name, tc) = if n == name
