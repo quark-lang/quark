@@ -1,5 +1,5 @@
+(import "std:modules/color.qrk")
 (declare true bool)
-
 (declare false bool)
 
 (defm if [cond then else]
@@ -7,7 +7,38 @@
     [true then]
     [false else]))
 
-(defn bool:show [x]
-  (blue (match x
+(instance [] (Show bool) [
+  (defn show [x] (blue (match x
     [true "true"]
     [false "false"])))
+])
+
+(defn ! [x] (match x 
+  [true false]
+  [false true]))
+
+(defn and [x y] (match x
+  [true y]
+  [false false]))
+
+(class (Eq a) [
+  (declare = (-> a a bool))
+])
+
+(instance [] (Eq int) [
+  (defn = [x y] (binary x "===" y))
+])
+
+(instance [] (Eq char) [
+  (defn = [x y] (binary x "===" y))
+])
+
+(instance [(Eq a)] (Eq (List a)) [
+  (defn = [x y] (match x
+    [Nil (match y [Nil true] [(Cons _ _) false])]
+    [(Cons x' xs) (match y
+      [Nil false]
+      [(Cons y' ys) (and (= x' y') (= xs ys))])]))
+])
+
+(defn /= [x] (. ! (= x)))
