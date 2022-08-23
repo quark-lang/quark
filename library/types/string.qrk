@@ -9,5 +9,5 @@
   (let show (fn [c] (green (Cons '\'' (Cons c (Cons '\'' Nil))))))
 ])
 
-(defn fromString [x] (if (= (str:length x) 0) Nil
+(defn fromString [x] (if (binary (str:length x) "==" 0) Nil
   (Cons (str:at x 0) (fromString (str:substring x 1)))))
