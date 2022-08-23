@@ -1,32 +1,59 @@
-(defm defn [name args body]
-  (let name (fn args body)))
-(data (List a) [
-  Nil
-  (Cons a (List a))
+(import "std:prelude.qrk")
+(import "std:classes/monad.qrk")
+
+(defn const [a b] a)
+
+(instance [] (Functor (Tuple a)) [
+  (defn fmap [f x] (match x
+    [(Tuple a b) (Tuple a (f b))]))
 ])
 
-(defn ++ [a b] (match a
-  [Nil b]
-  [(Cons x xs) (Cons x (++ xs b))]))
-(class (Show a) [
-  (declare show (-> a str))
+(let print! (. print show))
+
+(let <$> fmap)
+
+(defn sumPair [xs ys] 
+  (>>= xs (fn [x] (>>= ys (fn [y] (return (+ x y)))))))
+
+(class (Typeable a) [
+  (declare type (-> a str))
 ])
 
-(instance [] (Show char) [
-  (let show (fn [c] (Cons c Nil)))
+(instance [] (Typeable int) [
+  (let type (const "int"))
 ])
 
-(instance [] (Show int) [
-  (let show (fn [x] "test"))
+(instance [] (Typeable char) [
+  (let type (const "char"))
 ])
 
-(instance [(Show a)] (Show (List a)) [
-  (let show (fn [x] (match x 
-    [Nil ""]
-    [(Cons y xs) (++ (show y) (show xs))])))
+(instance [(Typeable a)] (Typeable (List a)) [
+  (defn type [x]
+    (match x
+      [Nil "List"]
+      [(Cons y _) (++ "List<" (++ (type y) ">"))]))
 ])
 
+(instance [(Typeable a) (Typeable b)] (Typeable (Tuple a b)) [
+  (defn type [x]
+    (match x
+      [(Tuple a b) (++ "(" (++ (type a) (++ ", " (++ (type b) ")"))))]))
+])
+
+(instance [] (Show Void) [
+  (let show (const "()"))
+])
+
+(instance [] (Show bool) [
+  (defn show [x] (blue (match x
+    [true "true"]
+    [false "false"])))
+])
+
+(defn map [f xs] (>>= xs f))
+
+(let test (fn [x] (>>= x (fn [y] (return y)))))
 
 (let main (fn [] {
-  (show "test")
+  (print! (test (Tuple [1 2 3] ["a" "b" "c"])))
 }))
