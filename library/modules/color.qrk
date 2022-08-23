@@ -1,7 +1,5 @@
-(import "std:modules/math.qrk")
-(import "std:types/list.qrk")
-
 ; BASIC COLORS
+
 (defn black [x] 
   (++ "\x1b[30m" (++ x "\x1b[0m")))
 
