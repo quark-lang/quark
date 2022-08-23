@@ -1,11 +1,20 @@
+(import "std:classes/show.qrk")
 (data (List a) [
   Nil
   (Cons a (List a))
 ])
 
+(defn id [x] x)
+(defn const [a b] a)
+
 (defn ++ [a b] (match a
   [Nil b]
   [(Cons x xs) (Cons x (++ xs b))]))
+
+(data Void [Void])
+(instance [] (Show Void) [
+  (let show (const "()"))
+])
 
 (defm defn [name args body]
   (let name (fn args body)))
@@ -16,10 +25,14 @@
 (import "std:modules/math.qrk")
 (import "std:modules/io.qrk")
 (import "std:modules/color.qrk")
+(import "std:modules/fs.qrk")
 
 (import "std:types/bool.qrk")
 (import "std:types/maybe.qrk")
 (import "std:types/list.qrk")
 (import "std:types/tuple.qrk")
-(import "std:types/map.qrk")
 (import "std:types/string.qrk")
+
+(instance [] (Show int) [
+  (let show (. yellow to_string))
+])
