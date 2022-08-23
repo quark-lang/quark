@@ -13,3 +13,4 @@
 ])
 
 (defn >> [m n] (>>= m (fn [_] n)))
+(let <$> fmap)
