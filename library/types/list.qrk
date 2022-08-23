@@ -1,5 +1,7 @@
 (import "std:modules/math.qrk")
 (import "std:types/maybe.qrk")
+(import "std:classes/show.qrk")
+(import "std:classes/monad.qrk")
 
 (let list:empty Nil)
 
@@ -54,3 +56,36 @@
 (defn : [a b] (Cons a b))
 
 (defn elem [x ls] (> (list:length (list:filter (fn [y] (= y x)) ls)) 0))
+
+(instance [(Show a)] (Show (List a)) [
+  (let show (fn [x] (let go (fn [xs] (match xs 
+      [Nil ""]
+      [(Cons y xs') (++ (show y) (if (= (list:length xs') 0) "" (++ ", " (go xs'))))]))
+    (++ "[" (++ (go x) "]")))))
+])
+
+(instance [] (Functor List) [
+  (defn fmap [f x] (match x 
+    [Nil Nil]
+    [(Cons y xs) (Cons (f y) (fmap f xs))]))
+])
+
+
+(instance [] (Applicative List) [
+  (defn pure [x] (Cons x Nil))
+  (defn (<*>) [f x] (match f 
+    [Nil Nil]
+    [(Cons g xs) (fmap g x)]))
+])
+
+
+(declare (concat a) (-> [[a]] [a]))
+(defn concat [xs] (match xs 
+  [Nil Nil]
+  [(Cons y ys) (++ y (concat ys))]))
+
+(instance [] (Monad List) [
+  (defn return [x] (Cons x Nil))
+  (defn (>>=) [m f] 
+    (concat (list:map f m)))
+])
