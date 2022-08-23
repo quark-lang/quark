@@ -2,20 +2,13 @@
 (import "std:types/maybe.qrk")
 (import "std:classes/show.qrk")
 (import "std:classes/monad.qrk")
+(import "std:types/bool.qrk")
 
 (let list:empty Nil)
 
 (defn list:length [x] (match x
   [Nil 0]
   [(Cons _ xs) (+ 1 (list:length xs))]))
-
-(defn list:show [fmt xs] {
-  (defn f [lst] (match lst
-    [[] ""]
-    [[x *xs] (++ (fmt x) (++ (if (= (list:length xs) 0) "" ", ") (f xs)))]
-  ))
-  (++ "[" (++ (f xs) "]"))
-})
 
 (declare (fromList a b) (-> a [b]))
 (defn fromList [ls] 
