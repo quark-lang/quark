@@ -1,20 +1,22 @@
 (import "std:types/expression.qrk")
 (import "std:types/list.qrk")
 (import "std:types/string.qrk")
+(import "std:classes/monad.qrk")
 
-(let putStr (fn [x]
+(declare putChar (-> char int))
+(let putChar (fn [x]
   (call (property (property "process" "stdout") "write") x)))
 
 (declare (to_string a) (-> a str))
 (defn to_string [x] 
   (fromString (call (property x "toString"))))
 
-(declare print (-> str int))
-(defn print [str] (match str 
-  [Nil (putStr '\n')]
+(declare putStrLn (-> str int))
+(defn putStrLn [str] (match str 
+  [Nil (putChar '\n')]
   [(Cons x xs) {
-    (putStr x)
-    (print xs)
+    (putChar x)
+    (putStrLn xs)
   }]))
 
 (let error (fn [msg] (throw msg)))
@@ -22,4 +24,5 @@
 (let argv (fromList (property "process" "argv")))
 
 (declare args [str])
-(let args (list:drop 2 argv))
+(let args (list:drop 2 (>>= argv (. return fromString))))
+(let print (. putStrLn show))
