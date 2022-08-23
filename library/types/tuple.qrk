@@ -1,3 +1,4 @@
+(import "std:classes/show.qrk")
 (data (Tuple a b) [
   (Tuple a b)
 ])
@@ -10,6 +11,10 @@
 
 (defn , [a b] (Tuple a b))
 
-(defn tuple:show [f1 f2 x]
-  (match x
-    [(Tuple a b) (++ "(" (++ (++ (f1 a) (++ ", " (f2 b))) ")"))]))
+(defn tuple:first [f (Tuple x _)] (f x))
+(defn tuple:second [f (Tuple _ x)] (f x))
+
+(instance [(Show a) (Show b)] (Show (Tuple a b)) [
+  (let show (fn [x] (match x 
+    [(Tuple a b) (++ "(" (++ (show a) (++ ", " (++ (show b) ")"))))])))
+])

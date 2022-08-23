@@ -1,11 +1,14 @@
+(import "std:classes/show.qrk")
 (data (Maybe a) [
   Nothing
   (Just a)
 ])
 
-(defn maybe:show [fmt x] (match x
-  [Nothing "Nothing"]
-  [(Just y) (++ "Just " (fmt y))]))
+(instance [(Show a)] (Show (Maybe a)) [
+  (defn show [x] (match x
+    [(Just a) (++ "Just " (show a))]
+    [Nothing "Nothing"]))
+])
   
 (defn maybe:fmap [f x] (match x
   [Nothing Nothing]
