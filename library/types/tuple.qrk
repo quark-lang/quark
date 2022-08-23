@@ -1,4 +1,5 @@
 (import "std:classes/show.qrk")
+(import "std:classes/bifunctor.qrk")
 (data (Tuple a b) [
   (Tuple a b)
 ])
@@ -11,10 +12,22 @@
 
 (defn , [a b] (Tuple a b))
 
-(defn tuple:first [f (Tuple x _)] (f x))
-(defn tuple:second [f (Tuple _ x)] (f x))
-
 (instance [(Show a) (Show b)] (Show (Tuple a b)) [
   (let show (fn [x] (match x 
     [(Tuple a b) (++ "(" (++ (show a) (++ ", " (++ (show b) ")"))))])))
+])
+
+(instance [] (Functor (Tuple a)) [
+  (defn fmap [f x] (match x
+    [(Tuple a b) (Tuple a (f b))]))
+])
+
+(instance [] (Applicative (Tuple a)) [
+  (defn pure [a] (Tuple a a))
+  (defn <*> [(Tuple f a) (Tuple b c)] (Tuple (f b) (a c)))
+])
+
+(instance [] (Bifunctor Tuple) [
+  (defn bimap [f g x] (match x
+    [(Tuple a b) (Tuple (f a) (g b))]))
 ])
