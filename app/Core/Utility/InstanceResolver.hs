@@ -55,7 +55,7 @@ module Core.Utility.InstanceResolver where
   addArgument env (PatternE p e) = do
     (p', tc) <- addArgument env p
     x <- mapM (\(x, y) -> (x,) <$> addArgument env y) e
-    return (PatternE p (map (\(x, (y, _)) -> (x, y)) x), tc `union` unions (map (snd . snd) x))
+    return (PatternE p' (map (\(x, (y, _)) -> (x, y)) x), tc `union` unions (map (snd . snd) x))
   addArgument _ x = return (x, empty)
 
   find' :: MonadError String m => [Class] -> [([Class], (String, [Class]))] -> m ([TypedAST], [([Char], Type)])
