@@ -1,0 +1,15 @@
+(class (Functor f) [
+  (declare (fmap a b) (-> (-> a b) (f a) (f b)))
+])
+
+(class (Applicative f) [
+  (declare (pure a) (-> a (f a)))
+  (declare (<*> a b) (-> (f (-> a b)) (f a) (f b)))
+])
+
+(class (Monad m) [
+  (declare (return a) (-> a (m a)))
+  (declare (>>= a b) (-> (m a) (-> a (m b)) (m b)))
+])
+
+(defn >> [m n] (>>= m (fn [_] n)))
