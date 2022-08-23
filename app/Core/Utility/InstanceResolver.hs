@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Core.Utility.InstanceResolver where
   import Core.Inference.Type.AST (TypedAST(..), Type(..), Class(..), getType)
   import Core.Inference.Type.Pretty (show')
@@ -8,9 +9,11 @@ module Core.Utility.InstanceResolver where
   import Data.Set (Set, toList, fromList, empty, union, unions)
   import Core.Inference.Type (createTypeInstName, createInstName, appify, isInstanceName)
   import qualified Data.Map as M
-  import Data.List (nub)
+  import Data.List (nub, find, intercalate)
   import Data.Bifunctor (Bifunctor(bimap))
-
+  import Data.Maybe (fromMaybe)
+  import Control.Monad.Except (MonadError (throwError))
+  
   containsTVar :: Type -> Bool
   containsTVar (TVar _) = True
   containsTVar (TApp t1 t2) = containsTVar t1 || containsTVar t2
@@ -29,51 +32,52 @@ module Core.Utility.InstanceResolver where
   fromApp (TApp (TId cls) tys) = IsIn cls $ extract tys
   fromApp _ = error "fromApp: not a class"
 
-  addArgument :: [([Class], (String, [Class]))] -> TypedAST -> (TypedAST, Set (String, Type))
+  addArgument :: MonadError String m => [([Class], (String, [Class]))] -> TypedAST -> m (TypedAST, Set (String, Type))
   addArgument e a@(AbsE args body) = do
-    let (args', tc) = addArgument e body
-    (AbsE args args', tc)
+    (args', tc) <- addArgument e body
+    return (AbsE args args', tc)
   addArgument e (AppE e1 e2 t') = do
-    let (e1', tc1) = addArgument e e1
-        t = unzip $ map (addArgument e) e2
-    (AppE e1' (fst t) t', tc1 `union` unions (snd t))
+    (e1', tc1) <- addArgument e e1
+    t <- unzip <$> mapM (addArgument e) e2
+    return (AppE e1' (fst t) t', tc1 `union` unions (snd t))
   addArgument e (LetE n@(name, _) v) = do
-    let (b', tc) = addArgument e v
-    (LetE n (if null tc then b' else AbsE (toList tc) b') , tc)
+    (b', tc) <- addArgument e v
+    return (LetE n (if null tc then b' else AbsE (toList tc) b') , tc)
   addArgument env (LetInE n@(name, _) v e) = do
-    let (v', tc') = addArgument env v
-    let (e', tc) = addArgument env e
-    (LetInE n (if null tc' then v' else AbsE (toList tc') (addDictOnRecursive v' (name, tc'))) e', tc)
+    (v', tc') <- addArgument env v
+    (e', tc) <- addArgument env e
+    return (LetInE n (if null tc' then v' else AbsE (toList tc') (addDictOnRecursive v' (name, tc'))) e', tc)
   addArgument env (InstE n t) = case t of
-    cls :=> ty ->
-      let (calls, tcs) = find cls env
-        in {- traceShow (n, t, calls) $ -} (AppE (VarE n ty) (reverse calls) ty, fromList tcs)
-    _ -> error $ n ++ " should have a class constraint"
+    cls :=> ty -> do
+      (calls, tcs) <- find' cls env
+      return (AppE (VarE n ty) (reverse calls) ty, fromList tcs)
+    _ -> throwError $ n ++ " should have a class constraint"
   addArgument env (PatternE p e) = do
-    let (p', tc) = addArgument env p
-    let x = map (second (addArgument env)) e
-    (PatternE p (map (\(x, (y, _)) -> (x, y)) x), tc `union` unions (map (snd . snd) x))
-  addArgument _ x = (x, empty)
+    (p', tc) <- addArgument env p
+    x <- mapM (\(x, y) -> (x,) <$> addArgument env y) e
+    return (PatternE p (map (\(x, (y, _)) -> (x, y)) x), tc `union` unions (map (snd . snd) x))
+  addArgument _ x = return (x, empty)
 
-  find subCls env = bimap concat concat $ unzip $ map
+  find' :: MonadError String m => [Class] -> [([Class], (String, [Class]))] -> m ([TypedAST], [([Char], Type)])
+  find' subCls env = bimap concat concat . unzip <$> mapM
     (\x -> case map (first $ fromRight M.empty) $ filter (isRight . fst) $ map (\z@(cls', _) -> (constraintCheck cls' [x], z)) env of
       -- If a superclass instance exists
-      [(s, ([z@(IsIn cls t2)], (name, subCls)))] ->
-        let (subVar, subTC) = find (tyApply s subCls) env
-            var = VarE name (tyApply s (appify z))
-          in ([if null subVar
+      [(s, ([z@(IsIn cls t2)], (name, subCls)))] -> do
+        (subVar, subTC) <- find' (tyApply s subCls) env
+        let var = VarE name (tyApply s (appify z))
+          in return ([if null subVar
             then var
             else AppE var subVar (tyApply s (appify z))], subTC)
 
       xs -> if containsTVar (appify x)
-        then (map (\z@(IsIn cls tys) ->
+        then return (map (\z@(IsIn cls tys) ->
         VarE (cls ++ createTypeInstName tys) (appify z)) subCls,
         map (\z@(IsIn cls tys) ->
           (cls ++ createTypeInstName tys, appify z)) subCls)
         else 
           if null xs
-            then error $ "No instance found for " ++ show x
-            else error $ "Instance overlaps: " ++ unwords (map (\(_, (c, _)) -> show c) xs)) subCls
+            then throwError $ "No instance found for " ++ show x
+            else throwError $ "Instances " ++ intercalate ", " (map (\(_, (x:xs, _)) -> show x) xs) ++ " overlaps for " ++ show x) subCls
 
   addDictOnRecursive :: TypedAST -> (String, Set (String, Type)) -> TypedAST
   addDictOnRecursive (VarE n t) (name, tc) = if n == name

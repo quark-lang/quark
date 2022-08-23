@@ -18,6 +18,7 @@ module Core.Entry where
   import Core.Utility.Sugar (eliminateSugar)
   import System.Environment (getEnv)
   import Core.Utility.InstanceResolver (addArgument)
+  import Control.Monad.Except (runExcept, runExceptT)
   
   run :: (String, String) -> IO (Either (String, Maybe String) String)
   run (dir, file) = do
@@ -37,15 +38,16 @@ module Core.Entry where
                 x' <- runInfer x
                 case x' of
                   Right (x, insts) -> do
-                    --(x, closures, _) <- foldlM (\(acc, cl, i) x -> do
-                    --  (cl', x', i') <- runConverter x i
-                    --  return (acc ++ [x'], cl ++ cl', i')) ([], [], 0) x
-                    (c, _) <- foldlM (\(acc, st) x -> do
-                      (x', st') <- runCompiler x st
-                      return (acc ++ [x'], st')) ([], M.empty) $ map (fst . addArgument insts) x
-                    path <- getEnv "QUARK"
-                    placeholder <- readFile (path </> "app/Core/placeholder.js")
-                    return . Right $ placeholder ++ concatMap ((++";") . from) c ++ "$main();"
+                    ast <- runExceptT $ mapM ((fst <$>) . addArgument insts) x
+                    case ast of
+                      Right ast -> do
+                        (c, _) <- foldlM (\(acc, st) x -> do
+                          (x', st') <- runCompiler x st
+                          return (acc ++ [x'], st')) ([], M.empty) ast
+                        path <- getEnv "QUARK"
+                        placeholder <- readFile (path </> "app/Core/placeholder.js")
+                        return . Right $ placeholder ++ concatMap ((++";") . from) c ++ "$main();"
+                      Left err -> return $ Left (err, Nothing)
                   Left err -> return $ Left (second (Just . show) err)
               Left err -> return $ Left (err, Nothing)
           Left err -> return $ Left (parseError err)
