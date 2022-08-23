@@ -1,6 +1,3 @@
-(declare (add a) (-> a a a))
-(defn add [a b] (binary a "+" b))
-
 (declare (- a) (-> a a a))
 (defn - [a b] (binary a "-" b))
 
@@ -13,24 +10,16 @@
 (declare (/ a) (-> a a a))
 (defn / [a b] (binary a "/" b))
 
-(declare (= a) (-> a a bool))
-(defn = [x y] (binary x "===" y))
-
-(declare (! a) (-> a bool))
-(defn ! [x] (call "!" x))
-
 (defn . [f g]
   (fn [x] (f (g x))))
 
-(declare (/= a) (-> a a bool))
-(defn /= [x] (. ! (= x)))
 
 (class (Num a) [
   (declare + (-> a a a))
 ])
 
 (instance [] (Num int) [
-  (let + (fn [x y] (add x y)))
+  (let + (fn [x y] (binary x "+" y)))
 ])
 
 (instance [] (Num str) [
