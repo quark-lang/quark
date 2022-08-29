@@ -1,0 +1,37 @@
+(import "std:types/tuple.qrk")
+(import "std:classes/monad.qrk")
+; s => input type, a => output type
+(data (State s a) [
+  (State (-> s (Tuple a s)))
+])
+
+(defn runState [(State f) s] (f s))
+
+(instance [] (Functor (State s)) [
+  (defn fmap [f (State st)]
+    (State (fn [s] (second f (st s)))))
+])
+
+(instance [] (Applicative (State s)) [
+  (defn pure [a] (State (fn [s] (, a s))))
+  (defn <*> [(State fs) (State ss)] (State (fn [x] {
+    (let (Tuple f s) (fs x))
+    (let (Tuple a b) (ss s))
+    (, (f a) b)
+  })))
+])
+
+(instance [] (Monad (State s)) [
+  (defn return [a] (State (fn [s] (, a s))))
+  (defn >>= [(State ss) f] (State (fn [x] {
+    (let s' (ss x))
+    (runState (f (fst s')) (snd s'))
+  })))
+])
+
+; some useful state functions
+(let state:get 
+  (State (fn [s] (Tuple s s))))
+
+(defn state:put [s]
+  (State (fn [a] (Tuple Void s))))
