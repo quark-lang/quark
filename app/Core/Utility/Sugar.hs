@@ -1,7 +1,8 @@
 module Core.Utility.Sugar where
   import Core.Parser.AST (Expression(..), Literal (String, Char))
   import Data.List (isPrefixOf)
-
+  import Debug.Trace (traceShow)
+  
   buildCall :: Expression -> [Expression] -> Expression
   buildCall f [] = f
   buildCall call (x:args) = buildCall (Node call [x]) args
@@ -26,6 +27,7 @@ module Core.Utility.Sugar where
 
   eliminateSugar :: Expression -> Expression
   eliminateSugar (Node (Identifier "begin") xs) = buildBeginSugar xs
+  eliminateSugar (Node (Identifier "do") xs) = eliminateSugar $ buildDoSugar xs
   eliminateSugar z@(Node (Identifier "import") _) = z
   eliminateSugar (Node (Identifier "instance") [i, x, List methods]) = 
     Node (Identifier "instance") [i, x, List (map eliminateSugar methods)]
@@ -35,7 +37,7 @@ module Core.Utility.Sugar where
   eliminateSugar (Node (Identifier "fn") [List args, body])
     = if not (null args)
         then buildClosure args (eliminateSugar body)
-        else Node (Identifier "fn") [List args, eliminateSugar body]
+        else eliminateSugar body
   eliminateSugar z@(Node (Identifier "data") _) = z
   eliminateSugar (Node (Identifier "let") [z@(Node _ _), value, body]) = 
     eliminateSugar (Node (Identifier "match") [value, List [z, body]]) 
@@ -76,3 +78,17 @@ module Core.Utility.Sugar where
   buildList [] = Identifier "Nil"
   buildList [x, Identifier y] = if "*" `isPrefixOf` y then Node (Identifier "Cons") [eliminateSugar x, Identifier $ drop 1 y] else Node (Identifier "Cons") [eliminateSugar x, Node (Identifier "Cons") [Identifier y, Identifier "Nil"]]
   buildList (x:xs) = Node (Identifier "Cons") [eliminateSugar x, buildList xs]
+
+  buildDoSugar :: [Expression] -> Expression
+  buildDoSugar [x] = eliminateSugar x
+  buildDoSugar (Node (Identifier "<-") [name, value]:xs)
+    = eliminateSugar $ Node (Identifier ">>=") [
+        value,
+        Node (Identifier "fn") [List [name], buildDoSugar xs]]
+  buildDoSugar (Node (Identifier "let") [name, value]:xs)
+    = eliminateSugar $ Node (Identifier "let") [
+        eliminateSugar name,
+        eliminateSugar value,
+        buildDoSugar xs ]
+  buildDoSugar (x:xs) = Node (Identifier ">>") [eliminateSugar x, buildDoSugar xs]
+  buildDoSugar [] = Node (Identifier "return") [Identifier "Void"]
