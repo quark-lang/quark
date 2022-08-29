@@ -36,14 +36,14 @@ module Core.Compiler.Modules.Pattern where
   compileCase (AppP n args _) = do
     e <- get
     return $ \x b -> do
-      let args' = concat $ zipWith (\arg v -> findPattern e arg (Property x (Var v))) args (["v" ++ show i | i <- [0..]])
+      let args' = concat $ zipWith (\arg v -> findPattern e arg (Property (Var "$v") (Var v))) args (["v" ++ show i | i <- [0..]])
       let lets   = map (fromJust . fst) $ filter (isJust . fst) args'
       let cs = map (fromJust . snd) $ filter (isJust . snd) args'
-      let cond  = BinaryCall (Property x (Var "type")) "===" (Lit (S n))
+      let cond  = BinaryCall (Property (Var "$v") (Var "type")) "===" (Lit (S n))
           conds = case cs of
                     (c:cs) -> cond `and` foldl and c cs
                     _ -> cond
-        in Condition conds $ Block $ lets ++ [Return b]
+        in Block $ Let "$v" x : [Condition conds $ Block $ lets ++ [Return b]]
   compileCase (WilP _) = do
     return $ \x b -> Return b
   compileCase (LitP l _) = do
