@@ -11,13 +11,19 @@
 (defn to_string [x] 
   (fromString (call (property x "toString"))))
 
-(declare putStrLn (-> str int))
-(defn putStrLn [str] (match str 
-  [Nil (putChar '\n')]
+(declare putStr (-> str int))
+(defn putStr [str] (match str
+  [Nil 0]
   [(Cons x xs) {
     (putChar x)
-    (putStrLn xs)
+    (putStr xs)
   }]))
+
+(declare putStrLn (-> str int))
+(defn putStrLn [str] {
+  (putStr str)
+  (putChar '\n')
+})
 
 (let error (fn [msg] (throw msg)))
 
