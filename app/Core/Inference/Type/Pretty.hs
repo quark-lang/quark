@@ -12,7 +12,7 @@ module Core.Inference.Type.Pretty where
   createIndent n = replicate n ' '
 
   showPattern :: TypedPattern -> String
-  showPattern (VarP n t) = n ++ " : " ++ show t
+  showPattern (VarP n t) = n ++ " : " ++ show' t
   showPattern (AppP n x _) = bBlack "[" ++ n ++ bBlack "] " ++ intercalate ", " (map showPattern x)
   showPattern (WilP _) = "_"
   showPattern (LitP l _) = show l
@@ -38,8 +38,6 @@ module Core.Inference.Type.Pretty where
     bBlack "[" ++ showAST n 0 ++ bBlack "] " ++ unwords (map (`showAST` 0) arg)
   showAST (VarE n t) _
     = n ++ " : " ++ show' t
-  showAST (InstE n t) _
-    = "@" ++ n ++ " : " ++ show' t
   showAST (LitE l _) _ = show l
   showAST (ListE xs _) _
     = bBlack "[" ++ intercalate "," (map (`showAST` 0) xs) ++ bBlack "]"

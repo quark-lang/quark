@@ -5,8 +5,8 @@ module Core.Inference.Type.Methods where
   import Core.Inference.Type.Pretty (show')
   import qualified Data.Map as M
   import qualified Data.Set as S
-  import Control.Monad.RWS (modify, MonadState(get), MonadIO (liftIO))
-  import Data.Bifunctor (Bifunctor(second, bimap))
+  import Control.Monad.RWS (modify, MonadState(get), MonadIO (liftIO), gets)
+  import Data.Bifunctor (Bifunctor(second, bimap, first))
   import Debug.Trace (traceShow)
   import Data.Semialign (Semialign(alignWith))
   import Data.These (These(This, That, These))
@@ -133,7 +133,6 @@ module Core.Inference.Type.Methods where
     tyFree (LetE (name, t) body) = (tyFree t S.\\ tyFree t) `S.union` tyFree body
     tyFree (ListE args t) = tyFree t `S.union` setConcatMap tyFree args
     tyFree (LitE ast t) = tyFree t
-    tyFree (InstE _ t) = tyFree t
     tyFree _ = S.empty
 
     tyApply s (AppE f arg t) = AppE (tyApply s f) (tyApply s arg) (tyApply s t)
@@ -145,7 +144,6 @@ module Core.Inference.Type.Methods where
     tyApply s (LitE ast t) = LitE ast (tyApply s t)
     tyApply s (PatternE pat t) = PatternE (tyApply s pat) (map (bimap (tyApply s) (tyApply s)) t)
     tyApply s (DataE name args) = DataE name (map (second $ tyApply s) args)
-    tyApply s (InstE name t) = InstE name (tyApply s t)
 
     tyUnify _ _ = error "Cannot unify AST"
 
@@ -170,7 +168,10 @@ module Core.Inference.Type.Methods where
 
   -- Creating a new fresh type variable
   tyFresh :: MonadType m => m Type
-  tyFresh = get >>= \n -> modify (+1) >> return (TVar n)
+  tyFresh = gets fst >>= \n -> modify (first (+1)) >> return (TVar n)
+
+  freshInstance :: MonadType m => Instance -> m ()
+  freshInstance t = modify (second (t:))
 
   -- Create a type instance based on a scheme
   tyInstantiate :: MonadType m => Scheme -> m Type

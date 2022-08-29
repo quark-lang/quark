@@ -33,7 +33,6 @@ module Core.Inference.Type.AST where
     | ListE [TypedAST] Type
     | LetE Argument TypedAST
     | LitE Literal Type
-    | InstE String Type
     -- (Name, [Generics])
     | DataE (String, [Type]) [(String, Type)]
     -- Pattern | [(Case, AST)]
@@ -78,4 +77,7 @@ module Core.Inference.Type.AST where
   data Scheme = Forall [Int] Type
     deriving (Eq, Ord)
 
-  type MonadType m = (MonadRWS Env [([Class], (String, [Class]))] Int m, MonadIO m, MonadError (String, Expression) m)
+  type InstanceName = String
+  type Instance = ([Class], (InstanceName, [Class]))
+  type Instances = [Instance]
+  type MonadType m = (MonadRWS Env () (Int, Instances) m, MonadIO m, MonadError (String, Expression) m)
