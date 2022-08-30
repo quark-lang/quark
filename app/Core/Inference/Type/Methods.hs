@@ -11,6 +11,11 @@ module Core.Inference.Type.Methods where
   import Data.Semialign (Semialign(alignWith))
   import Data.These (These(This, That, These))
   import Data.Semialign.Indexed (SemialignWithIndex(ialignWith))
+  import Data.List (dropWhileEnd)
+  import Data.Char (isSpace)
+  
+  trim :: String -> String
+  trim = dropWhileEnd isSpace . dropWhile isSpace
   
   -- Some environment functions and types
   applyTypes :: (TypeEnv -> TypeEnv) -> Env -> Env
@@ -96,9 +101,9 @@ module Core.Inference.Type.Methods where
                    Right s -> tyCompose <$> (acc >>= check s) <*> pure s
                    Left s -> Left s) (Right M.empty) $ zip t1 t3
           in tyCompose <$> s1 <*> tyUnify t2 t4
-    tyUnify (TId s) (TId s') = if s == s'
+    tyUnify (TId s) (TId s') =  if s == s'
       then Right M.empty
-      else Left $ "Type " ++ s ++ " mismatches with type " ++ s'
+      else Left $ "Type " ++ s ++ " mismatches with type " ++ s' ++ "."
     tyUnify (ListT t) (ListT t') = tyUnify t t'
     tyUnify Int Int = Right M.empty
     tyUnify String String = Right M.empty
@@ -107,8 +112,8 @@ module Core.Inference.Type.Methods where
     tyUnify (TApp t1 t2) (TApp t3 t4) =
       let s1 = tyUnify t1 t3
           s2 = tyUnify t2 t4
-        in tyCompose <$> s1 <*> s2
-    tyUnify s1 s2 = Left $ "Type " ++ show' s1 ++ " mismatches with type " ++ show' s2
+        in tyCompose <$> s2 <*> s1
+    tyUnify s1 s2 = Left $ "Type " ++ show' s1 ++ " mismatches with type " ++ show' s2 ++ "."
   instance Types Scheme where
     tyFree (Forall v t) = tyFree t S.\\ S.fromList v
     tyApply s (Forall v t) = Forall v (tyApply (foldr M.delete s v) t)
@@ -147,6 +152,11 @@ module Core.Inference.Type.Methods where
 
     tyUnify _ _ = error "Cannot unify AST"
 
+  instance (Types a, Types b) => Types (a, b) where
+    tyFree (a, b) = tyFree a `S.union` tyFree b
+    tyApply s (a, b) = (tyApply s a, tyApply s b)
+    tyUnify (a1, b1) (a2, b2) = tyCompose <$> tyUnify a1 a2 <*> tyUnify b1 b2
+    
   instance Types TypedPattern where
     tyFree (VarP _ t) = tyFree t
     tyFree (WilP t) = tyFree t

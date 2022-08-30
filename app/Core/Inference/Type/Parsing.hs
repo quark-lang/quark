@@ -4,12 +4,12 @@ module Core.Inference.Type.Parsing where
   import qualified Core.Parser.AST as A
   import Core.Inference.Type.AST
   import Control.Monad (forM, unless)
-  import Core.Inference.Type.Methods (tyFresh)
+  import Core.Inference.Type.Methods (tyFresh, trim)
   import Debug.Trace (traceShow)
   import Data.List (union)
 
   buildDataType :: String -> [Type] -> Type
-  buildDataType name args = if null args then TId name else buildData (TId name) args
+  buildDataType name args = if null args then TId (trim name) else buildData (TId $ trim name) args
 
   isRight :: Either a b -> Bool
   isRight (Right _) = True
@@ -102,9 +102,9 @@ module Core.Inference.Type.Parsing where
     constr' <- forM constructors $ \case
       A.Node (A.Identifier name) args -> do
         let consTy = parseConstructor dataType argsMap args
-          in return (name, consTy)
-      A.Identifier name -> return (name, dataType)
+          in return (trim name, consTy)
+      A.Identifier name -> return (trim name, dataType)
       _ -> error "Invalid constructor"
 
-    return (M.map schemeCt (M.fromList constr'), DataE (name, tyVars) constr')
+    return (M.map schemeCt (M.fromList constr'), DataE (trim name, tyVars) constr')
   parseData _ _ = error "Invalid data type"
