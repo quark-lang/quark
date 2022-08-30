@@ -55,7 +55,7 @@ module Core.Inference.Type where
   tyPattern x = error $ "tyPattern: not implemented => " ++ show x
 
   patUnify :: Type -> [Type] -> Either String SubTy
-  patUnify x = foldl (\acc y -> tyCompose <$> tyUnify x y <*> acc) (Right M.empty)
+  patUnify x = foldl (\acc y -> tyCompose <$> tyUnify y x <*> acc) (Right M.empty)
 
   instances :: MonadType m => m Instances
   instances = gets snd
@@ -84,7 +84,6 @@ module Core.Inference.Type where
           if null xs
             then throwError ("No instance found for " ++ show x, a)
             else throwError ("Instances " ++ intercalate ", " (map (\(_, (x:xs, _)) -> show x) xs) ++ " overlaps for " ++ show x, a)) subCls
-
   -- Main type inference function
   tyInfer :: MonadType m => A.Expression -> m (TypedAST, SubTy, Type)
   -- Type inference for variables
@@ -101,31 +100,43 @@ module Core.Inference.Type where
     let exprs    = map (\(A.List [_, c]) -> c) cases
     let cases'   = zip patterns exprs
 
-    res <- forM cases' $ \(pattern, expr) -> do
-      (p, s, t, m) <- tyPattern pattern
-      let s2 = s `tyCompose` s1
-      (e, s', t') <- local (applyTypes $ tyApply s2 . (m `M.union`)) $ tyInfer expr
-      let s3 = s' `tyCompose` s2
-      return (tyApply s3 t, tyApply s3 t', s3, (tyApply s3 p, tyApply s3 e))
+    (sub, res) <- foldM (\(s, acc) (pattern, expr) -> do
+      (p, s', t, m) <- tyPattern pattern
+      let s2 = s' `tyCompose`  s
+      (e, s'', t') <- local (applyTypes $ tyApply s2 . (m `M.union`)) $ tyInfer expr
+      let s3 = s'' `tyCompose` s2
+      return (s3, acc ++ [(tyApply s3 t, tyApply s3 t', s3, (tyApply s3 p, tyApply s3 e))])) (s1, []) cases'
 
     if null res
       then (PatternE pat' [], M.empty,) <$> tyFresh
       else do
         let (_, t, _, _) = head res
+        
         let s = foldl (\acc (tp, te, s, _) ->
                 let r = tyCompose <$> tyUnify t te <*> tyUnify tp pat_t
                     r' = tyCompose <$> r <*> acc
-                  in tyCompose <$> r' <*> pure s) (Right s1) res
+                  in tyCompose <$> r' <*> pure s) (Right sub) res
         let s2 = foldl (\acc (tp, te, s, _) ->
                 let r = tyCompose <$> tyUnify t te <*> tyUnify tp pat_t
                     r' = tyCompose <$> r <*> acc
-                  in tyCompose <$> r' <*> pure s) (Right s1) $ reverse res
+                  in tyCompose <$> r' <*> pure s) (Right sub) $ reverse res
         let s' = tyCompose <$> s <*> s2
+        
+        -- Checking against patterns
         let tys = map (\(x, _, _, _) -> case s of
                     Right s -> tyApply s x
                     Left _ -> x) res
-        let s'' = foldl (\acc x -> tyCompose <$> acc <*> patUnify x tys) (Right M.empty) tys
-        case tyCompose <$> s' <*> s'' of
+        
+        let s'' = foldl (\acc x -> tyCompose <$> patUnify x tys <*> acc) (Right M.empty) tys
+
+        -- Checking against bodys
+        let bodys = map (\(_, x, _, _) -> case s of
+                    Right s -> tyApply s x
+                    Left _ -> x) res
+
+        let s''' = foldl (\acc x -> tyCompose <$> patUnify x bodys <*> acc) (Right M.empty) bodys
+
+        case tyCompose <$> (tyCompose <$> s'' <*> s''') <*> s' of
           Right s -> do
             let patterns' = map (\(_, _, _, (x, y)) -> (tyApply s x, tyApply s y)) res
             return (PatternE (tyApply s pat') patterns', s, tyApply s t)
@@ -154,7 +165,7 @@ module Core.Inference.Type where
   tyInfer z@(A.Node (A.Identifier "let") [A.Identifier name, value, body]) = do
     -- Fresh type for recursive definitions
     tv <- tyFresh
-    let e =  M.singleton name (Forall [] tv)
+    let e = M.singleton name (Forall [] tv)
     (v', s1, t1) <- local (applyTypes (`M.union` e)) $ tyInfer value
     Env env _ <- ask
     --liftIO $ print (name, t1)
@@ -170,16 +181,14 @@ module Core.Inference.Type where
                 return (s', r)
               Left x -> throwError (x, z)
           Nothing -> return (s1, t1)
-    --liftIO $ print (name, t1, v'')
-    --let t3 = case t2 of
-    --      _ :=> ty -> if null preds then ty else preds :=> ty
-    --      _ -> if null preds then t2 else preds :=> t2
 
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) (tyApply s3 t3)
         env'' = M.insert name t' env'
 
     (b', s2, t2) <- local (applyTypes . const $ tyApply s3 env'') $ tyInfer body
+    --liftIO $ print (t3, t2)
+    --liftIO $ print (name, t1, v', t2)
     let s4 = s2 `tyCompose` s3
     return (LetInE (name, tyApply s4 t3) (tyApply s4 $ applyClassOnRecursive v' (name, t3)) $ tyApply s4 b', s4, tyApply s4 t2)
 
@@ -199,7 +208,7 @@ module Core.Inference.Type where
     (n', s1, t1) <- tyInfer n
     (x', s2, t2) <- foldlM (\(x', s, t) x -> do
       (x'', s', t') <- local (applyTypes (tyApply s)) $ tyInfer x
-      return (x' ++ [x''], s `tyCompose` s', t ++ [t'])) ([], s1, []) xs
+      return (x' ++ [x''], s' `tyCompose` s, t ++ [t'])) ([], s1, []) xs
     let cls' = concatMap (\case
                 cls :=> _ -> cls
                 _ -> []) t2
@@ -219,7 +228,7 @@ module Core.Inference.Type where
             let app = AppE (tyApply s4 n') (tyApply s4 x') x''
             return (tyApply s4 $ case getType app of
                 cls :=> ty -> setType app (nub cls :=> ty)
-                _ -> if null cls'
+                _ -> if null (nub cls')
                   then app
                   else setType app (cls' :=> getType app),
                 s4, tyApply s4 x'')
@@ -298,28 +307,28 @@ module Core.Inference.Type where
     cls :=> ty -> do
       env <- instances
       (calls, tcs, preds) <- find' (A.Identifier n) cls env
-      return (if not (null calls) then AppE (VarE n (preds :=> ty)) calls ty else VarE n t, tcs, preds)
+      return (if not (null calls) then AppE (VarE n (nub preds :=> ty)) calls ty else VarE n t, nub tcs, nub preds)
     _ -> return (VarE n t, [], [])
   resolveInstances (AppE e x t) = do
     (e', tcs, cls) <- resolveInstances e
     (x', tcs', cls') <- unzip3 <$> mapM resolveInstances x
-    return (AppE e' x' t, tcs ++ concat tcs', cls ++ concat cls')
+    return (AppE e' x' t, nub $ tcs ++ concat tcs', nub $ cls ++ concat cls')
   resolveInstances (AbsE xs e) = do
     (e', tcs, cls) <- resolveInstances e
     return (AbsE xs e', tcs, cls)
   resolveInstances (LetInE (x, t) e b) = do
     (e', tcs, cls) <- resolveInstances e
     let t1 = case t of
-          _ :=> ty -> if null cls then ty else cls :=> ty
-          _ -> if null cls then t else cls :=> t
+          _ :=> ty -> if null cls then ty else nub cls :=> ty
+          _ -> if null cls then t else nub cls :=> t
     (b', tcs', cls') <- resolveInstances b
-    return (LetInE (x, t1) (if null tcs then e' else AbsE (nub tcs) e') b', tcs', cls')
+    return (LetInE (x, t1) (if null tcs then e' else AbsE (nub tcs) e') b', nub tcs', nub cls')
   resolveInstances (PatternE e ps) = do
     (e', tcs, cls) <- resolveInstances e
     (ps', tcs', cls') <- unzip3 <$> mapM (\(p, e) -> do
       (e', tcs, cls) <- resolveInstances e
       return ((p, e'), tcs, cls)) ps
-    return (PatternE e' ps', tcs ++ concat tcs', cls ++ concat cls')
+    return (PatternE e' ps', nub $ tcs ++ concat tcs', nub $ cls ++ concat cls')
   resolveInstances x = return (x, [], [])
 
   applyClassOnRecursive :: TypedAST -> (String, Type) -> TypedAST
@@ -331,7 +340,7 @@ module Core.Inference.Type where
   applyClassOnRecursive (LetInE (x, t) v b) (n, t') = LetInE (x, t) (applyClassOnRecursive v (n, t')) (applyClassOnRecursive b (n, t'))
   applyClassOnRecursive (PatternE e ps) (n, t) = PatternE (applyClassOnRecursive e (n, t)) (map (\(p, e) -> (p, applyClassOnRecursive e (n, t))) ps)
   applyClassOnRecursive x _ = x
-  
+
 
   topLevel :: MonadType m => A.Expression -> m (Maybe [TypedAST], Env)
   topLevel (A.Node (A.Identifier "class") [name', A.List fields]) = do
@@ -442,7 +451,7 @@ module Core.Inference.Type where
     (v', s1, t1') <- local (applyTypes (`M.union` e)) $ tyInfer value
     Env env c <- ask
     --liftIO $ print v'
-    (v'', args, preds) <- resolveInstances v'
+    (v'', args, preds) <- resolveInstances $ applyClassOnRecursive v' (name, t1')
     let t1 = case t1' of
           _ :=> ty -> if null preds then ty else preds :=> ty
           _ -> if null preds then t1' else preds :=> t1'
@@ -459,9 +468,7 @@ module Core.Inference.Type where
     let env'  = M.delete name env
         t'    = generalize (tyApply s3 env) (tyApply s3 t2)
         env'' = M.insert name t' env'
-    --liftIO $ print name
-    --liftIO $ putStrLn $ show' $ tyApply s3 t1
-    --liftIO $ print (name, tyApply s3 t2)
+      
     return (Just [LetE (name, tyApply s3 t2) (tyApply s3 $ if not (null args) then AbsE args v'' else v'')], Env env'' c)
 
   -- Top-level declare used to define function type

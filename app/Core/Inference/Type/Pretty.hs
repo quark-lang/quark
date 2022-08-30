@@ -77,7 +77,8 @@ module Core.Inference.Type.Pretty where
   show' :: Type -> String
   show' = flip showTy (False, False)
 
-  deriving instance Show Type
+  instance Show Type where
+    show = show'
 
   instance Show Scheme where
     show (Forall tv ty) = (if null tv then "" else "forall " ++ intercalate ", " tv' ++ ". ") ++ show ty
